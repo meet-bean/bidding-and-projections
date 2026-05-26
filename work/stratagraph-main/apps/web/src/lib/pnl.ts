@@ -197,7 +197,7 @@ export function getPnlAlerts(project: PnlProject): PnlAlert[] {
   if (months.length >= 3) {
     let consecutiveDeclines = 0;
     for (let i = 1; i < months.length; i++) {
-      if (months[i].gpPct < months[i - 1].gpPct) {
+      if (months[i]!.gpPct < months[i - 1]!.gpPct) {
         consecutiveDeclines++;
         if (consecutiveDeclines >= 2) {
           alerts.push({

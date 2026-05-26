@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useMemo } from 'react';
-import { Badge, Card, CardContent, CardHeader, CardTitle, cn } from '@repo/ui';
+import { useMemo, useState } from 'react';
+import { Badge, Card, CardContent, CardHeader, CardTitle, Tabs, TabsList, TabsTrigger, TabsContent, cn } from '@repo/ui';
 import { Briefcase, HardHat, TrendingUp, Truck } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
 import { JobBoard } from '~/components/job-board';
 import { UnitAvailabilityBadge } from '~/components/status-badges';
+import { PnlPortfolioView } from '~/components/pnl-portfolio';
+import { PnlProjectDetail } from '~/components/pnl-project-detail';
 
 export const Route = createFileRoute('/_dashboard/reports')({
   component: ReportsPage,
@@ -17,6 +19,11 @@ function ReportsPage() {
   const yards = useStore((s) => s.yards);
   const bids = useStore((s) => s.bids);
   const catalog = useStore((s) => s.serviceCatalog);
+  const customers = useStore((s) => s.customers);
+  const projectionProjects = useStore((s) => s.projectionProjects);
+  const invoices = useStore((s) => s.invoices);
+  const tenantId = useStore((s) => s.tenantId);
+  const [selectedPnlProjectId, setSelectedPnlProjectId] = useState<string | null>(null);
 
   // ---- Equipment utilization ---------------------------------------------
   const equipmentByYard = useMemo(() => {
@@ -93,6 +100,13 @@ function ReportsPage() {
   }, [jobs, bids, catalog, today, availableUnits]);
 
   return (
+    <Tabs defaultValue="overview">
+      <TabsList variant="line">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="pnl">P&L</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="overview">
     <div className="space-y-6">
       {/* Untapped-capacity hero — the boss pitch in one number.
        * Idle equipment = revenue we're not capturing. This card translates
@@ -363,6 +377,40 @@ function ReportsPage() {
         </div>
       </details>
     </div>
+      </TabsContent>
+
+      <TabsContent value="pnl">
+        {selectedPnlProjectId ? (
+          (() => {
+            const proj = projectionProjects.find((p) => p.id === selectedPnlProjectId);
+            return proj ? (
+              <PnlProjectDetail
+                project={proj}
+                onBack={() => setSelectedPnlProjectId(null)}
+              />
+            ) : (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                Project not found.{' '}
+                <button onClick={() => setSelectedPnlProjectId(null)} className="text-blue-600 hover:underline">
+                  Back to Portfolio
+                </button>
+              </div>
+            );
+          })()
+        ) : (
+          <PnlPortfolioView
+            projectionProjects={projectionProjects}
+            invoices={invoices}
+            jobs={jobs}
+            bids={bids}
+            catalog={catalog}
+            customers={customers}
+            tenantId={tenantId}
+            onSelectProject={setSelectedPnlProjectId}
+          />
+        )}
+      </TabsContent>
+    </Tabs>
   );
 }
 
