@@ -10,7 +10,8 @@ import {
   ingestBatch,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult } from '@repo/projections';
-import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle } from '@repo/ui';
+import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, ThemeModeButton } from '@repo/ui';
+import type { Theme, ResolvedTheme } from '@repo/ui';
 import { AlertTriangle, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
 import { ProjectionComments } from '~/components/projection-comments';
@@ -34,6 +35,24 @@ function ProjectionDetailPage() {
   const setActiveProjection = useStore((s) => s.setActiveProjection);
   const tenantId = useStore((s) => s.tenantId);
   const submitForecast = useStore((s) => s.submitForecast);
+
+  // Dark mode state
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return (localStorage.getItem('theme') as Theme) ?? 'light';
+  });
+  const resolvedTheme: ResolvedTheme =
+    theme === 'system'
+      ? (typeof window !== 'undefined' &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light')
+      : theme;
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    localStorage.setItem('theme', theme);
+  }, [theme, resolvedTheme]);
 
   // Panel state
   const [trendLineKey, setTrendLineKey] = useState<string | null>(null);
@@ -132,6 +151,14 @@ function ProjectionDetailPage() {
               {currentVersion.saved ? 'Submitted' : 'Submit Forecast'}
             </Button>
           )}
+          <ThemeModeButton
+            theme={theme}
+            resolvedTheme={resolvedTheme}
+            setTheme={setTheme}
+            size="sm"
+            variant="ghost"
+            show="icon"
+          />
           <Button
             size="sm"
             variant="outline"
