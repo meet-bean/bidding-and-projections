@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import { useStore } from '~/lib/store';
@@ -8,6 +8,7 @@ import {
   createColumnHelper,
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
+import { ProjectionDashboard } from '~/components/projection-dashboard';
 
 export const Route = createFileRoute('/_dashboard/projections/')({
   component: ProjectionsIndexPage,
@@ -40,6 +41,7 @@ function ProjectionsIndexPage() {
   const navigate = useNavigate();
   const projects = useStore((s) => s.projectionProjects);
   const removeProject = useStore((s) => s.removeProjectionProject);
+  const [view, setView] = useState<'list' | 'dashboard'>('list');
 
   const rows: ProjectionRow[] = useMemo(() => {
     return projects.map((p) => {
@@ -181,6 +183,38 @@ function ProjectionsIndexPage() {
     [columnHelper, removeProject]
   );
 
+  const viewToggle = (
+    <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+      <button
+        className={`rounded-md px-3 py-1 text-sm ${view === 'list' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+        onClick={() => setView('list')}
+      >
+        Projects
+      </button>
+      <button
+        className={`rounded-md px-3 py-1 text-sm ${view === 'dashboard' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+        onClick={() => setView('dashboard')}
+      >
+        Dashboard
+      </button>
+    </div>
+  );
+
+  if (view === 'dashboard') {
+    return (
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          {viewToggle}
+          <Button>
+            <Plus />
+            New Project
+          </Button>
+        </div>
+        <ProjectionDashboard projects={projects} />
+      </div>
+    );
+  }
+
   return (
     <DataListShell
       data={rows}
@@ -206,10 +240,13 @@ function ProjectionsIndexPage() {
       onRowClick={(row) => navigate({ to: '/projections/$projectId', params: { projectId: row.id } })}
       emptyMessage="No projection projects yet. Upload a Vista cost report to get started."
       actions={
-        <Button>
-          <Plus />
-          New Project
-        </Button>
+        <>
+          {viewToggle}
+          <Button>
+            <Plus />
+            New Project
+          </Button>
+        </>
       }
     />
   );
