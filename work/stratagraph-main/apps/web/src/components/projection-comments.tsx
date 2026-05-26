@@ -10,7 +10,7 @@ import {
   Textarea,
   Badge,
 } from '@repo/ui';
-import { Send, Trash2 } from 'lucide-react';
+import { Send, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ProjectionProject, ProjectionComment } from '@repo/projections';
 
 interface ProjectionCommentsProps {
@@ -29,6 +29,7 @@ export function ProjectionComments({
   onClose,
 }: ProjectionCommentsProps) {
   const [text, setText] = useState('');
+  const [showPrevious, setShowPrevious] = useState(false);
 
   const comments: ProjectionComment[] = lineKey ? (project.comments[lineKey] ?? []) : [];
   // Get the line item label for the header
@@ -37,6 +38,21 @@ export function ProjectionComments({
     lineKey && currentVersion
       ? currentVersion.items.find((i) => i.lineKey === lineKey)
       : null;
+
+  const currentLabel = (project.draft ?? project.versions.at(-1))?.label;
+  const currentComments = comments.filter(
+    (c) => c.versionLabel === currentLabel || !c.versionLabel,
+  );
+  const previousComments = comments.filter(
+    (c) => c.versionLabel && c.versionLabel !== currentLabel,
+  );
+
+  const prevByVersion = new Map<string, ProjectionComment[]>();
+  for (const c of previousComments) {
+    const label = c.versionLabel ?? 'Unknown';
+    if (!prevByVersion.has(label)) prevByVersion.set(label, []);
+    prevByVersion.get(label)!.push(c);
+  }
 
   const handleSubmit = () => {
     if (!lineKey || !text.trim()) return;
@@ -47,6 +63,18 @@ export function ProjectionComments({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleSubmit();
+    }
+  };
+
+  const handleCarryForward = (comment: ProjectionComment) => {
+    if (!lineKey) return;
+    onAddComment(lineKey, `[Carried forward from ${comment.versionLabel}] ${comment.text}`);
+  };
+
+  const handleCarryAllForward = () => {
+    if (!lineKey) return;
+    for (const c of previousComments) {
+      onAddComment(lineKey, `[Carried forward from ${c.versionLabel}] ${c.text}`);
     }
   };
 
@@ -74,44 +102,124 @@ export function ProjectionComments({
 
         {/* Comment list */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {comments.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">
-              No comments yet. Comments persist across all versions.
+          {/* Current cycle section */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Current cycle
             </p>
-          ) : (
-            comments.map((c) => (
-              <div key={c.id} className="group rounded-lg border bg-card p-3 space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-sm font-medium">{c.author}</span>
-                    {c.versionLabel && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        {c.versionLabel}
-                      </Badge>
-                    )}
+            {currentComments.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No comments this cycle</p>
+            ) : (
+              currentComments.map((c) => (
+                <div key={c.id} className="group rounded-lg border bg-card p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-sm font-medium">{c.author}</span>
+                      {c.versionLabel && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {c.versionLabel}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={() => lineKey && onDeleteComment(lineKey, c.id)}
+                        title="Delete comment"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      className="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
-                      onClick={() => lineKey && onDeleteComment(lineKey, c.id)}
-                      title="Delete comment"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </div>
+                  <p className="text-sm">{c.text}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(c.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </p>
                 </div>
-                <p className="text-sm">{c.text}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(c.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
-                </p>
+              ))
+            )}
+          </div>
+
+          {/* Previous months section */}
+          {previousComments.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                  onClick={() => setShowPrevious((v) => !v)}
+                >
+                  {showPrevious ? (
+                    <ChevronDown className="size-3.5" />
+                  ) : (
+                    <ChevronRight className="size-3.5" />
+                  )}
+                  Previous months ({previousComments.length})
+                </button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7"
+                  onClick={handleCarryAllForward}
+                >
+                  <Copy className="mr-1 size-3" />
+                  Carry all forward
+                </Button>
               </div>
-            ))
+
+              {showPrevious && (
+                <div className="space-y-4">
+                  {Array.from(prevByVersion.entries()).map(([versionLabel, versionComments]) => (
+                    <div key={versionLabel} className="space-y-2">
+                      <p className="text-xs text-muted-foreground font-medium">{versionLabel}</p>
+                      {versionComments.map((c) => (
+                        <div
+                          key={c.id}
+                          className="group rounded-lg border bg-card p-3 space-y-1.5"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-sm font-medium">{c.author}</span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                className="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-primary transition-colors"
+                                onClick={() => handleCarryForward(c)}
+                                title="Carry forward to current cycle"
+                              >
+                                <Copy className="size-3" />
+                              </button>
+                              <button
+                                className="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
+                                onClick={() => lineKey && onDeleteComment(lineKey, c.id)}
+                                title="Delete comment"
+                              >
+                                <Trash2 className="size-3" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-sm">{c.text}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(c.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
