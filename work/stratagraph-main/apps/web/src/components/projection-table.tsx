@@ -15,7 +15,7 @@ import {
   type ExpandedState,
   cn,
 } from '@repo/ui';
-import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
+import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown, ShieldAlert } from 'lucide-react';
 import { CompletionRing } from './completion-ring';
 import {
   formatCurrency,
@@ -24,6 +24,7 @@ import {
   lensVsPrev,
   computeAlerts,
   computeSummaryRows,
+  riskScore,
   VARIANCE_THRESHOLD_PCT,
   qtyComplete,
   dollarComplete,
@@ -255,7 +256,7 @@ export function ProjectionTable({
       size: 200,
     }),
     helper.accessor('unitOfMeasure', {
-      header: 'UM',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="UM" />,
       cell: ({ getValue }) => (
         <span className="text-xs text-muted-foreground">{getValue()}</span>
       ),
@@ -263,7 +264,7 @@ export function ProjectionTable({
     }),
     // Dynamic slice columns
     ...sliceColumns,
-    // Variance vs prev month — color coded
+    // Variance vs prev month — color coded, sorts by absolute value
     helper.accessor(
       (row) => {
         const v = lensVsPrev(project, row.lineKey);
@@ -272,6 +273,7 @@ export function ProjectionTable({
       {
         id: 'vsPrev',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Var MoM" />,
+        sortingFn: (a, b) => Math.abs(a.getValue('vsPrev') as number) - Math.abs(b.getValue('vsPrev') as number),
         cell: ({ getValue, row }) => {
           const pct = getValue();
           const v = lensVsPrev(project, row.original.lineKey);
@@ -324,6 +326,31 @@ export function ProjectionTable({
       },
       size: 140,
     }),
+    // Risk score
+    helper.accessor(
+      (row) => riskScore(project, row.lineKey)?.exposure ?? 0,
+      {
+        id: 'risk',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Risk" />,
+        cell: ({ row }) => {
+          const rs = riskScore(project, row.original.lineKey);
+          if (!rs || rs.score === 0) return <span className="text-xs text-muted-foreground">—</span>;
+          return (
+            <div className={cn(
+              'flex items-center gap-1 text-xs',
+              rs.level === 'high' && 'text-destructive',
+              rs.level === 'medium' && 'text-warning',
+              rs.level === 'low' && 'text-muted-foreground',
+            )}>
+              <ShieldAlert className="size-3" />
+              {formatCurrency(rs.exposure)}
+            </div>
+          );
+        },
+        sortingFn: (a, b) => Math.abs(a.getValue('risk') as number) - Math.abs(b.getValue('risk') as number),
+        size: 100,
+      },
+    ),
     // Actions: trend chart + comments
     helper.display({
       id: 'actions',
