@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildPnlProject, buildPnlPortfolio } from '../pnl';
-import type { ProjectionProject, FinancialSummaryMonth } from '@repo/projections';
+import { buildPnlProject, buildPnlPortfolio, buildCostBreakdown } from '../pnl';
+import type { ProjectionProject, ProjectionItem, FinancialSummaryMonth, TimeSlice } from '@repo/projections';
 
 const month = (date: string, revenue: number, cost: number): FinancialSummaryMonth => ({
   date,
@@ -124,5 +124,57 @@ describe('buildPnlPortfolio', () => {
     const portfolio = buildPnlPortfolio([p1, p2]);
     expect(portfolio.projects[0].name).toBe('Big');
     expect(portfolio.projects[1].name).toBe('Small');
+  });
+});
+
+const ts = (cost: number): TimeSlice => ({
+  qty: 0, hours: 0, upm: 0, mpu: 0, uc: 0, cost,
+});
+
+const fakeItem = (costType: string, forecastCost: number): ProjectionItem =>
+  ({
+    lineKey: `B-100-|${costType}`,
+    keyParts: ['B-100-', costType],
+    label: 'Test',
+    unitOfMeasure: 'EA',
+    CTP: ts(0),
+    CTD: ts(0),
+    CTC: ts(0),
+    F: ts(forecastCost),
+    Est: ts(0),
+    estVar: 0,
+    comp: 0,
+    prevForecast: 0,
+    calcHrs: 0,
+    wsRisk: 0,
+    isNew: false,
+    stale: false,
+  }) as ProjectionItem;
+
+describe('buildCostBreakdown', () => {
+  it('groups items by cost type', () => {
+    const items = [
+      fakeItem('2Labor', 500000),
+      fakeItem('2Labor', 300000),
+      fakeItem('3Material', 200000),
+    ];
+    const result = buildCostBreakdown(items);
+    expect(result).toHaveLength(2);
+    const labor = result.find((r) => r.type === 'Labor');
+    expect(labor).toBeDefined();
+    expect(labor!.amount).toBe(800000);
+    expect(labor!.percentage).toBeCloseTo(80.0, 1);
+    const material = result.find((r) => r.type === 'Material');
+    expect(material!.amount).toBe(200000);
+  });
+
+  it('returns empty array for no items', () => {
+    expect(buildCostBreakdown([])).toEqual([]);
+  });
+
+  it('handles unknown cost types as Other', () => {
+    const items = [fakeItem('99Unknown', 100000)];
+    const result = buildCostBreakdown(items);
+    expect(result[0].type).toBe('Other');
   });
 });

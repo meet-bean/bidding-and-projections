@@ -1,4 +1,4 @@
-import type { ProjectionProject, FinancialSummaryMonth } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, FinancialSummaryMonth } from '@repo/projections';
 
 export interface PnlProject {
   id: string;
@@ -88,4 +88,39 @@ export function buildPnlPortfolio(projects: ProjectionProject[]): PnlPortfolio {
     months,
     originalBid,
   };
+}
+
+const COST_TYPE_LABELS: Record<string, string> = {
+  '2Labor': 'Labor',
+  '3Material': 'Material',
+  '4Rental': 'Equipment',
+  '5SubCont': 'Subcontract',
+  '6OtherJC': 'Other',
+  '8Parts': 'Material',
+  '9Owned': 'Equipment',
+  '10Health': 'Labor',
+  '11Fuel': 'Equipment',
+};
+
+function costTypeLabel(raw: string): string {
+  return COST_TYPE_LABELS[raw] ?? 'Other';
+}
+
+export function buildCostBreakdown(items: ProjectionItem[]): CostBreakdown[] {
+  if (items.length === 0) return [];
+
+  const groups = new Map<string, number>();
+  for (const item of items) {
+    const label = costTypeLabel(item.keyParts[1] ?? '');
+    groups.set(label, (groups.get(label) ?? 0) + item.F.cost);
+  }
+
+  const total = Array.from(groups.values()).reduce((s, v) => s + v, 0);
+  return Array.from(groups.entries())
+    .map(([type, amount]) => ({
+      type,
+      amount,
+      percentage: total > 0 ? (amount / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
