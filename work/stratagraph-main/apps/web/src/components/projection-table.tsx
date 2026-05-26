@@ -9,11 +9,13 @@ import {
   DataGridColumnHeader,
   getCoreRowModel,
   getSortedRowModel,
+  getExpandedRowModel,
   useReactTable,
   type SortingState,
+  type ExpandedState,
   cn,
 } from '@repo/ui';
-import { TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
+import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
 import { CompletionRing } from './completion-ring';
 import {
   formatCurrency,
@@ -30,6 +32,7 @@ import type { ProjectionItem, ProjectionProject, TimeSlice } from '@repo/project
 import { ProjectionToolbar, filterItems, searchItems, type FilterId } from './projection-toolbar';
 import { useColumnVisibility } from './projection-column-picker';
 import { ProjectionSummaryRows } from './projection-summary-rows';
+import { ProjectionRowDetail } from './projection-row-detail';
 
 interface ProjectionTableProps {
   project: ProjectionProject;
@@ -126,6 +129,7 @@ export function ProjectionTable({
   onExport,
 }: ProjectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
   const [activeFilter, setActiveFilter] = useState<FilterId>('all');
   const [activeCostType, setActiveCostType] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -216,10 +220,28 @@ export function ProjectionTable({
     helper.accessor((row) => row.keyParts[0] ?? '', {
       id: 'phase',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Phase" />,
-      cell: ({ getValue }) => (
-        <span className="font-mono text-xs text-muted-foreground">{getValue()}</span>
+      cell: ({ row, getValue }) => (
+        <button
+          className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            row.toggleExpanded();
+          }}
+        >
+          {row.getIsExpanded() ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+          {getValue()}
+        </button>
       ),
       size: 100,
+      meta: {
+        expandedContent: (original: ProjectionItem) => (
+          <ProjectionRowDetail
+            item={original}
+            project={project}
+            onUpdateForecast={onUpdateForecast}
+          />
+        ),
+      },
     }),
     helper.accessor((row) => row.keyParts[1] ?? '', {
       id: 'costType',
@@ -350,10 +372,12 @@ export function ProjectionTable({
   const table = useReactTable({
     data: visibleItems,
     columns,
-    state: { sorting },
+    state: { sorting, expanded },
     onSortingChange: setSorting,
+    onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     getRowId: (row) => row.lineKey,
   });
 
