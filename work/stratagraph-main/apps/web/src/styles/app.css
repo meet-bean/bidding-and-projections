@@ -1,4 +1,5 @@
 @import '@repo/ui/styles/globals.css';
+@import './projection-tokens.css';
 
 /*
  * Stratagraph brand palette — 9 muted swatches anchored to specific meanings.

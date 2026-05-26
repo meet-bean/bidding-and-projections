@@ -1,0 +1,36 @@
+/* Slice column tints -- subtle background bands per time-slice group */
+:root {
+  --slice-ctp: oklch(0.92 0.02 60);
+  --slice-ctd: oklch(0.93 0.02 240);
+  --slice-ctc: oklch(0.93 0.02 300);
+  --slice-f:   oklch(0.93 0.02 150);
+  --slice-est: oklch(0.93 0.02 80);
+
+  --ct-labor:    oklch(0.65 0.15 240);
+  --ct-material: oklch(0.65 0.15 150);
+  --ct-rental:   oklch(0.65 0.15 300);
+  --ct-subcont:  oklch(0.65 0.15 30);
+  --ct-otherjc:  oklch(0.55 0.10 260);
+  --ct-parts:    oklch(0.65 0.12 200);
+  --ct-owned:    oklch(0.60 0.10 180);
+  --ct-health:   oklch(0.65 0.15 350);
+  --ct-fuel:     oklch(0.65 0.15 60);
+}
+
+.dark {
+  --slice-ctp: oklch(0.25 0.02 60);
+  --slice-ctd: oklch(0.25 0.02 240);
+  --slice-ctc: oklch(0.25 0.02 300);
+  --slice-f:   oklch(0.25 0.02 150);
+  --slice-est: oklch(0.25 0.02 80);
+
+  --ct-labor:    oklch(0.75 0.12 240);
+  --ct-material: oklch(0.75 0.12 150);
+  --ct-rental:   oklch(0.75 0.12 300);
+  --ct-subcont:  oklch(0.75 0.12 30);
+  --ct-otherjc:  oklch(0.65 0.08 260);
+  --ct-parts:    oklch(0.75 0.10 200);
+  --ct-owned:    oklch(0.70 0.08 180);
+  --ct-health:   oklch(0.75 0.12 350);
+  --ct-fuel:     oklch(0.75 0.12 60);
+}

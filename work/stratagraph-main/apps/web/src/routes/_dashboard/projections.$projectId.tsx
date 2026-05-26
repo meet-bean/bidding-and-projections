@@ -8,15 +8,18 @@ import {
   resolveAlert,
   reopenAlert,
   ingestBatch,
+  exportProjectionToVistaXLSX,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult } from '@repo/projections';
-import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle } from '@repo/ui';
-import { AlertTriangle, Upload } from 'lucide-react';
+import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, ThemeModeButton } from '@repo/ui';
+import type { Theme, ResolvedTheme } from '@repo/ui';
+import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
 import { ProjectionComments } from '~/components/projection-comments';
 import { ProjectionTrendModal } from '~/components/projection-trend-modal';
 import { ProjectionAlertsPanel } from '~/components/projection-alerts-panel';
 import { ProjectionUpload } from '~/components/projection-upload';
+import { ProjectionVersionHistory } from '~/components/projection-version-history';
 import { MonthlyEntryForm } from '~/components/monthly-entry-form';
 import { computeAlerts } from '@repo/projections';
 import { vistaAdapter } from '@repo/projections';
@@ -35,11 +38,31 @@ function ProjectionDetailPage() {
   const tenantId = useStore((s) => s.tenantId);
   const submitForecast = useStore((s) => s.submitForecast);
 
+  // Dark mode state
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return (localStorage.getItem('theme') as Theme) ?? 'light';
+  });
+  const resolvedTheme: ResolvedTheme =
+    theme === 'system'
+      ? (typeof window !== 'undefined' &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light')
+      : theme;
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    localStorage.setItem('theme', theme);
+  }, [theme, resolvedTheme]);
+
   // Panel state
   const [trendLineKey, setTrendLineKey] = useState<string | null>(null);
   const [commentsLineKey, setCommentsLineKey] = useState<string | null>(null);
   const [showAlerts, setShowAlerts] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Ensure this project is the active one whenever projectId changes
   useEffect(() => {
@@ -86,6 +109,22 @@ function ProjectionDetailPage() {
     setCommentsLineKey(lineKey);
   };
 
+  const handleExport = async () => {
+    if (!currentVersion) return;
+    const blob = await exportProjectionToVistaXLSX(
+      currentVersion.items,
+      project.name,
+      currentVersion.label,
+      project,
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${project.jobNumber}-${currentVersion.label}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleBatchImport = (result: BatchUploadResult) => {
     updateActiveProjection((p) =>
       ingestBatch(
@@ -103,6 +142,16 @@ function ProjectionDetailPage() {
 
   const currentVersion =
     project.draft ?? project.versions[project.versions.length - 1];
+
+  const effectiveVersion = viewingVersionId
+    ? project.versions.find((v) => v.id === viewingVersionId) ?? currentVersion
+    : currentVersion;
+  const isReadOnly = viewingVersionId !== null && viewingVersionId !== currentVersion?.id;
+
+  // When in read-only mode, swap in the selected version so the table reads it
+  const tableProject = isReadOnly && effectiveVersion
+    ? { ...project, draft: effectiveVersion }
+    : project;
 
   const { open: openAlerts } = computeAlerts(project);
 
@@ -132,6 +181,14 @@ function ProjectionDetailPage() {
               {currentVersion.saved ? 'Submitted' : 'Submit Forecast'}
             </Button>
           )}
+          <ThemeModeButton
+            theme={theme}
+            resolvedTheme={resolvedTheme}
+            setTheme={setTheme}
+            size="sm"
+            variant="ghost"
+            show="icon"
+          />
           <Button
             size="sm"
             variant="outline"
@@ -139,6 +196,17 @@ function ProjectionDetailPage() {
           >
             <Upload className="mr-1.5 size-3.5" />
             Upload
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowHistory(true)}
+          >
+            <Clock className="mr-1.5 size-3.5" />
+            History
+            <Badge variant="secondary" size="sm" className="ml-1.5">
+              {project.versions.length}
+            </Badge>
           </Button>
           <Button
             size="sm"
@@ -156,12 +224,25 @@ function ProjectionDetailPage() {
         </div>
       </div>
 
+      {/* Read-only banner when viewing a past version */}
+      {isReadOnly && (
+        <div className="rounded-lg border border-warning bg-warning/10 px-4 py-2 flex items-center justify-between">
+          <span className="text-sm">
+            Viewing read-only snapshot: {effectiveVersion?.label}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setViewingVersionId(null)}>
+            Back to Current
+          </Button>
+        </div>
+      )}
+
       {/* Main table */}
       <ProjectionTable
-        project={project}
+        project={tableProject}
         onUpdateForecast={handleUpdateForecast}
         onOpenTrend={handleOpenTrend}
         onOpenComments={handleOpenComments}
+        onExport={handleExport}
       />
 
       {/* Monthly entry form — Superior tenant only */}
@@ -209,6 +290,22 @@ function ProjectionDetailPage() {
         open={showUpload}
         onOpenChange={setShowUpload}
         onBatchImport={handleBatchImport}
+      />
+
+      {/* Version history sheet */}
+      <ProjectionVersionHistory
+        project={project}
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        viewingVersionId={viewingVersionId}
+        onSelectVersion={(id) => {
+          setViewingVersionId(id);
+          setShowHistory(false);
+        }}
+        onUploadNext={() => {
+          setShowHistory(false);
+          setShowUpload(true);
+        }}
       />
     </div>
   );

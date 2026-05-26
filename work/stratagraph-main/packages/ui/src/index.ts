@@ -54,6 +54,7 @@ export {
   type VisibilityState,
   type RowSelectionState,
   type PaginationState,
+  type ExpandedState,
 } from '@tanstack/react-table';
 export * from './components/ui/empty';
 export * from './components/loading-state';
