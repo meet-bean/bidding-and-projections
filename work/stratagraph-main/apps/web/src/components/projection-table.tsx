@@ -14,12 +14,15 @@ import {
   cn,
 } from '@repo/ui';
 import { TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
+import { CompletionRing } from './completion-ring';
 import {
   formatCurrency,
   formatPercent,
   lensVsPrev,
   computeAlerts,
   VARIANCE_THRESHOLD_PCT,
+  qtyComplete,
+  dollarComplete,
 } from '@repo/projections';
 import type { ProjectionItem, ProjectionProject } from '@repo/projections';
 
@@ -232,26 +235,30 @@ export function ProjectionTable({
     // % complete
     helper.accessor('comp', {
       header: ({ column }) => <DataGridColumnHeader column={column} title="% Done" />,
-      cell: ({ getValue }) => {
-        const pct = getValue();
+      cell: ({ row }) => {
+        const item = row.original;
+        const qPct = qtyComplete(item);
+        const dPct = dollarComplete(item);
         return (
           <div className="flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  pct > 100 ? 'bg-destructive' : pct >= 80 ? 'bg-success' : 'bg-primary',
-                )}
-                style={{ width: `${Math.min(pct, 100)}%` }}
+            {qPct != null && (
+              <CompletionRing pct={qPct} size={28} label={`${qPct.toFixed(0)}%`} />
+            )}
+            {dPct != null && (
+              <CompletionRing
+                pct={dPct}
+                size={28}
+                label={`$${dPct.toFixed(0)}%`}
+                className="text-muted-foreground"
               />
-            </div>
-            <span className="w-8 text-right text-xs tabular-nums">
-              {pct.toFixed(0)}%
-            </span>
+            )}
+            {qPct == null && dPct == null && (
+              <span className="text-xs text-muted-foreground">--</span>
+            )}
           </div>
         );
       },
-      size: 120,
+      size: 140,
     }),
     // Actions: trend chart + comments
     helper.display({
