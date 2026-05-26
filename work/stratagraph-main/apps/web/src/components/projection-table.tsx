@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   createColumnHelper,
   DataGrid,
@@ -17,6 +17,7 @@ import { TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
 import { CompletionRing } from './completion-ring';
 import {
   formatCurrency,
+  formatNumber,
   formatPercent,
   lensVsPrev,
   computeAlerts,
@@ -24,7 +25,9 @@ import {
   qtyComplete,
   dollarComplete,
 } from '@repo/projections';
-import type { ProjectionItem, ProjectionProject } from '@repo/projections';
+import type { ProjectionItem, ProjectionProject, TimeSlice } from '@repo/projections';
+import { ProjectionToolbar, filterItems, searchItems, type FilterId } from './projection-toolbar';
+import { useColumnVisibility } from './projection-column-picker';
 
 interface ProjectionTableProps {
   project: ProjectionProject;
@@ -34,9 +37,16 @@ interface ProjectionTableProps {
   ) => void;
   onOpenTrend: (lineKey: string) => void;
   onOpenComments: (lineKey: string) => void;
+  onExport: () => void;
 }
 
 const helper = createColumnHelper<ProjectionItem>();
+
+const SLICES = ['CTP', 'CTD', 'CTC', 'F', 'Est'] as const;
+const FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const FIELD_LABELS: Record<string, string> = {
+  qty: 'Qty', hours: 'Hours', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
+};
 
 // Inline editable cell for forecast fields
 function EditableCell({
@@ -111,8 +121,13 @@ export function ProjectionTable({
   onUpdateForecast,
   onOpenTrend,
   onOpenComments,
+  onExport,
 }: ProjectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const [activeCostType, setActiveCostType] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const colVis = useColumnVisibility();
 
   // Get the current items (draft or latest version)
   const currentVersion =
@@ -120,13 +135,79 @@ export function ProjectionTable({
   const items = currentVersion?.items ?? [];
 
   // Compute alerts to get alert counts per line
-  const alerts = computeAlerts(project);
+  const alertsResult = computeAlerts(project);
   const alertsByKey = new Map<string, number>();
-  for (const a of alerts.open) {
+  for (const a of alertsResult.open) {
     alertsByKey.set(a.key, (alertsByKey.get(a.key) ?? 0) + 1);
   }
 
-  const columns = [
+  // Comment counts for filter
+  const commentCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [key, comments] of Object.entries(project.comments)) {
+      m.set(key, comments.length);
+    }
+    return m;
+  }, [project.comments]);
+
+  // Chain filtering
+  const visibleItems = useMemo(() => {
+    let result = items;
+    result = searchItems(result, searchQuery);
+    result = filterItems(result, activeFilter, alertsResult, commentCounts);
+    if (activeCostType) {
+      result = result.filter((it) => (it.keyParts[1] ?? '') === activeCostType);
+    }
+    return result;
+  }, [items, searchQuery, activeFilter, alertsResult, commentCounts, activeCostType]);
+
+  // Dynamic slice columns based on visibility
+  const sliceColumns = useMemo(() => {
+    const cols = [];
+    for (const slice of SLICES) {
+      for (const field of FIELDS) {
+        if (!colVis.isVisible(slice, field)) continue;
+        const sliceName = slice as keyof Pick<ProjectionItem, 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'>;
+        const fieldName = field as keyof TimeSlice;
+        const isEditable = slice === 'F' && (field === 'qty' || field === 'hours' || field === 'cost');
+
+        cols.push(
+          helper.accessor((row) => row[sliceName][fieldName], {
+            id: `${slice}-${field}`,
+            header: ({ column }) => (
+              <DataGridColumnHeader column={column} title={`${slice} ${FIELD_LABELS[field]}`} />
+            ),
+            cell: isEditable
+              ? ({ row, getValue }) => (
+                  <EditableCell
+                    value={getValue() as number}
+                    onCommit={(v) => {
+                      const patch: Record<string, number> = {};
+                      patch[field] = v;
+                      onUpdateForecast(row.original.lineKey, patch);
+                    }}
+                  />
+                )
+              : ({ getValue }) => (
+                  <div className="text-right text-sm tabular-nums">
+                    {(getValue() as number) === 0 ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      formatNumber(getValue() as number)
+                    )}
+                  </div>
+                ),
+            size: field === 'cost' ? 110 : 80,
+          }),
+        );
+      }
+    }
+    return cols;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colVis.vis, onUpdateForecast]);
+
+  const columns = useMemo(() => [
+    // Static columns
     helper.accessor((row) => row.keyParts[0] ?? '', {
       id: 'phase',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Phase" />,
@@ -153,52 +234,8 @@ export function ProjectionTable({
       ),
       size: 60,
     }),
-    helper.accessor((row) => row.CTD.cost, {
-      id: 'ctdCost',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="CTD Cost" />,
-      cell: ({ getValue }) => (
-        <div className="text-right text-sm tabular-nums">
-          {getValue() === 0 ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            formatCurrency(getValue())
-          )}
-        </div>
-      ),
-      size: 110,
-    }),
-    helper.accessor((row) => row.F.cost, {
-      id: 'fCost',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="F Cost" />,
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onCommit={(v) => onUpdateForecast(row.original.lineKey, { cost: v })}
-        />
-      ),
-      size: 120,
-    }),
-    helper.accessor((row) => row.F.qty, {
-      id: 'fQty',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="F Qty" />,
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onCommit={(v) => onUpdateForecast(row.original.lineKey, { qty: v })}
-        />
-      ),
-      size: 90,
-    }),
-    helper.accessor((row) => row.Est.cost, {
-      id: 'estCost',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="Estimate" />,
-      cell: ({ getValue }) => (
-        <div className="text-right text-sm tabular-nums text-muted-foreground">
-          {getValue() === 0 ? '—' : formatCurrency(getValue())}
-        </div>
-      ),
-      size: 110,
-    }),
+    // Dynamic slice columns
+    ...sliceColumns,
     // Variance vs prev month — color coded
     helper.accessor(
       (row) => {
@@ -302,10 +339,11 @@ export function ProjectionTable({
       },
       size: 80,
     }),
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sliceColumns, project, alertsByKey, onOpenTrend, onOpenComments, onUpdateForecast]);
 
   const table = useReactTable({
-    data: items,
+    data: visibleItems,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -323,14 +361,33 @@ export function ProjectionTable({
   }
 
   return (
-    <DataGrid
-      table={table}
-      recordCount={items.length}
-      tableLayout={{ headerSticky: true, dense: true, rowBorder: true }}
-    >
-      <DataGridContainer>
-        <DataGridTable />
-      </DataGridContainer>
-    </DataGrid>
+    <div className="space-y-3">
+      <ProjectionToolbar
+        items={items}
+        alerts={alertsResult}
+        commentCounts={commentCounts}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        activeCostType={activeCostType}
+        onCostTypeChange={setActiveCostType}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        columnVis={colVis.vis}
+        onToggleColumn={colVis.toggle}
+        onToggleSlice={colVis.toggleSlice}
+        onResetColumns={colVis.reset}
+        activeColumnCount={colVis.activeCount}
+        onExport={onExport}
+      />
+      <DataGrid
+        table={table}
+        recordCount={visibleItems.length}
+        tableLayout={{ headerSticky: true, dense: true, rowBorder: true }}
+      >
+        <DataGridContainer>
+          <DataGridTable />
+        </DataGridContainer>
+      </DataGrid>
+    </div>
   );
 }

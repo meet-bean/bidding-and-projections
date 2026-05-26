@@ -8,6 +8,7 @@ import {
   resolveAlert,
   reopenAlert,
   ingestBatch,
+  exportProjectionToVistaXLSX,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult } from '@repo/projections';
 import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, ThemeModeButton } from '@repo/ui';
@@ -105,6 +106,22 @@ function ProjectionDetailPage() {
     setCommentsLineKey(lineKey);
   };
 
+  const handleExport = async () => {
+    if (!currentVersion) return;
+    const blob = await exportProjectionToVistaXLSX(
+      currentVersion.items,
+      project.name,
+      currentVersion.label,
+      project,
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${project.jobNumber}-${currentVersion.label}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleBatchImport = (result: BatchUploadResult) => {
     updateActiveProjection((p) =>
       ingestBatch(
@@ -189,6 +206,7 @@ function ProjectionDetailPage() {
         onUpdateForecast={handleUpdateForecast}
         onOpenTrend={handleOpenTrend}
         onOpenComments={handleOpenComments}
+        onExport={handleExport}
       />
 
       {/* Monthly entry form — Superior tenant only */}
