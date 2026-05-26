@@ -173,23 +173,36 @@ Position it as the first item in the Admin group (before Team).
 }
 ```
 
-### PM seed users
-
-Add 1-2 project manager users to seed data:
+### Superior Construction seed users
 
 ```typescript
 {
-  id: 'user-pm-1',
-  name: 'Elena Vasquez',
-  email: 'elena.vasquez@superiorconstruction.com',
+  id: 'user-pm-jpc',
+  name: 'Juan Pablo Cardenas',
+  email: 'jpcardenas@superiorconstruction.com',
   role: 'project_manager',
-  title: 'Senior Project Manager',
-  region: 'GOM',
+  title: 'Project Manager',
+  active: true,
+},
+{
+  id: 'user-pm-tv',
+  name: 'Trushit Vaishnav',
+  email: 'tvaishnav@superiorconstruction.com',
+  role: 'project_manager',
+  title: 'Project Manager',
+  active: true,
+},
+{
+  id: 'user-admin-be',
+  name: 'Brian Ellison',
+  email: 'bellison@superiorconstruction.com',
+  role: 'executive',
+  title: 'Admin',
   active: true,
 }
 ```
 
-Assign the PM to 1-2 existing seed jobs via `projectManagerId`.
+Assign Juan Pablo and Trushit to existing seed jobs via `projectManagerId`.
 
 ## Out of Scope
 
