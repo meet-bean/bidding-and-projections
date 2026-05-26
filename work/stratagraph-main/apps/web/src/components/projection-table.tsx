@@ -21,6 +21,7 @@ import {
   formatPercent,
   lensVsPrev,
   computeAlerts,
+  computeSummaryRows,
   VARIANCE_THRESHOLD_PCT,
   qtyComplete,
   dollarComplete,
@@ -28,6 +29,7 @@ import {
 import type { ProjectionItem, ProjectionProject, TimeSlice } from '@repo/projections';
 import { ProjectionToolbar, filterItems, searchItems, type FilterId } from './projection-toolbar';
 import { useColumnVisibility } from './projection-column-picker';
+import { ProjectionSummaryRows } from './projection-summary-rows';
 
 interface ProjectionTableProps {
   project: ProjectionProject;
@@ -160,6 +162,9 @@ export function ProjectionTable({
     }
     return result;
   }, [items, searchQuery, activeFilter, alertsResult, commentCounts, activeCostType]);
+
+  // Summary rows (cost type grouping + grand totals)
+  const summary = useMemo(() => computeSummaryRows(items), [items]);
 
   // Dynamic slice columns based on visibility
   const sliceColumns = useMemo(() => {
@@ -379,6 +384,16 @@ export function ProjectionTable({
         activeColumnCount={colVis.activeCount}
         onExport={onExport}
       />
+      {/* Grand totals bar */}
+      <div className="flex items-center gap-4 rounded-lg border bg-muted/30 px-4 py-2 text-sm tabular-nums">
+        <span className="font-medium">{summary.grand.count} items</span>
+        <span>CTD: <strong>{formatCurrency(summary.grand.CTD.cost)}</strong></span>
+        <span>Forecast: <strong>{formatCurrency(summary.grand.F.cost)}</strong></span>
+        <span>Estimate: <strong>{formatCurrency(summary.grand.Est.cost)}</strong></span>
+        <span className={summary.grand.F.cost > summary.grand.Est.cost ? 'text-destructive' : 'text-success'}>
+          Var: {formatCurrency(summary.grand.F.cost - summary.grand.Est.cost)}
+        </span>
+      </div>
       <DataGrid
         table={table}
         recordCount={visibleItems.length}
@@ -388,6 +403,7 @@ export function ProjectionTable({
           <DataGridTable />
         </DataGridContainer>
       </DataGrid>
+      <ProjectionSummaryRows summary={summary} />
     </div>
   );
 }
