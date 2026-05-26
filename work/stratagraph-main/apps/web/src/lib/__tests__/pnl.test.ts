@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildPnlProject, buildPnlPortfolio, buildCostBreakdown } from '../pnl';
+import { buildPnlProject, buildPnlPortfolio, buildCostBreakdown, buildStratagraphPnl, getPnlAlerts } from '../pnl';
+import type { PnlProject } from '../pnl';
 import type { ProjectionProject, ProjectionItem, FinancialSummaryMonth, TimeSlice } from '@repo/projections';
+import type { Invoice, Job, Bid, ServiceCatalogItem } from '~/lib/types';
 
 const month = (date: string, revenue: number, cost: number): FinancialSummaryMonth => ({
   date,
@@ -176,5 +178,162 @@ describe('buildCostBreakdown', () => {
     const items = [fakeItem('99Unknown', 100000)];
     const result = buildCostBreakdown(items);
     expect(result[0].type).toBe('Other');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildStratagraphPnl
+// ---------------------------------------------------------------------------
+
+const fakeInvoice = (
+  id: string,
+  projectId: string,
+  totalUsd: number,
+  rangeStart: string,
+  rangeEnd: string,
+  status: 'draft' | 'sent' | 'paid' = 'sent'
+): Invoice =>
+  ({
+    id,
+    invoiceNumber: `INV-${id}`,
+    projectId,
+    status,
+    rangeStart,
+    rangeEnd,
+    generatedDate: rangeEnd,
+    totalUsd,
+  }) as Invoice;
+
+const fakeJob = (id: string, bidId: string): Job =>
+  ({
+    id,
+    jobNumber: `J-${id}`,
+    customerId: 'cust-1',
+    wellName: 'Test Well',
+    status: 'active' as const,
+    bidId,
+    serviceRuns: [
+      { code: 'LOG', startDate: '2026-01-01', endDate: '2026-01-31' },
+      { code: 'LOG', startDate: '2026-02-01', endDate: '2026-02-28' },
+    ],
+  }) as unknown as Job;
+
+const fakeBid = (id: string): Bid =>
+  ({
+    id,
+    lineItems: [
+      { id: 'li-1', catalogItemId: 'cat-log', rate: 3500, estimatedQty: 30 },
+    ],
+  }) as unknown as Bid;
+
+const fakeCatalogItem = (): ServiceCatalogItem =>
+  ({
+    id: 'cat-log',
+    category: 'logging',
+    name: 'Mudlogging',
+    defaultRate: 3500,
+    rateNote: null,
+    dailyCode: 'LOG',
+    billingUnit: 'per_day',
+  }) as ServiceCatalogItem;
+
+describe('buildStratagraphPnl', () => {
+  it('groups invoice revenue by project and month', () => {
+    const invoices = [
+      fakeInvoice('1', 'job-1', 100000, '2026-01-01', '2026-01-31'),
+      fakeInvoice('2', 'job-1', 120000, '2026-02-01', '2026-02-28'),
+    ];
+    const jobs = [fakeJob('job-1', 'bid-1')];
+    const bids = [fakeBid('bid-1')];
+    const catalog = [fakeCatalogItem()];
+
+    const projects = buildStratagraphPnl(invoices, jobs, bids, catalog);
+    expect(projects).toHaveLength(1);
+    expect(projects[0].months).toHaveLength(2);
+    expect(projects[0].months[0].revenue).toBe(100000);
+    expect(projects[0].months[1].revenue).toBe(120000);
+    expect(projects[0].totals.revenue).toBe(220000);
+  });
+
+  it('returns empty when no invoices', () => {
+    const projects = buildStratagraphPnl([], [], [], []);
+    expect(projects).toHaveLength(0);
+  });
+
+  it('ignores draft invoices', () => {
+    const invoices = [
+      fakeInvoice('1', 'job-1', 50000, '2026-01-01', '2026-01-31', 'draft'),
+    ];
+    const projects = buildStratagraphPnl(invoices, [], [], []);
+    expect(projects).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPnlAlerts
+// ---------------------------------------------------------------------------
+
+const makePnlProject = (overrides: Partial<PnlProject>): PnlProject => ({
+  id: 'test',
+  name: 'Test',
+  customer: 'Co',
+  months: [],
+  originalBid: null,
+  totals: { revenue: 0, cost: 0, profit: 0, gpPct: 0 },
+  ...overrides,
+});
+
+describe('getPnlAlerts', () => {
+  it('flags low GP%', () => {
+    const p = makePnlProject({ totals: { revenue: 100, cost: 95, profit: 5, gpPct: 5.0 } });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'low-gp')).toBe(true);
+  });
+
+  it('does not flag healthy GP%', () => {
+    const p = makePnlProject({ totals: { revenue: 100, cost: 85, profit: 15, gpPct: 15.0 } });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'low-gp')).toBe(false);
+  });
+
+  it('flags declining GP% for 2+ consecutive months', () => {
+    const p = makePnlProject({
+      months: [
+        { date: '2026-01-01', revenue: 100, cost: 85, profit: 15, gpPct: 15 },
+        { date: '2026-02-01', revenue: 100, cost: 88, profit: 12, gpPct: 12 },
+        { date: '2026-03-01', revenue: 100, cost: 91, profit: 9, gpPct: 9 },
+      ],
+    });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'declining-gp')).toBe(true);
+  });
+
+  it('does not flag one-month decline', () => {
+    const p = makePnlProject({
+      months: [
+        { date: '2026-01-01', revenue: 100, cost: 85, profit: 15, gpPct: 15 },
+        { date: '2026-02-01', revenue: 100, cost: 88, profit: 12, gpPct: 12 },
+      ],
+    });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'declining-gp')).toBe(false);
+  });
+
+  it('flags cost exceeding bid by >10%', () => {
+    const p = makePnlProject({
+      originalBid: { revenue: 1000, cost: 800, profit: 200, gpPct: 20 },
+      totals: { revenue: 1000, cost: 900, profit: 100, gpPct: 10 },
+    });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'over-bid')).toBe(true);
+  });
+
+  it('does not flag cost within 10% of bid', () => {
+    const p = makePnlProject({
+      originalBid: { revenue: 1000, cost: 800, profit: 200, gpPct: 20 },
+      totals: { revenue: 1000, cost: 850, profit: 150, gpPct: 15 },
+    });
+    const alerts = getPnlAlerts(p);
+    expect(alerts.some((a) => a.type === 'over-bid')).toBe(false);
   });
 });
