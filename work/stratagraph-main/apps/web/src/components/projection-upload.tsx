@@ -15,6 +15,7 @@ import { parseBatchUpload, detectColumns, parseWithMetrics } from '@repo/project
 import type { ProjectionAdapter, BatchUploadResult, DetectionSummary, DetectionResult } from '@repo/projections';
 import { useStore } from '~/lib/store';
 import { MappingDialog } from './mapping-dialog';
+import { ProjectionImportReview } from './projection-import-review';
 import * as XLSX from 'xlsx';
 
 interface ProjectionUploadProps {
@@ -35,6 +36,7 @@ export function ProjectionUpload({
   const [loading, setLoading] = useState(false);
   const [detection, setDetection] = useState<DetectionSummary | null>(null);
   const [showMapper, setShowMapper] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [rawSheetData, setRawSheetData] = useState<{ headers: string[]; rows: Record<string, unknown>[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const catalog = useStore((s) => s.metricsCatalog);
@@ -136,7 +138,12 @@ export function ProjectionUpload({
 
   const handleImport = () => {
     if (!preview) return;
-    onBatchImport(preview);
+    setShowReview(true);
+  };
+
+  const handleReviewConfirm = (result: BatchUploadResult) => {
+    onBatchImport(result);
+    setShowReview(false);
     handleClose();
   };
 
@@ -145,6 +152,7 @@ export function ProjectionUpload({
     setPreview(null);
     setDetection(null);
     setShowMapper(false);
+    setShowReview(false);
     setRawSheetData(null);
     onOpenChange(false);
   };
@@ -249,6 +257,15 @@ export function ProjectionUpload({
           detection={detection}
           onConfirm={handleMapperConfirm}
           showOnlyNew={detection.recognizedCount > 0}
+        />
+      )}
+
+      {showReview && preview && (
+        <ProjectionImportReview
+          open={showReview}
+          preview={preview}
+          onConfirm={handleReviewConfirm}
+          onCancel={() => setShowReview(false)}
         />
       )}
     </>
