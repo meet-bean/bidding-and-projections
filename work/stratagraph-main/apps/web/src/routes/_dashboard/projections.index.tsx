@@ -9,6 +9,9 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { ProjectionDashboard } from '~/components/projection-dashboard';
+import { ProjectionUpload } from '~/components/projection-upload';
+import { vistaAdapter } from '@repo/projections';
+import type { BatchUploadResult } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/')({
   component: ProjectionsIndexPage,
@@ -41,7 +44,21 @@ function ProjectionsIndexPage() {
   const navigate = useNavigate();
   const projects = useStore((s) => s.projectionProjects);
   const removeProject = useStore((s) => s.removeProjectionProject);
+  const autoCreate = useStore((s) => s.autoCreateProjectionFromUpload);
+  const tenantConfig = useStore((s) => s.getTenantConfig());
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [view, setView] = useState<'list' | 'dashboard'>('list');
+
+  const handleNewProjectUpload = (result: BatchUploadResult) => {
+    const cycle = result.cycles[0];
+    if (!cycle || cycle.items.length === 0) return;
+    autoCreate(
+      cycle.label || 'New Project',
+      tenantConfig.name,
+      '',
+      cycle.items,
+    );
+  };
 
   const rows: ProjectionRow[] = useMemo(() => {
     return projects.map((p) => {
@@ -205,17 +222,24 @@ function ProjectionsIndexPage() {
       <div className="flex flex-col">
         <div className="flex items-center justify-between border-b px-4 py-2">
           {viewToggle}
-          <Button>
+          <Button onClick={() => setUploadOpen(true)}>
             <Plus />
             New Project
           </Button>
         </div>
         <ProjectionDashboard projects={projects} />
+        <ProjectionUpload
+          adapter={vistaAdapter}
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          onBatchImport={handleNewProjectUpload}
+        />
       </div>
     );
   }
 
   return (
+    <>
     <DataListShell
       data={rows}
       columns={columns}
@@ -242,12 +266,19 @@ function ProjectionsIndexPage() {
       actions={
         <>
           {viewToggle}
-          <Button>
+          <Button onClick={() => setUploadOpen(true)}>
             <Plus />
             New Project
           </Button>
         </>
       }
     />
+    <ProjectionUpload
+      adapter={vistaAdapter}
+      open={uploadOpen}
+      onOpenChange={setUploadOpen}
+      onBatchImport={handleNewProjectUpload}
+    />
+  </>
   );
 }

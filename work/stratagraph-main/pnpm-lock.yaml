@@ -56,6 +56,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -90,6 +93,9 @@ importers:
       vite:
         specifier: ^7.0.0
         version: 7.3.3(@types/node@25.8.0)(jiti@2.7.0)(lightningcss@1.32.0)
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@25.8.0)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))
 
   packages/config:
     devDependencies:

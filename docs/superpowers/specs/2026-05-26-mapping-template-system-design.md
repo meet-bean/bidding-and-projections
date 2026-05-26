@@ -29,13 +29,15 @@ A generic, auto-detecting spreadsheet mapping system for the projections tool. U
 
 ## Architecture
 
-Five components, built in order:
+Seven components, built in order:
 
 1. Metrics Catalog (data model + admin page)
 2. Auto-Detection Engine
 3. Mapper Dialog
-4. Generic Parser
-5. Vista Fallback Integration
+4. Row Reconciliation
+5. Line Item Registry
+6. Generic Parser
+7. Vista Fallback Integration
 
 ---
 
@@ -132,21 +134,13 @@ The CostType UM column is parsed to extract both cost type and unit of measureme
 
 ---
 
-## 3. Mapper Dialog
+## 3. Import Dialog
 
-A modal dialog that appears during project creation, immediately after file upload.
+A two-step wizard that appears after file upload. Steps 1 and 2 are the same code path for every upload — first or hundredth. The dialog is skipped entirely (silent import with success toast) when there's nothing new to review.
 
-### When It Appears
+### Step 1 — Columns (Metrics)
 
-| Scenario | Behavior |
-|----------|----------|
-| First upload (empty catalog) | Shows all columns for review |
-| All columns recognized | No dialog — silent import with success toast |
-| Some new columns | Dialog shows only new/unrecognized columns with summary: "12 columns recognized · 3 new columns to review" |
-
-### Column Row Layout
-
-Each row in the mapper shows:
+Each row in the column review shows:
 
 | Element | Description |
 |---------|-------------|
@@ -154,24 +148,40 @@ Each row in the mapper shows:
 | **Sample value** | First non-empty data value |
 | **Detected metric** | Auto-detected assignment, editable inline (click to change via dropdown of existing metrics or "Create new metric") |
 | **Formula** | Detected formula if applicable, editable inline |
+| **Possible Match** | If the column name is similar to an existing metric but not an exact/alias match — shows the candidate for the user to confirm or dismiss |
 | **Slice group tag** | CTP / CTD / CTC / F / Est badge |
 | **Skip toggle** | Exclude this column from import |
 
-### Actions
+Recognized columns are shown as a collapsed summary at the top. Only new/unrecognized columns are expanded for review.
 
-- **Confirm & Import** — saves new metrics to the catalog, runs the parser
-- **Skip All New** — imports only recognized columns, ignores new ones
+### Step 2 — Rows (Line Items)
 
-### Inline Editing
+Each row in the line item review shows:
 
-When the auto-detection gets something wrong, the user clicks on the detected metric or formula cell and can:
+| Element | Description |
+|---------|-------------|
+| **Incoming row** | Phase + Description + Cost Type as read from the file |
+| **Status** | New item, or Possible Match |
+| **Possible Match** | The existing line item it resembles (only shown when 2+ of 3 identifier fields are similar) |
+| **Action** | [Same item] / [Different] for fuzzy matches; new items are added automatically |
 
-- Select a different existing metric from a dropdown
-- Create a new metric on the spot
+Matched rows (exact or via known alias) are shown as a collapsed summary. Only new items and fuzzy matches are expanded.
+
+### Inline Editing (Both Steps)
+
+When the auto-detection gets something wrong, the user clicks on the detected value and can:
+
+- Select a different existing metric or line item from a dropdown
+- Create a new metric or line item on the spot
 - Edit the formula expression
 - Change the slice group assignment
 
-Corrections are saved to the metrics catalog so the same column is recognized correctly on future uploads.
+Corrections are saved to the respective catalogs so the same column or row variation is recognized correctly on future uploads.
+
+### Actions
+
+- **Confirm & Import** — saves new metrics and aliases to catalogs, runs the parser
+- **Skip All New** — imports only recognized columns and matched rows, ignores new ones
 
 ### Last Forecast Handling
 
@@ -179,7 +189,94 @@ If the engine detects columns that look like prior period data (header contains 
 
 ---
 
-## 4. Generic Parser
+## 4. Row Reconciliation
+
+After columns are mapped, the system compares incoming rows against existing line items to catch naming variations that refer to the same item.
+
+### Key Normalization
+
+Before comparison, identifier fields are normalized:
+
+- **Phase code:** uppercase, strip all delimiters (hyphens, spaces, dots, trailing punctuation). `b-100`, `b 100`, `b-100-`, `B.100` all normalize to `B100`.
+- **Description:** lowercase, trim whitespace.
+- **Cost type:** lowercase, strip whitespace.
+
+Normalized values are used only for matching. The original raw values from the file are always preserved alongside the canonical key so data can be reconstructed if aliases are later separated.
+
+### Multi-Field Fuzzy Matching
+
+A potential match is only proposed when **at least 2 of 3** identifier fields are similar between the incoming row and an existing line item:
+
+| Field | Match type |
+|-------|-----------|
+| Phase code | Normalized exact match |
+| Description | Normalized exact or fuzzy (Levenshtein distance below threshold) |
+| Cost type | Normalized exact match |
+
+A single fuzzy field on its own is never surfaced — it would generate too much noise.
+
+### Upload UI — "Possible Match" Column
+
+During upload review, rows with potential matches show an additional **Possible Match** column:
+
+| Incoming Row | Possible Match | Action |
+|-------------|----------------|--------|
+| `b-100 · Mobilization · 2Labor` | `B100 · Mobilization · 2Labor` | [Same item] [Different] |
+| `B200 · Excavation LP · 3Equip` | `B200 · Excavation · 3Equip` | [Same item] [Different] |
+
+- **Same item** — the incoming variation is stored as an alias of the existing canonical item. Future uploads with the same variation auto-resolve silently.
+- **Different** — the incoming row is treated as a new, distinct line item.
+
+Rows where all three fields match a known item (or known alias) are auto-resolved with no user prompt.
+
+### Raw Value Preservation
+
+Every upload stores the **original raw values** per row alongside the resolved canonical key. This is critical for separation — if an alias is later removed, the system can go back to each affected project and re-split the rows using the original file data, not the normalized version.
+
+### Alias Storage
+
+Each alias merge records:
+
+- The canonical line item it was merged into
+- The raw variation that triggered the merge
+- Which project and upload version the merge occurred on
+
+This audit trail enables separation to propagate correctly across historical projects.
+
+---
+
+## 5. Line Item Registry
+
+A dedicated management screen for all canonical line items and their aliases. Located under Admin in the sidebar, alongside the Metrics Catalog.
+
+### Table View
+
+| Column | Description |
+|--------|-------------|
+| **Line Item** | Canonical name (phase + description + cost type) |
+| **Aliases** | All accepted variations, expandable inline |
+| **Projects** | Which projects this item appears on, clickable links |
+| **Actions** | Merge, Separate, Edit |
+
+### Merge
+
+Select two line items that should be the same → merge them into one canonical entry. One becomes the canonical, the other becomes an alias. This propagates across all historical projects where either item appears — rows that were previously separate are now unified under the same line item.
+
+### Separate
+
+Select an alias on an existing line item → split it out as its own independent line item. This propagates backwards: every historical project where that alias was merged gets updated — the rows are re-split using the preserved raw file values. The separated item gets its own entry in the line item registry and its own service catalog entry.
+
+### Edit
+
+Change the canonical name, add or remove aliases manually, or reassign which canonical item an alias belongs to.
+
+### Services Connection
+
+Line items in the registry are the source of truth for the services catalog (Task 2). One canonical line item = one service entry. Merging two line items merges their service entries. Separating an alias creates a new service entry. The services tab reflects the registry state.
+
+---
+
+## 6. Generic Parser
 
 After columns are mapped to metrics (either auto-detected or confirmed via the mapper), the parser normalizes data into `ProjectionItem[]` objects.
 
@@ -189,6 +286,8 @@ After columns are mapped to metrics (either auto-detected or confirmed via the m
 
 2. **Iterate rows** — for each data row:
    - Read identifier columns (Phase, Description, CostType UM) to build the `lineKey` and `keyParts[]`
+   - Store the original raw identifier values alongside the normalized key
+   - Run the row through reconciliation: check against the line item registry for alias matches. Resolved aliases map to their canonical item; unresolved fuzzy matches are flagged for the user in the upload UI.
    - For each mapped column, write the value into the correct `TimeSlice.field` on the correct slice
    - Formula columns: store the file's value and also re-compute from formula refs. If they diverge beyond a threshold, flag a data integrity warning.
 
@@ -200,7 +299,7 @@ After columns are mapped to metrics (either auto-detected or confirmed via the m
 
 ---
 
-## 5. Vista Fallback
+## 7. Vista Fallback
 
 The existing Vista adapter (`packages/projections/src/adapters/vista.ts`) remains as a fallback.
 
@@ -220,40 +319,61 @@ The Vista adapter code is not modified — it stays as-is for stability.
 
 ## UX Flow Summary
 
-### Project Creation with First Upload
+### Upload Flow (Unified)
+
+Every upload — first or hundredth — follows the same path. The only difference is how much is already known.
 
 ```
-Create New Project
-  → Upload spreadsheet
-  → Mapper dialog opens (all columns shown)
-  → System shows auto-detected types and formulas per column
-  → User reviews, corrects inline if needed
+Upload spreadsheet (new project or existing)
+  → Auto-detection runs (header matching, formula detection, structure detection)
+  → Import Dialog opens as a two-step wizard:
+
+  Step 1 — Columns (Metrics)
+    → Summary: "X columns recognized · Y new columns to review"
+    → Recognized columns listed with auto-mapped metric, collapsed by default
+    → New/unrecognized columns shown for review:
+        - Detected formula (if any), editable inline
+        - "Possible Match" column for metrics similar to existing ones
+        - Assign to existing metric, create new, or skip
+    → User confirms or corrects
+
+  Step 2 — Rows (Line Items)
+    → Summary: "X rows matched · Y new items · Z possible duplicates"
+    → Matched rows listed, collapsed by default
+    → New line items shown for review
+    → Fuzzy matches shown with "Possible Match" column:
+        - Existing item it resembles (requires 2 of 3 fields similar)
+        - [Same item] or [Different]
+    → User confirms or corrects
+
   → "Confirm & Import"
-  → Metrics saved to catalog
-  → Projection items created
-  → Project opens with data
+  → Metrics saved to catalog (new + corrections)
+  → Aliases saved to line item registry
+  → Line items added to registry + services catalog
+  → Projection items created/updated
 ```
 
-### Subsequent Upload — Known Format
+**Silent import:** When Step 1 has zero new columns AND Step 2 has zero new/fuzzy rows, the dialog is skipped entirely. Success toast: "Imported X line items."
+
+### Admin — Line Item Registry
 
 ```
-Upload spreadsheet to existing project
-  → All columns match metrics catalog
-  → No dialog — silent import
-  → Success toast: "Imported 45 line items"
-  → Projection updated with new version
-```
+Admin → Line Item Registry
 
-### Subsequent Upload — New Columns
+  Merge:
+    → Select two items that should be the same → "Merge"
+    → One becomes canonical, other becomes alias
+    → Propagates across all historical projects: rows unified
+    → Services catalog entry merged
 
-```
-Upload spreadsheet to existing project
-  → 12 columns recognized, 3 new
-  → Mapper dialog opens showing only 3 new columns
-  → User confirms or skips each
-  → "Confirm & Import"
-  → New metrics added to catalog
-  → Projection updated
+  Separate:
+    → Expand aliases on an item → select alias → "Separate"
+    → Alias becomes its own independent line item
+    → Propagates backwards: historical projects re-split using preserved raw values
+    → New services catalog entry created
+
+  Edit:
+    → Change canonical name, add/remove aliases, reassign aliases
 ```
 
 ---
@@ -264,9 +384,12 @@ Upload spreadsheet to existing project
 |-----------|----------|
 | Metric type + catalog logic | `packages/projections/src/metrics/` |
 | Auto-detection engine | `packages/projections/src/detection/` |
+| Row reconciliation + key normalization | `packages/projections/src/reconciliation/` |
+| Line item registry (data model + logic) | `packages/projections/src/registry/` |
 | Generic parser | `packages/projections/src/adapters/generic.ts` |
 | Mapper dialog component | `apps/web/src/components/mapping-dialog.tsx` |
 | Metrics admin page | `apps/web/src/routes/_dashboard/admin.metrics.tsx` |
+| Line item registry page | `apps/web/src/routes/_dashboard/admin.registry.tsx` |
 | Vista adapter (unchanged) | `packages/projections/src/adapters/vista.ts` |
 
 ---

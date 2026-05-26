@@ -88,6 +88,7 @@ Seed data lives in [seed-data.ts](apps/web/src/data/seed-data.ts). Ticket genera
 - **done** — Alerts panel (computed from engine, 9 alert types)
 - **done** — Upload dialog (batch Vista file import)
 - **done** — Multi-tenant sidebar + tenant switcher
+- **done** — P&L View on Reports page: portfolio rollup (KPIs, trend chart, project table) + per-project drill-down (monthly P&L, cost-type breakdown). Both tenants: Superior uses uploaded financials, Stratagraph derives from invoices + job service runs. Margin alerts on project rows.
 
 ### Stratagraph P0 — Demo flows (all done)
 1. **done** — Bid creation and editing ([bid-editor.tsx](apps/web/src/components/bid-editor.tsx))
