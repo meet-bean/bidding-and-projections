@@ -1,0 +1,18 @@
+node_modules/
+.turbo/
+dist/
+.output/
+.vercel/
+.cache/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+routeTree.gen.ts
+.tanstack/
+
+# Local-only template kit
+claude-starter-kit/
+claude-starter-kit.zip

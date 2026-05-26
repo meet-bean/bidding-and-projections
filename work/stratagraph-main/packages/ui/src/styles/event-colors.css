@@ -1,0 +1,126 @@
+/**
+ * Event type color CSS custom properties for activity log badges.
+ *
+ * @see MEE-1248: Activity Events & Notifications System
+ *
+ * Event categories:
+ * - created: success (green)
+ * - updated: info (blue)
+ * - deleted: destructive (red)
+ * - workflow: purple (submitted_for_review, approved, rejected, published, archived)
+ * - assignment: orange (assigned, unassigned)
+ * - default: muted (gray)
+ */
+
+:root {
+  /* Created - Success/Green */
+  --event-created-bg: oklch(0.95 0.02 142);
+  --event-created-text: oklch(0.517 0.174 142.495);
+  --event-created-hover: oklch(0.92 0.03 142);
+
+  /* Updated - Info/Blue */
+  --event-updated-bg: oklch(0.95 0.02 254);
+  --event-updated-text: oklch(0.546 0.196 256.802);
+  --event-updated-hover: oklch(0.92 0.03 254);
+
+  /* Deleted - Destructive/Red */
+  --event-deleted-bg: oklch(0.95 0.03 25);
+  --event-deleted-text: oklch(0.55 0.2 25);
+  --event-deleted-hover: oklch(0.92 0.04 25);
+
+  /* Workflow - Purple */
+  --event-workflow-bg: oklch(0.95 0.02 303);
+  --event-workflow-text: oklch(0.558 0.238 303.9);
+  --event-workflow-hover: oklch(0.92 0.03 303);
+
+  /* Assignment - Orange */
+  --event-assignment-bg: oklch(0.95 0.03 55);
+  --event-assignment-text: oklch(0.55 0.18 45);
+  --event-assignment-hover: oklch(0.92 0.04 55);
+
+  /* Default - Muted/Gray */
+  --event-default-bg: oklch(0.97 0 0);
+  --event-default-text: oklch(0.556 0 0);
+  --event-default-hover: oklch(0.94 0 0);
+}
+
+.dark {
+  /* Created - Success/Green (dark mode) */
+  --event-created-bg: oklch(0.28 0.04 150);
+  --event-created-text: oklch(0.696 0.17 162.48);
+  --event-created-hover: oklch(0.32 0.05 150);
+
+  /* Updated - Info/Blue (dark mode) */
+  --event-updated-bg: oklch(0.28 0.04 264);
+  --event-updated-text: oklch(0.746 0.166 254.63);
+  --event-updated-hover: oklch(0.32 0.05 264);
+
+  /* Deleted - Destructive/Red (dark mode) */
+  --event-deleted-bg: oklch(0.28 0.04 25);
+  --event-deleted-text: oklch(0.78 0.18 25);
+  --event-deleted-hover: oklch(0.32 0.05 25);
+
+  /* Workflow - Purple (dark mode) */
+  --event-workflow-bg: oklch(0.28 0.04 303);
+  --event-workflow-text: oklch(0.747 0.177 303.7);
+  --event-workflow-hover: oklch(0.32 0.05 303);
+
+  /* Assignment - Orange (dark mode) */
+  --event-assignment-bg: oklch(0.28 0.04 55);
+  --event-assignment-text: oklch(0.78 0.16 45);
+  --event-assignment-hover: oklch(0.32 0.05 55);
+
+  /* Default - Muted/Gray (dark mode) */
+  --event-default-bg: oklch(0.269 0 0);
+  --event-default-text: oklch(0.708 0 0);
+  --event-default-hover: oklch(0.30 0 0);
+}
+
+/* Event badge classes using CSS custom properties */
+.event-created {
+  background-color: var(--event-created-bg);
+  color: var(--event-created-text);
+  &:hover {
+    background-color: var(--event-created-hover);
+  }
+}
+
+.event-updated {
+  background-color: var(--event-updated-bg);
+  color: var(--event-updated-text);
+  &:hover {
+    background-color: var(--event-updated-hover);
+  }
+}
+
+.event-deleted {
+  background-color: var(--event-deleted-bg);
+  color: var(--event-deleted-text);
+  &:hover {
+    background-color: var(--event-deleted-hover);
+  }
+}
+
+.event-workflow {
+  background-color: var(--event-workflow-bg);
+  color: var(--event-workflow-text);
+  &:hover {
+    background-color: var(--event-workflow-hover);
+  }
+}
+
+.event-assignment {
+  background-color: var(--event-assignment-bg);
+  color: var(--event-assignment-text);
+  &:hover {
+    background-color: var(--event-assignment-hover);
+  }
+}
+
+.event-default {
+  background-color: var(--event-default-bg);
+  color: var(--event-default-text);
+  &:hover {
+    background-color: var(--event-default-hover);
+  }
+}

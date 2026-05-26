@@ -1,0 +1,16 @@
+/**
+ * Editor-specific CSS tokens
+ *
+ * These tokens are derived from existing theme primitives and can be
+ * customized separately from the main theme if needed.
+ */
+
+:root {
+  /* Shortcut text in tooltips */
+  --editor-shortcut-fg: var(--muted-foreground);
+}
+
+.dark {
+  /* Same token reference works in both modes */
+  --editor-shortcut-fg: var(--muted-foreground);
+}

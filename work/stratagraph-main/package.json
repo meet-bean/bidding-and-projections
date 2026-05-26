@@ -1,0 +1,25 @@
+{
+  "name": "@meetbean/stratagraph",
+  "version": "0.0.1",
+  "description": "Stratagraph operations platform (prototype)",
+  "license": "UNLICENSED",
+  "author": "MeetBean",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "turbo": "^2.8.3",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

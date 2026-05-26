@@ -1,0 +1,100 @@
+/**
+ * Highlight.js Dark Theme
+ *
+ * Based on GitHub's dark syntax highlighting colors.
+ * Applied to code blocks in the editor when dark mode is active.
+ */
+
+.dark {
+  /* Comments and documentation */
+  .hljs-comment,
+  .hljs-code,
+  .hljs-formula {
+    color: #8b949e;
+  }
+
+  /* Keywords and types */
+  .hljs-keyword,
+  .hljs-doctag,
+  .hljs-template-tag,
+  .hljs-template-variable,
+  .hljs-type,
+  .hljs-variable.language_ {
+    color: #ff7b72;
+  }
+
+  /* Functions and class names */
+  .hljs-title,
+  .hljs-title.class_,
+  .hljs-title.class_.inherited__,
+  .hljs-title.function_ {
+    color: #d2a8ff;
+  }
+
+  /* Attributes, numbers, operators */
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-literal,
+  .hljs-meta,
+  .hljs-number,
+  .hljs-operator,
+  .hljs-selector-attr,
+  .hljs-selector-class,
+  .hljs-selector-id,
+  .hljs-variable {
+    color: #79c0ff;
+  }
+
+  /* Strings */
+  .hljs-regexp,
+  .hljs-string,
+  .hljs-meta .hljs-string {
+    color: #a5d6ff;
+  }
+
+  /* Built-ins and symbols */
+  .hljs-built_in,
+  .hljs-symbol {
+    color: #ffa657;
+  }
+
+  /* Tags and names */
+  .hljs-name,
+  .hljs-quote,
+  .hljs-selector-tag,
+  .hljs-selector-pseudo {
+    color: #7ee787;
+  }
+
+  /* Text styling */
+  .hljs-emphasis {
+    font-style: italic;
+  }
+
+  .hljs-strong {
+    font-weight: bold;
+  }
+
+  /* Section headers */
+  .hljs-section {
+    font-weight: bold;
+    color: #79c0ff;
+  }
+
+  /* List bullets */
+  .hljs-bullet {
+    color: #d29922;
+  }
+
+  /* Diff additions */
+  .hljs-addition {
+    background-color: rgba(46, 160, 67, 0.15);
+    color: #7ee787;
+  }
+
+  /* Diff deletions */
+  .hljs-deletion {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: #ffa198;
+  }
+}

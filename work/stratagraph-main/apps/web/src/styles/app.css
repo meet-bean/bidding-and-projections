@@ -1,0 +1,30 @@
+@import '@repo/ui/styles/globals.css';
+
+/*
+ * Stratagraph brand palette — 9 muted swatches anchored to specific meanings.
+ *
+ *   slate   — neutral / inactive / closed yards / completed jobs
+ *   steel   — secondary text accents, non-action chrome
+ *   indigo  — scheduled work / night-shift crew / executive role
+ *   cyan    — informational accents / sales role / sample-catcher
+ *   green   — active / running / "yes" affirmations / operations role / available
+ *   gold    — day-shift logger / warnings / pending confirmation / speculative
+ *   orange  — closing / field-crew role / drift alerts
+ *   mauve   — supervisor / tertiary metadata
+ *   coral   — cancelled / destructive / overdue / coral red
+ *
+ * Reach for the palette token when assigning meaning. Reach for Tailwind's
+ * neutral/muted tokens for pure chrome. Don't introduce new hex values here
+ * without an explicit semantic role above.
+ */
+@theme {
+  --color-strat-slate: #a6aeb2;
+  --color-strat-steel: #8fa1b2;
+  --color-strat-indigo: #536ed7;
+  --color-strat-cyan: #53a9c4;
+  --color-strat-green: #69aa82;
+  --color-strat-gold: #e7c341;
+  --color-strat-orange: #dc8c46;
+  --color-strat-mauve: #bba199;
+  --color-strat-coral: #dc5858;
+}
