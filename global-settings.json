@@ -1,0 +1,25 @@
+{
+  "//": "Copy this to ~/.claude/settings.json (merge with existing if you already have one)",
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      },
+      "autoUpdate": true
+    }
+  },
+  "skipAutoPermissionPrompt": true
+}

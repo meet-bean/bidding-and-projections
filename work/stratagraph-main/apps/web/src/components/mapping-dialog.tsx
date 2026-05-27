@@ -23,7 +23,7 @@ interface MappingDialogProps {
 }
 
 const SLICE_OPTIONS = ['CTP', 'CTD', 'CTC', 'F', 'Est'] as const;
-const FIELD_OPTIONS = ['qty', 'hours', 'cost', 'uc', 'mpu', 'upm', 'lineItem', 'costType', 'description', 'unitOfMeasure'] as const;
+const FIELD_OPTIONS = ['qty', 'hours', 'cost', 'uc', 'mpu', 'upm', 'service', 'costType', 'description', 'unitOfMeasure'] as const;
 
 export function MappingDialog({
   open,

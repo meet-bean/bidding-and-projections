@@ -21,8 +21,8 @@ export const Route = createFileRoute('/_dashboard/invoices/$invoiceId')({
 });
 
 /**
- * Reconstruct the original signed Matador voucher line items from the seed.
- * For the prototype, we render exactly the line items shown on the original
+ * Reconstruct the original signed Matador voucher services from the seed.
+ * For the prototype, we render exactly the services shown on the original
  * Field Service Ticket — quantities and prices captured verbatim.
  */
 // NOTE: All unit prices here are generic placeholder figures for prototype
@@ -196,7 +196,7 @@ function InvoiceDetail() {
             <div className="text-sm font-medium">{job.wellName}</div>
           </div>
 
-          {/* Line items */}
+          {/* Services */}
           <table className="w-full">
             <thead>
               <tr className="border-b text-xs uppercase tracking-wider">

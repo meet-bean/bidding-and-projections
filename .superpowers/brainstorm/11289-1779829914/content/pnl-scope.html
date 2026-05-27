@@ -1,0 +1,43 @@
+<h2>P&L scope: per-project or portfolio?</h2>
+<p class="subtitle">Should the P&L view show one project at a time, or roll up across all projects?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Per-project only</h3>
+      <p>Select a project from a dropdown or list, see its P&L dashboard. One project at a time.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Simpler to build — just filter financials by project</li>
+        <li>Matches how the projection detail page works today</li>
+        <li>Enough for a demo with one project (Suncoast 3A)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Portfolio rollup + per-project drill-down</h3>
+      <p>Default view: aggregated P&L across all projects. Click a project to see its individual P&L.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Shows the "big picture" — total company margin at a glance</li>
+        <li>More complex: need to sum financials across projects, handle different date ranges</li>
+        <li>Impressive for Mickey's boss (the budget approver)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Per-project now, portfolio later</h3>
+      <p>Build per-project P&L first. Design the data model so portfolio rollup can be added without refactoring.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Ship something fast, iterate</li>
+        <li>Only one seed project (Suncoast 3A) so rollup would be underwhelming today</li>
+        <li>Avoids premature complexity while keeping the door open</li>
+      </ul>
+    </div>
+  </div>
+</div>

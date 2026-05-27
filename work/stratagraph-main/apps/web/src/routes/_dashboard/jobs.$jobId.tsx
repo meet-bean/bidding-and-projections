@@ -292,7 +292,7 @@ function JobStatsStrip({
     }
     if (runningCodes.size === 0) return 0;
     let sum = 0;
-    for (const li of bid.lineItems) {
+    for (const li of bid.services) {
       const cat = catalog.find((c) => c.id === li.catalogItemId);
       if (!cat?.dailyCode || cat.billingUnit !== 'per_day') continue;
       if (!runningCodes.has(cat.dailyCode)) continue;
@@ -569,7 +569,7 @@ function ServicesCard({ job }: { job: Job }) {
   const codesInBid = useMemo(() => {
     if (!bid) return new Set<DailyCode>();
     const out = new Set<DailyCode>();
-    bid.lineItems.forEach((li) => {
+    bid.services.forEach((li) => {
       const c = catalog.find((x) => x.id === li.catalogItemId);
       if (c?.dailyCode) out.add(c.dailyCode);
     });
@@ -586,12 +586,12 @@ function ServicesCard({ job }: { job: Job }) {
     return out;
   }, [job.serviceRuns, today]);
 
-  // Bid line items that aren't billed daily — per-event, per-mile, per-well,
+  // Bid services that aren't billed daily — per-event, per-mile, per-well,
   // per-sample. These are the "Logistics & one-time" charges shown beneath
   // the daily services/surcharges blocks.
   const logisticsItems = useMemo(() => {
     if (!bid) return [];
-    return bid.lineItems
+    return bid.services
       .map((li) => ({
         li,
         catalog: catalog.find((c) => c.id === li.catalogItemId),

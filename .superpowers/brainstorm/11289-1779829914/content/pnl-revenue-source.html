@@ -1,0 +1,51 @@
+<h2>Where does "revenue" come from?</h2>
+<p class="subtitle">P&L needs a revenue number per project. The codebase has two possible sources.</p>
+
+<div class="section">
+  <h3>Context</h3>
+  <p style="font-size:14px;color:#666;line-height:1.6;">
+    <strong>Costs</strong> already exist — they come from projection uploads (Vista ERP data) and are stored as ProjectionItems with cost-to-date, forecast, etc.<br><br>
+    <strong>Revenue</strong> is the missing piece. We need to decide where it comes from for each project.
+  </p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Invoices only</h3>
+      <p>Revenue = sum of all invoice amounts for that project. Simple, concrete — it's what the customer was actually billed.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Already have invoice data linked to projects via projectId</li>
+        <li>Only counts billed revenue (draft invoices excluded or shown separately)</li>
+        <li>Straightforward: paid invoices = recognized revenue</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Bid contract value</h3>
+      <p>Revenue = the accepted bid's total. Represents the contract amount regardless of how much has been billed.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Gives a "total expected revenue" number upfront</li>
+        <li>Doesn't reflect actual billing progress</li>
+        <li>Could show both: contract value as the ceiling, invoiced as the floor</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both — layered view</h3>
+      <p>Show contract value (from bid) as "Total Revenue" and invoiced amount as "Billed to Date". P&L shows margin against both.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Most complete picture: what you expected vs what you've billed vs what you've spent</li>
+        <li>More complex but matches how construction finance actually works</li>
+        <li>Contract value = estimate, invoiced = actual, delta = unbilled backlog</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -82,7 +82,7 @@ function ReportsPage() {
       }
       if (runningCodes.size === 0) continue;
       let jobSum = 0;
-      for (const li of bid.lineItems) {
+      for (const li of bid.services) {
         const cat = catalog.find((c) => c.id === li.catalogItemId);
         if (!cat?.dailyCode || cat.billingUnit !== 'per_day') continue;
         if (!runningCodes.has(cat.dailyCode)) continue;

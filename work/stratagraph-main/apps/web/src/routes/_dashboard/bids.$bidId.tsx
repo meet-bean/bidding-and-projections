@@ -77,14 +77,14 @@ function BidDetail() {
     );
   }
 
-  const grouped = bid.lineItems.reduce<Record<ServiceCategory, typeof bid.lineItems>>(
+  const grouped = bid.services.reduce<Record<ServiceCategory, typeof bid.services>>(
     (acc, li) => {
       const cat = catalog.find((c) => c.id === li.catalogItemId);
       if (!cat) return acc;
       (acc[cat.category] ||= []).push(li);
       return acc;
     },
-    {} as Record<ServiceCategory, typeof bid.lineItems>
+    {} as Record<ServiceCategory, typeof bid.services>
   );
 
   // Per-category summary stats — drives the "at-a-glance" strip at top.
@@ -116,7 +116,7 @@ function BidDetail() {
             <BidStatusBadge status={displayStatus ?? bid.status} />
           </div>
           <PageHeaderDescription>
-            Created {bid.createdDate} by {bid.salesperson} · {bid.lineItems.length} line items
+            Created {bid.createdDate} by {bid.salesperson} · {bid.services.length} services
             {well ? (
               <>
                 {' '}·{' '}
@@ -185,7 +185,7 @@ function BidDetail() {
               </div>
             </div>
             <div className="text-muted-foreground text-right text-xs">
-              {bid.lineItems.length} line item{bid.lineItems.length === 1 ? '' : 's'} ·{' '}
+              {bid.services.length} service{bid.services.length === 1 ? '' : 's'} ·{' '}
               {summaries.length} categor{summaries.length === 1 ? 'y' : 'ies'}
               <div className="mt-1 flex items-center justify-end gap-1.5">
                 <span

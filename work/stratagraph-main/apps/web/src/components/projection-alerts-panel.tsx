@@ -77,7 +77,7 @@ export function ProjectionAlertsPanel({
               className="text-xs text-primary underline-offset-2 hover:underline"
               onClick={() => onNavigateToItem(alert.key)}
             >
-              Go to line item ↗
+              Go to service ↗
             </button>
             <Textarea
               placeholder="Resolution note..."

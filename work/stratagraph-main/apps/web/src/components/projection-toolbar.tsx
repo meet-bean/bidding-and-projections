@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, Input } from '@repo/ui';
-import { Search, X, Download } from 'lucide-react';
+import { Button, SearchInput } from '@repo/ui';
+import { Download } from 'lucide-react';
 import { ColumnPicker, type ColumnVisibility } from './projection-column-picker';
 import type { ProjectionItem, AlertsResult } from '@repo/projections';
 import { COST_TYPES, VARIANCE_THRESHOLD_PCT } from '@repo/projections';
@@ -117,13 +116,21 @@ export function ProjectionToolbar({
   activeColumnCount,
   onExport,
 }: ProjectionToolbarProps) {
-  const [showSearch, setShowSearch] = useState(!!searchQuery);
   const counts = filterCounts(items, alerts, commentCounts);
   const ctCounts = costTypeCounts(items);
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search phase, description..."
+          onClear={() => onSearchChange('')}
+          className="w-64"
+          // @ts-expect-error size variant
+          size="sm"
+        />
         <div className="flex items-center gap-1 flex-wrap">
           {FILTER_DEFS.map((f) => (
             <button
@@ -142,31 +149,7 @@ export function ProjectionToolbar({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5">
-          {showSearch ? (
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="h-8 w-48 pl-7 text-sm"
-                placeholder="Search phase, description..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => { onSearchChange(''); setShowSearch(false); }}
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setShowSearch(true)}>
-              <Search className="size-3.5" />
-            </Button>
-          )}
+        <div className="ml-auto flex items-center gap-2">
           <ColumnPicker
             vis={columnVis}
             onToggle={onToggleColumn}

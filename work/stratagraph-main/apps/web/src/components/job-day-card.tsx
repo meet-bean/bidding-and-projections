@@ -77,7 +77,7 @@ export function JobDayCard({
     }[] = [];
     const seenCodes = new Set<DailyCode>();
     if (bid) {
-      for (const li of bid.lineItems) {
+      for (const li of bid.services) {
         const cat = catalog.find((c) => c.id === li.catalogItemId);
         if (!cat?.dailyCode || cat.billingUnit !== 'per_day') continue;
         if (seenCodes.has(cat.dailyCode)) continue;

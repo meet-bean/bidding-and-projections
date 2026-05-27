@@ -17,7 +17,7 @@ const F_COST: Metric = {
 };
 const PHASE: Metric = {
   id: 'phase', name: 'Phase', aliases: [],
-  sliceGroup: null, field: 'lineItem', kind: 'raw', formula: null, formulaRefs: [],
+  sliceGroup: null, field: 'service', kind: 'raw', formula: null, formulaRefs: [],
 };
 
 function buildCatalog() {
@@ -87,18 +87,18 @@ describe('detectFormula', () => {
 
 describe('detectStructure', () => {
   it('detects flat structure when no suffix patterns found', () => {
-    const lineItems = ['B-100', 'B-200', 'B-300'];
-    const result = detectStructure(lineItems);
+    const serviceNames = ['B-100', 'B-200', 'B-300'];
+    const result = detectStructure(serviceNames);
     expect(result.structure).toBe('flat');
     expect(result.breakoutPattern).toBeNull();
   });
 
   it('detects breakout structure with suffix patterns', () => {
-    const lineItems = [
+    const serviceNames = [
       'B-100', 'B-100 - Labor', 'B-100 - Material',
       'B-200', 'B-200 - Labor',
     ];
-    const result = detectStructure(lineItems);
+    const result = detectStructure(serviceNames);
     expect(result.structure).toBe('breakout');
     expect(result.breakoutPattern).toBeTruthy();
   });

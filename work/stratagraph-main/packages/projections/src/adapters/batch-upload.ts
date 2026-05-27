@@ -147,7 +147,7 @@ export async function parseBatchUpload(files: File[]): Promise<BatchUploadResult
         if (items.length === 0) {
           errors.push({
             file: file.name,
-            message: 'Could not find Phase/CostType columns or no line items found',
+            message: 'Could not find Phase/CostType columns or no services found',
           });
           continue;
         }

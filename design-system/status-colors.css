@@ -1,0 +1,161 @@
+/**
+ * Status and type color CSS custom properties for badges.
+ *
+ * Procedure statuses: draft (gray), pending (blue), published (green), active (green), archived (purple)
+ * Task statuses: pending (blue), in_progress (amber), completed (green), cancelled (gray)
+ * Approval statuses: pending (blue), approved (green), acknowledged (teal), rejected (red)
+ * Comment statuses: active (blue), resolved (green)
+ * Execution types: training (teal), observation (amber), certification (indigo)
+ * Approval types: approver (indigo), acknowledger (teal)
+ * User roles: admin (rose), executive (indigo), site_manager (green), supervisor (amber), operator (gray)
+ */
+
+:root {
+  --status-draft-bg: oklch(0.97 0 0);
+  --status-draft-text: oklch(0.556 0 0);
+  --status-pending-bg: oklch(0.95 0.02 254);
+  --status-pending-text: oklch(0.546 0.196 256.802);
+  --status-published-bg: oklch(0.95 0.02 142);
+  --status-published-text: oklch(0.517 0.174 142.495);
+  --status-active-bg: oklch(0.95 0.02 142);
+  --status-active-text: oklch(0.517 0.174 142.495);
+  --status-archived-bg: oklch(0.95 0.02 303);
+  --status-archived-text: oklch(0.558 0.238 303.9);
+
+  --type-training-bg: oklch(0.95 0.02 180);
+  --type-training-text: oklch(0.5 0.16 180);
+  --type-observation-bg: oklch(0.95 0.03 85);
+  --type-observation-text: oklch(0.55 0.16 65);
+  --type-certification-bg: oklch(0.95 0.02 280);
+  --type-certification-text: oklch(0.5 0.2 280);
+
+  --task-status-pending-bg: oklch(0.95 0.02 254);
+  --task-status-pending-text: oklch(0.546 0.196 256.802);
+  --task-status-in_progress-bg: oklch(0.95 0.03 85);
+  --task-status-in_progress-text: oklch(0.55 0.16 65);
+  --task-status-completed-bg: oklch(0.95 0.02 142);
+  --task-status-completed-text: oklch(0.517 0.174 142.495);
+  --task-status-cancelled-bg: oklch(0.97 0 0);
+  --task-status-cancelled-text: oklch(0.556 0 0);
+
+  --approval-status-pending-bg: oklch(0.95 0.02 254);
+  --approval-status-pending-text: oklch(0.546 0.196 256.802);
+  --approval-status-approved-bg: oklch(0.95 0.02 142);
+  --approval-status-approved-text: oklch(0.517 0.174 142.495);
+  --approval-status-acknowledged-bg: oklch(0.95 0.02 180);
+  --approval-status-acknowledged-text: oklch(0.5 0.16 180);
+  --approval-status-rejected-bg: oklch(0.95 0.03 25);
+  --approval-status-rejected-text: oklch(0.55 0.2 25);
+
+  --comment-status-active-bg: oklch(0.95 0.02 254);
+  --comment-status-active-text: oklch(0.546 0.196 256.802);
+  --comment-status-resolved-bg: oklch(0.95 0.02 142);
+  --comment-status-resolved-text: oklch(0.517 0.174 142.495);
+
+  --approval-type-approver-bg: oklch(0.95 0.02 280);
+  --approval-type-approver-text: oklch(0.5 0.2 280);
+  --approval-type-acknowledger-bg: oklch(0.95 0.02 180);
+  --approval-type-acknowledger-text: oklch(0.5 0.16 180);
+
+  --role-admin-bg: oklch(0.95 0.03 15);
+  --role-admin-text: oklch(0.55 0.2 15);
+  --role-executive-bg: oklch(0.95 0.02 280);
+  --role-executive-text: oklch(0.5 0.2 280);
+  --role-site_manager-bg: oklch(0.95 0.02 142);
+  --role-site_manager-text: oklch(0.517 0.174 142.495);
+  --role-supervisor-bg: oklch(0.95 0.03 85);
+  --role-supervisor-text: oklch(0.55 0.16 65);
+  --role-operator-bg: oklch(0.97 0 0);
+  --role-operator-text: oklch(0.556 0 0);
+}
+
+.dark {
+  --status-draft-bg: oklch(0.269 0 0);
+  --status-draft-text: oklch(0.708 0 0);
+  --status-pending-bg: oklch(0.28 0.04 264);
+  --status-pending-text: oklch(0.746 0.166 254.63);
+  --status-published-bg: oklch(0.28 0.04 150);
+  --status-published-text: oklch(0.696 0.17 162.48);
+  --status-active-bg: oklch(0.28 0.04 150);
+  --status-active-text: oklch(0.696 0.17 162.48);
+  --status-archived-bg: oklch(0.28 0.04 303);
+  --status-archived-text: oklch(0.747 0.177 303.7);
+
+  --type-training-bg: oklch(0.28 0.04 180);
+  --type-training-text: oklch(0.72 0.14 180);
+  --type-observation-bg: oklch(0.28 0.04 85);
+  --type-observation-text: oklch(0.78 0.14 65);
+  --type-certification-bg: oklch(0.28 0.04 280);
+  --type-certification-text: oklch(0.72 0.16 280);
+
+  --task-status-pending-bg: oklch(0.28 0.04 264);
+  --task-status-pending-text: oklch(0.746 0.166 254.63);
+  --task-status-in_progress-bg: oklch(0.28 0.04 85);
+  --task-status-in_progress-text: oklch(0.78 0.14 65);
+  --task-status-completed-bg: oklch(0.28 0.04 150);
+  --task-status-completed-text: oklch(0.696 0.17 162.48);
+  --task-status-cancelled-bg: oklch(0.269 0 0);
+  --task-status-cancelled-text: oklch(0.708 0 0);
+
+  --approval-status-pending-bg: oklch(0.28 0.04 264);
+  --approval-status-pending-text: oklch(0.746 0.166 254.63);
+  --approval-status-approved-bg: oklch(0.28 0.04 150);
+  --approval-status-approved-text: oklch(0.696 0.17 162.48);
+  --approval-status-acknowledged-bg: oklch(0.28 0.04 180);
+  --approval-status-acknowledged-text: oklch(0.72 0.14 180);
+  --approval-status-rejected-bg: oklch(0.28 0.04 25);
+  --approval-status-rejected-text: oklch(0.78 0.18 25);
+
+  --comment-status-active-bg: oklch(0.28 0.04 264);
+  --comment-status-active-text: oklch(0.746 0.166 254.63);
+  --comment-status-resolved-bg: oklch(0.28 0.04 150);
+  --comment-status-resolved-text: oklch(0.696 0.17 162.48);
+
+  --approval-type-approver-bg: oklch(0.28 0.04 280);
+  --approval-type-approver-text: oklch(0.72 0.16 280);
+  --approval-type-acknowledger-bg: oklch(0.28 0.04 180);
+  --approval-type-acknowledger-text: oklch(0.72 0.14 180);
+
+  --role-admin-bg: oklch(0.28 0.04 15);
+  --role-admin-text: oklch(0.78 0.18 15);
+  --role-executive-bg: oklch(0.28 0.04 280);
+  --role-executive-text: oklch(0.72 0.16 280);
+  --role-site_manager-bg: oklch(0.28 0.04 150);
+  --role-site_manager-text: oklch(0.696 0.17 162.48);
+  --role-supervisor-bg: oklch(0.28 0.04 85);
+  --role-supervisor-text: oklch(0.78 0.14 65);
+  --role-operator-bg: oklch(0.269 0 0);
+  --role-operator-text: oklch(0.708 0 0);
+}
+
+.status-draft { background-color: var(--status-draft-bg); color: var(--status-draft-text); }
+.status-pending { background-color: var(--status-pending-bg); color: var(--status-pending-text); }
+.status-published { background-color: var(--status-published-bg); color: var(--status-published-text); }
+.status-active { background-color: var(--status-active-bg); color: var(--status-active-text); }
+.status-archived { background-color: var(--status-archived-bg); color: var(--status-archived-text); }
+
+.type-training { background-color: var(--type-training-bg); color: var(--type-training-text); }
+.type-observation { background-color: var(--type-observation-bg); color: var(--type-observation-text); }
+.type-certification { background-color: var(--type-certification-bg); color: var(--type-certification-text); }
+
+.task-status-pending { background-color: var(--task-status-pending-bg); color: var(--task-status-pending-text); }
+.task-status-in_progress { background-color: var(--task-status-in_progress-bg); color: var(--task-status-in_progress-text); }
+.task-status-completed { background-color: var(--task-status-completed-bg); color: var(--task-status-completed-text); }
+.task-status-cancelled { background-color: var(--task-status-cancelled-bg); color: var(--task-status-cancelled-text); }
+
+.approval-status-pending { background-color: var(--approval-status-pending-bg); color: var(--approval-status-pending-text); }
+.approval-status-approved { background-color: var(--approval-status-approved-bg); color: var(--approval-status-approved-text); }
+.approval-status-acknowledged { background-color: var(--approval-status-acknowledged-bg); color: var(--approval-status-acknowledged-text); }
+.approval-status-rejected { background-color: var(--approval-status-rejected-bg); color: var(--approval-status-rejected-text); }
+
+.comment-status-active { background-color: var(--comment-status-active-bg); color: var(--comment-status-active-text); }
+.comment-status-resolved { background-color: var(--comment-status-resolved-bg); color: var(--comment-status-resolved-text); }
+
+.approval-type-approver { background-color: var(--approval-type-approver-bg); color: var(--approval-type-approver-text); }
+.approval-type-acknowledger { background-color: var(--approval-type-acknowledger-bg); color: var(--approval-type-acknowledger-text); }
+
+.role-admin { background-color: var(--role-admin-bg); color: var(--role-admin-text); }
+.role-executive { background-color: var(--role-executive-bg); color: var(--role-executive-text); }
+.role-site_manager { background-color: var(--role-site_manager-bg); color: var(--role-site_manager-text); }
+.role-supervisor { background-color: var(--role-supervisor-bg); color: var(--role-supervisor-text); }
+.role-operator { background-color: var(--role-operator-bg); color: var(--role-operator-text); }

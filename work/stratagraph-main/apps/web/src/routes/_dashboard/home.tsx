@@ -118,7 +118,7 @@ function HomePage() {
 function PendingBidsBanner({
   bids,
 }: {
-  bids: Array<{ id: string; customerId: string; wellId?: string; lineItems: unknown[] }>;
+  bids: Array<{ id: string; customerId: string; wellId?: string; services: unknown[] }>;
 }) {
   const customers = useStore((s) => s.customers);
   const wells = useStore((s) => s.wells);

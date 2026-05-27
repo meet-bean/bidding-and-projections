@@ -38,7 +38,7 @@ export function ServiceToggles({ job }: { job: Job }) {
     if (!bid) return [] as { code: DailyCode; name: string; kind: 'service' | 'modifier' }[];
     const out: { code: DailyCode; name: string; kind: 'service' | 'modifier' }[] = [];
     const seen = new Set<DailyCode>();
-    for (const li of bid.lineItems) {
+    for (const li of bid.services) {
       const c = catalog.find((x) => x.id === li.catalogItemId);
       if (!c?.dailyCode || c.billingUnit !== 'per_day') continue;
       if (seen.has(c.dailyCode)) continue;

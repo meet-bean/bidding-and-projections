@@ -1,0 +1,141 @@
+<h2>Column Mapping UX — Which approach?</h2>
+<p class="subtitle">When a user uploads a new spreadsheet format, how do they map columns to standard fields?</p>
+
+<div class="split">
+  <!-- OPTION A: Dropdowns -->
+  <div class="card" data-choice="dropdowns" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>A — Dropdowns</h3>
+      <p style="margin-bottom:16px;color:#888;">Each standard field gets a dropdown populated with the file's column headers</p>
+
+      <div class="mockup">
+        <div class="mockup-header">Map Your Columns</div>
+        <div class="mockup-body" style="padding:16px;">
+          <!-- Simulated file preview -->
+          <div style="margin-bottom:20px;">
+            <div class="label" style="margin-bottom:8px;">Detected columns from <strong>vista-export-may.xlsx</strong></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">Phase</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">PhaseDescription</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">CostType UM</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">CTP Qty</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">CTD Qty</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">F Qty</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">F Hours</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">F Cost</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">Est Qty</span>
+              <span style="background:#f0f0f0;padding:4px 10px;border-radius:12px;font-size:12px;">Notes</span>
+            </div>
+          </div>
+
+          <!-- Mapping form -->
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center;">
+            <div class="label">Line Item *</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#333;">Phase</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+
+            <div class="label">Cost Type *</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#333;">CostType UM</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+
+            <div class="label">Quantity</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#333;">F Qty</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+
+            <div class="label">Hours</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#333;">F Hours</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+
+            <div class="label">Cost *</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#333;">F Cost</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+
+            <div class="label">Period</div>
+            <div style="border:1px solid #ccc;border-radius:6px;padding:8px 12px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#aaa;font-style:italic;">— not mapped —</span>
+              <span style="color:#999;font-size:12px;">▼</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Familiar form pattern</li><li>Fast to build</li><li>Works on all screen sizes</li><li>Easy to scan & correct</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Less visual</li><li>Long dropdowns if 30+ columns</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Drag and Drop -->
+  <div class="card" data-choice="drag-drop" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>B — Drag & Drop</h3>
+      <p style="margin-bottom:16px;color:#888;">File columns as draggable chips, standard fields as drop targets</p>
+
+      <div class="mockup">
+        <div class="mockup-header">Map Your Columns</div>
+        <div class="mockup-body" style="padding:16px;">
+          <!-- Source columns -->
+          <div style="margin-bottom:20px;">
+            <div class="label" style="margin-bottom:8px;">Drag columns from your file</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="background:#e8e8e8;padding:6px 12px;border-radius:6px;font-size:12px;opacity:0.4;text-decoration:line-through;">Phase</span>
+              <span style="background:#e0e7ff;padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid #818cf8;cursor:grab;">PhaseDescription</span>
+              <span style="background:#e8e8e8;padding:6px 12px;border-radius:6px;font-size:12px;opacity:0.4;text-decoration:line-through;">CostType UM</span>
+              <span style="background:#e0e7ff;padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid #818cf8;cursor:grab;">CTP Qty</span>
+              <span style="background:#e0e7ff;padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid #818cf8;cursor:grab;">CTD Qty</span>
+              <span style="background:#e8e8e8;padding:6px 12px;border-radius:6px;font-size:12px;opacity:0.4;text-decoration:line-through;">F Qty</span>
+              <span style="background:#e8e8e8;padding:6px 12px;border-radius:6px;font-size:12px;opacity:0.4;text-decoration:line-through;">F Hours</span>
+              <span style="background:#e8e8e8;padding:6px 12px;border-radius:6px;font-size:12px;opacity:0.4;text-decoration:line-through;">F Cost</span>
+              <span style="background:#e0e7ff;padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid #818cf8;cursor:grab;">Est Qty</span>
+              <span style="background:#e0e7ff;padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid #818cf8;cursor:grab;">Notes</span>
+            </div>
+          </div>
+
+          <!-- Drop targets -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="border:2px solid #22c55e;border-radius:8px;padding:10px;background:#f0fdf4;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">LINE ITEM *</div>
+              <div style="background:#dcfce7;padding:4px 10px;border-radius:4px;font-size:13px;display:inline-block;">Phase ✓</div>
+            </div>
+            <div style="border:2px solid #22c55e;border-radius:8px;padding:10px;background:#f0fdf4;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">COST TYPE *</div>
+              <div style="background:#dcfce7;padding:4px 10px;border-radius:4px;font-size:13px;display:inline-block;">CostType UM ✓</div>
+            </div>
+            <div style="border:2px solid #22c55e;border-radius:8px;padding:10px;background:#f0fdf4;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">QUANTITY</div>
+              <div style="background:#dcfce7;padding:4px 10px;border-radius:4px;font-size:13px;display:inline-block;">F Qty ✓</div>
+            </div>
+            <div style="border:2px solid #22c55e;border-radius:8px;padding:10px;background:#f0fdf4;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">HOURS</div>
+              <div style="background:#dcfce7;padding:4px 10px;border-radius:4px;font-size:13px;display:inline-block;">F Hours ✓</div>
+            </div>
+            <div style="border:2px solid #22c55e;border-radius:8px;padding:10px;background:#f0fdf4;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">COST *</div>
+              <div style="background:#dcfce7;padding:4px 10px;border-radius:4px;font-size:13px;display:inline-block;">F Cost ✓</div>
+            </div>
+            <div style="border:2px dashed #ccc;border-radius:8px;padding:10px;background:#fafafa;">
+              <div style="font-size:11px;color:#666;margin-bottom:4px;">PERIOD</div>
+              <div style="color:#aaa;font-size:12px;font-style:italic;">Drop column here...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Visual & interactive</li><li>Clear mapped vs unmapped state</li><li>Feels more modern</li><li>Shows progress naturally</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More complex to build</li><li>Awkward on mobile/small screens</li><li>Drag can be fiddly with many items</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

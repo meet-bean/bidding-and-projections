@@ -277,7 +277,7 @@ export const SEED_BIDS: Bid[] = [
     createdDate: '2026-03-12',
     acceptedDate: '2026-03-15',
     salesperson: 'Alex Vance',
-    lineItems: [
+    services: [
       { id: 'li-1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 1000 },
       { id: 'li-2', catalogItemId: 'logging-024-mass-spectrometer-w-daily-reports-per-day', rate: 750 },
       { id: 'li-3', catalogItemId: 'logging-025-mass-spectrometer-rig-up-down-per-event', rate: 750 },
@@ -323,7 +323,7 @@ export const SEED_BIDS: Bid[] = [
     createdDate: '2026-04-02',
     acceptedDate: '2026-04-08',
     salesperson: 'Alex Vance',
-    lineItems: [
+    services: [
       { id: 'li-h1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 1000 },
       { id: 'li-h2', catalogItemId: 'xrf_ftir-060-wellsite-ftir-with-mudlogging-per-day', rate: 1000 },
       { id: 'li-h3', catalogItemId: 'logging-004-unit-transportation-per-mile-per-trip-from-close', rate: 5 },
@@ -341,7 +341,7 @@ export const SEED_BIDS: Bid[] = [
     createdDate: '2026-05-04',
     acceptedDate: '2026-05-19',
     salesperson: 'Beau Lambert',
-    lineItems: [
+    services: [
       { id: 'li-d1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 1100 },
       { id: 'li-d2', catalogItemId: 'logging-024-mass-spectrometer-w-daily-reports-per-day', rate: 800 },
       { id: 'li-d3', catalogItemId: 'logging-003-rig-up-rig-down-charge-per-event-for-rig-up-and', rate: 1100 },
@@ -358,7 +358,7 @@ export const SEED_BIDS: Bid[] = [
     status: 'sent',
     createdDate: '2026-05-10',
     salesperson: 'Alex Vance',
-    lineItems: [
+    services: [
       { id: 'li-c1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 1050 },
       { id: 'li-c2', catalogItemId: 'xrf_ftir-060-wellsite-ftir-with-mudlogging-per-day', rate: 1100 },
       { id: 'li-c3', catalogItemId: 'logging-003-rig-up-rig-down-charge-per-event-for-rig-up-and', rate: 1000 },
@@ -374,7 +374,7 @@ export const SEED_BIDS: Bid[] = [
     status: 'sent',
     createdDate: '2026-05-15',
     salesperson: 'Carla Reyes',
-    lineItems: [
+    services: [
       { id: 'li-cm1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 1000 },
       { id: 'li-cm2', catalogItemId: 'logging-024-mass-spectrometer-w-daily-reports-per-day', rate: 750 },
     ],
@@ -389,7 +389,7 @@ export const SEED_BIDS: Bid[] = [
     status: 'lost',
     createdDate: '2025-11-08',
     salesperson: 'Alex Vance',
-    lineItems: [
+    services: [
       { id: 'li-mv1-1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 950 },
     ],
     notes: 'Initial bid — Apex asked for revision with FTIR bundle, replaced by v2.',
@@ -406,7 +406,7 @@ export const SEED_BIDS: Bid[] = [
     createdDate: '2026-02-01',
     acceptedDate: '2026-02-08',
     salesperson: 'Alex Vance',
-    lineItems: [
+    services: [
       { id: 'li-hv0-1', catalogItemId: 'logging-001-logging-charge-2-loggers-12-hours-day-each', rate: 950 },
       { id: 'li-hv0-2', catalogItemId: 'xrf_ftir-060-wellsite-ftir-with-mudlogging-per-day', rate: 950 },
       { id: 'li-hv0-3', catalogItemId: 'logging-003-rig-up-rig-down-charge-per-event-for-rig-up-and', rate: 950 },

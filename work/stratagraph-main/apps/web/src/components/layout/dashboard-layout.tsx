@@ -11,8 +11,9 @@ import { getNavItems, TENANTS } from '~/lib/tenant';
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const tenantId = useStore((s) => s.tenantId);
+  const hiddenNavItems = useStore((s) => s.hiddenNavItems);
   const tenant = TENANTS[tenantId] ?? TENANTS.stratagraph;
-  const navItems = getNavItems(tenant);
+  const navItems = getNavItems(tenant).filter((item) => !hiddenNavItems[item.id]);
   return (
     <AppLayout
       sidebar={

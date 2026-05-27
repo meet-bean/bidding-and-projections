@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Context is being compacted. If meaningful progress was made this session, update CLAUDE.md (## Current State) so it survives.'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"MEMORY CHECK: Did the user just (1) pick an option you presented, (2) confirm a design choice, (3) state a preference, (4) correct your approach, or (5) align on behavior? Did something fail — a bug, an abandoned approach, a rejected design, a repeated mistake? If YES to any: STOP and save to memory NOW, before doing anything else. One file per topic, update MEMORY.md index.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

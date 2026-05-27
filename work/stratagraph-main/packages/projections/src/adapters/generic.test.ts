@@ -26,7 +26,7 @@ describe('parseWithMetrics', () => {
     ];
 
     const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'lineItem' },
+      'phase': { sliceGroup: null, field: 'service' },
       'costtype-um': { sliceGroup: null, field: 'costType' },
       'f-qty': { sliceGroup: 'F', field: 'qty' },
       'f-cost': { sliceGroup: 'F', field: 'cost' },
@@ -54,7 +54,7 @@ describe('parseWithMetrics', () => {
     ];
 
     const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'lineItem' },
+      'phase': { sliceGroup: null, field: 'service' },
       'costtype-um': { sliceGroup: null, field: 'costType' },
     };
 
@@ -76,7 +76,7 @@ describe('parseWithMetrics', () => {
     ];
 
     const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'lineItem' },
+      'phase': { sliceGroup: null, field: 'service' },
       'costtype-um': { sliceGroup: null, field: 'costType' },
       'f-qty': { sliceGroup: 'F', field: 'qty' },
       'f-cost': { sliceGroup: 'F', field: 'cost' },

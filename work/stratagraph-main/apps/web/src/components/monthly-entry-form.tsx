@@ -14,19 +14,19 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   );
 
-  const registry = useStore((s) => s.lineItemRegistry);
+  const registry = useStore((s) => s.serviceRegistry);
   const getMonthly = useStore((s) => s.getMonthlyQuantity);
   const setMonthly = useStore((s) => s.setMonthlyQuantity);
 
   const [edits, setEdits] = useState<Record<string, { qty: string; hours: string }>>({});
 
-  function handleSave(lineItemId: string) {
-    const edit = edits[lineItemId];
+  function handleSave(serviceId: string) {
+    const edit = edits[serviceId];
     if (!edit) return;
-    setMonthly(projectId, lineItemId, yearMonth, Number(edit.qty) || 0, Number(edit.hours) || 0);
+    setMonthly(projectId, serviceId, yearMonth, Number(edit.qty) || 0, Number(edit.hours) || 0);
     setEdits((prev) => {
       const next = { ...prev };
-      delete next[lineItemId];
+      delete next[serviceId];
       return next;
     });
   }
@@ -35,13 +35,13 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <MonthPicker value={yearMonth} onChange={setYearMonth} />
-        <Badge variant="outline">{registry.items.length} line items</Badge>
+        <Badge variant="outline">{registry.items.length} services</Badge>
       </div>
       <div className="rounded-md border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-4 py-2 text-left font-medium">Line Item</th>
+              <th className="px-4 py-2 text-left font-medium">Service</th>
               <th className="px-4 py-2 text-left font-medium">Cost Type</th>
               <th className="px-4 py-2 text-left font-medium">UoM</th>
               <th className="px-4 py-2 text-right font-medium w-28">Qty</th>
@@ -103,7 +103,7 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
         </table>
         {registry.items.length === 0 && (
           <div className="py-12 text-center text-muted-foreground">
-            No line items yet. Upload a projection to populate items.
+            No services yet. Upload a projection to populate items.
           </div>
         )}
       </div>

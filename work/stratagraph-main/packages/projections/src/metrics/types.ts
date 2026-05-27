@@ -3,7 +3,7 @@ export interface Metric {
   name: string;
   aliases: string[];
   sliceGroup: 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est' | null;
-  field: 'qty' | 'hours' | 'cost' | 'uc' | 'mpu' | 'upm' | 'lineItem' | 'costType' | 'description' | 'unitOfMeasure';
+  field: 'qty' | 'hours' | 'cost' | 'uc' | 'mpu' | 'upm' | 'service' | 'costType' | 'description' | 'unitOfMeasure';
   kind: 'raw' | 'formula';
   formula: string | null;
   formulaRefs: string[];

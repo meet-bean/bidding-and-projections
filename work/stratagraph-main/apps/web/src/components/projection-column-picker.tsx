@@ -5,9 +5,13 @@ import { Button, Popover, PopoverContent, PopoverTrigger, Badge } from '@repo/ui
 import { Columns3 } from 'lucide-react';
 
 const SLICES = ['CTP', 'CTD', 'CTC', 'F', 'Est'] as const;
-const FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const STD_FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const F_FIELDS = ['qty', 'hours', 'calcHrs', 'upm', 'mpu', 'uc'] as const;
+const META_FIELDS = ['prevForecast'] as const;
+
 const FIELD_LABELS: Record<string, string> = {
-  qty: 'Qty', hours: 'Hours', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
+  qty: 'Qty', hours: 'Hours', calcHrs: 'Calc Hrs', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
+  prevForecast: 'Last Month FC',
 };
 
 export type ColumnVisibility = Record<string, boolean>;
@@ -15,7 +19,8 @@ export type ColumnVisibility = Record<string, boolean>;
 const STORAGE_KEY = 'sc-visible-columns';
 
 const DEFAULTS: ColumnVisibility = {
-  'CTD-cost': true, 'CTD-hours': true, 'F-cost': true, 'F-qty': true, 'Est-cost': true,
+  'CTD-cost': true, 'CTD-hours': true, 'F-qty': true, 'F-hours': true, 'F-uc': true,
+  'Est-cost': true, 'meta-prevForecast': true,
 };
 
 function loadVisibility(): ColumnVisibility {
@@ -25,6 +30,10 @@ function loadVisibility(): ColumnVisibility {
   } catch {
     return { ...DEFAULTS };
   }
+}
+
+function fieldsForSlice(slice: string): readonly string[] {
+  return slice === 'F' ? F_FIELDS : STD_FIELDS;
 }
 
 export function useColumnVisibility() {
@@ -39,7 +48,8 @@ export function useColumnVisibility() {
 
   const toggleSlice = (slice: string) => {
     setVis((prev) => {
-      const sliceKeys = FIELDS.map((f) => `${slice}-${f}`);
+      const fields = fieldsForSlice(slice);
+      const sliceKeys = fields.map((f) => `${slice}-${f}`);
       const allOn = sliceKeys.every((k) => prev[k]);
       const next = { ...prev };
       for (const k of sliceKeys) next[k] = !allOn;
@@ -82,7 +92,8 @@ export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCoun
         </div>
         <div className="space-y-3">
           {SLICES.map((slice) => {
-            const sliceKeys = FIELDS.map((f) => `${slice}-${f}`);
+            const fields = fieldsForSlice(slice);
+            const sliceKeys = fields.map((f) => `${slice}-${f}`);
             const allOn = sliceKeys.every((k) => vis[k]);
             return (
               <div key={slice} className="space-y-1">
@@ -91,10 +102,10 @@ export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCoun
                   onClick={() => onToggleSlice(slice)}
                 >
                   <div className={`size-3 rounded-sm border ${allOn ? 'bg-primary border-primary' : 'border-muted-foreground/50'}`} />
-                  {slice}
+                  {slice === 'Est' ? 'Original (OE)' : slice}
                 </button>
                 <div className="ml-5 flex flex-wrap gap-1.5">
-                  {FIELDS.map((field) => {
+                  {fields.map((field) => {
                     const key = `${slice}-${field}`;
                     const on = vis[key] ?? false;
                     return (
@@ -111,6 +122,27 @@ export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCoun
               </div>
             );
           })}
+          {/* Meta columns */}
+          <div className="space-y-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Other
+            </span>
+            <div className="ml-5 flex flex-wrap gap-1.5">
+              {META_FIELDS.map((field) => {
+                const key = `meta-${field}`;
+                const on = vis[key] ?? false;
+                return (
+                  <button
+                    key={key}
+                    className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${on ? 'border-primary bg-primary/10 text-primary' : 'border-transparent bg-muted text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => onToggle(key)}
+                  >
+                    {FIELD_LABELS[field]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

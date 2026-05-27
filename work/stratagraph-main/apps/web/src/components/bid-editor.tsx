@@ -25,7 +25,7 @@ import { useStore } from '~/lib/store';
 import { CATEGORY_LABELS, SERVICE_CATALOG } from '~/data/service-catalog';
 import type {
   Bid,
-  BidLineItem,
+  BidService,
   BidStatus,
   ServiceCategory,
   ServiceCatalogItem,
@@ -40,8 +40,8 @@ const CATEGORY_ORDER: ServiceCategory[] = [
 ];
 
 type DraftLine = {
-  /** Stable id when carried over from an existing line item. */
-  lineItemId?: string;
+  /** Stable id when carried over from an existing service. */
+  serviceId?: string;
   catalogItemId: string;
   rate: number | null;
 };
@@ -81,9 +81,9 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
   // Lines keyed by catalog item id for quick toggle/lookup.
   const [lines, setLines] = useState<Record<string, DraftLine>>(() => {
     const out: Record<string, DraftLine> = {};
-    bid?.lineItems.forEach((li) => {
+    bid?.services.forEach((li) => {
       out[li.catalogItemId] = {
-        lineItemId: li.id,
+        serviceId: li.id,
         catalogItemId: li.catalogItemId,
         rate: li.rate,
       };
@@ -145,7 +145,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
   const validate = (): string | null => {
     if (!customerId) return 'Pick a customer.';
     if (!salesperson) return 'Pick a salesperson.';
-    if (totalSelected === 0) return 'Add at least one line item.';
+    if (totalSelected === 0) return 'Add at least one service.';
     for (const l of Object.values(lines)) {
       if (l.rate == null || Number.isNaN(l.rate)) {
         const item = SERVICE_CATALOG.find((i) => i.id === l.catalogItemId);
@@ -161,14 +161,14 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
       alert(error);
       return;
     }
-    const lineItems: BidLineItem[] = Object.values(lines).map((l, i) => ({
-      id: l.lineItemId ?? `li-${Date.now().toString(36)}-${i}`,
+    const services: BidService[] = Object.values(lines).map((l, i) => ({
+      id: l.serviceId ?? `li-${Date.now().toString(36)}-${i}`,
       catalogItemId: l.catalogItemId,
       rate: l.rate ?? 0,
     }));
     if (isEditing && bid) {
       updateBid(bid.id, {
-        lineItems,
+        services: services,
         salesperson,
         notes,
         status: initialStatus,
@@ -181,7 +181,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
         salesperson,
         notes,
         status: initialStatus,
-        lineItems,
+        services: services,
         wellId: wellId || undefined,
       });
       navigate({ to: '/bids/$bidId', params: { bidId: id } });
@@ -308,7 +308,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Services</CardTitle>
           <div className="text-muted-foreground text-sm">
-            <span className="text-foreground font-semibold">{totalSelected}</span> line item
+            <span className="text-foreground font-semibold">{totalSelected}</span> service
             {totalSelected === 1 ? '' : 's'} selected
           </div>
         </CardHeader>
@@ -345,7 +345,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
       <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg">
         <div className="text-sm">
           <span className="font-semibold">{totalSelected}</span>{' '}
-          <span className="text-muted-foreground">line items selected</span>
+          <span className="text-muted-foreground">services selected</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => navigate({ to: '/bids' })}>

@@ -1,0 +1,40 @@
+<h2>Does Stratagraph get P&L too?</h2>
+<p class="subtitle">The Reports page is visible to both tenants. P&L needs financial data to work.</p>
+
+<div class="section">
+  <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+    <h3 style="color:#a16207;margin:0 0 8px;">Current state</h3>
+    <div style="font-size:14px;line-height:1.8;color:#333;">
+      <strong>Superior:</strong> Has FinancialSummary data (revenue/cost/profit per month) from projection uploads. P&L works out of the box.<br>
+      <strong>Stratagraph:</strong> Has invoices + job costs but NO FinancialSummary on projections. Revenue would need to be derived from invoices, costs from job service runs.
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Superior only (for now)</h3>
+      <p>P&L tab on Reports only appears for Superior tenant. Stratagraph's Reports page stays as-is with equipment/crew metrics.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Ship fast — no new data derivation needed</li>
+        <li>P&L is Superior's premium feature anyway</li>
+        <li>Can extend to Stratagraph later when invoice-based revenue is wired up</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Both tenants</h3>
+      <p>Build P&L for both. Superior uses FinancialSummary data. Stratagraph derives revenue from invoices and costs from job activity.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Consistent experience across tenants</li>
+        <li>More work: need to build invoice→revenue aggregation for Stratagraph</li>
+        <li>Stratagraph's P&L would be simpler (no forecast comparison, just actuals)</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,130 @@
+<h2>P&L Dashboard Layout</h2>
+<p class="subtitle">This is the portfolio rollup view (default). Clicking a project row drills into its detail.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>KPI cards on top → project table below</h3>
+      <div class="mockup" style="margin-top:12px;">
+        <div class="mockup-header">Reports → P&L</div>
+        <div class="mockup-body" style="font-size:13px;">
+          <!-- KPI Row -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px;">
+              <div style="font-size:11px;color:#666;text-transform:uppercase;">Total Revenue</div>
+              <div style="font-size:20px;font-weight:700;color:#16a34a;">$16.1M</div>
+            </div>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;">
+              <div style="font-size:11px;color:#666;text-transform:uppercase;">Total Cost</div>
+              <div style="font-size:20px;font-weight:700;color:#dc2626;">$14.4M</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px;">
+              <div style="font-size:11px;color:#666;text-transform:uppercase;">Gross Profit</div>
+              <div style="font-size:20px;font-weight:700;color:#16a34a;">$1.7M</div>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;">
+              <div style="font-size:11px;color:#666;text-transform:uppercase;">GP %</div>
+              <div style="font-size:20px;font-weight:700;color:#2563eb;">10.6%</div>
+              <div style="font-size:11px;color:#dc2626;">▼ 2.4% vs bid</div>
+            </div>
+          </div>
+          <!-- Project Table -->
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:2px solid #e5e7eb;text-align:left;">
+                <th style="padding:8px 4px;">Project</th>
+                <th style="padding:8px 4px;text-align:right;">Revenue</th>
+                <th style="padding:8px 4px;text-align:right;">Cost</th>
+                <th style="padding:8px 4px;text-align:right;">Profit</th>
+                <th style="padding:8px 4px;text-align:right;">GP%</th>
+                <th style="padding:8px 4px;text-align:right;">vs Bid</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f3f4f6;cursor:pointer;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <td style="padding:10px 4px;"><strong>Suncoast Phase 3A</strong><br><span style="color:#999;font-size:11px;">Suncoast Dev Group</span></td>
+                <td style="padding:10px 4px;text-align:right;">$6.8M</td>
+                <td style="padding:10px 4px;text-align:right;">$5.98M</td>
+                <td style="padding:10px 4px;text-align:right;color:#16a34a;">$816K</td>
+                <td style="padding:10px 4px;text-align:right;">12.0%</td>
+                <td style="padding:10px 4px;text-align:right;color:#dc2626;">▼ 1.0%</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f3f4f6;cursor:pointer;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <td style="padding:10px 4px;"><strong>Harbor Walk Mixed-Use</strong><br><span style="color:#999;font-size:11px;">Palomar Properties</span></td>
+                <td style="padding:10px 4px;text-align:right;">$9.3M</td>
+                <td style="padding:10px 4px;text-align:right;">$8.4M</td>
+                <td style="padding:10px 4px;text-align:right;color:#16a34a;">$930K</td>
+                <td style="padding:10px 4px;text-align:right;">10.0%</td>
+                <td style="padding:10px 4px;text-align:right;color:#dc2626;">▼ 3.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p style="margin-top:8px;font-size:13px;color:#666;">Clean, data-dense. KPIs give the snapshot, table lets you drill in.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>KPI cards → trend chart → project table</h3>
+      <div class="mockup" style="margin-top:12px;">
+        <div class="mockup-header">Reports → P&L</div>
+        <div class="mockup-body" style="font-size:13px;">
+          <!-- KPI Row (compact) -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;">
+              <div style="font-size:10px;color:#666;text-transform:uppercase;">Revenue</div>
+              <div style="font-size:18px;font-weight:700;">$16.1M</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;">
+              <div style="font-size:10px;color:#666;text-transform:uppercase;">Cost</div>
+              <div style="font-size:18px;font-weight:700;">$14.4M</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;">
+              <div style="font-size:10px;color:#666;text-transform:uppercase;">Profit</div>
+              <div style="font-size:18px;font-weight:700;color:#16a34a;">$1.7M</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;">
+              <div style="font-size:10px;color:#666;text-transform:uppercase;">GP%</div>
+              <div style="font-size:18px;font-weight:700;">10.6%</div>
+            </div>
+          </div>
+          <!-- Trend Chart placeholder -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;text-align:center;">
+            <div style="font-size:11px;color:#666;text-transform:uppercase;margin-bottom:8px;">Monthly Revenue vs Cost</div>
+            <svg viewBox="0 0 400 120" style="width:100%;max-width:400px;">
+              <!-- Revenue line (green) -->
+              <polyline points="20,100 80,85 140,70 200,55 260,42 320,30 380,20" fill="none" stroke="#16a34a" stroke-width="2"/>
+              <!-- Cost line (red) -->
+              <polyline points="20,95 80,82 140,68 200,56 260,46 320,38 380,28" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4"/>
+              <!-- Labels -->
+              <text x="20" y="115" font-size="9" fill="#999">Jan</text>
+              <text x="140" y="115" font-size="9" fill="#999">Mar</text>
+              <text x="260" y="115" font-size="9" fill="#999">May</text>
+              <text x="380" y="115" font-size="9" fill="#999">Jul</text>
+            </svg>
+            <div style="font-size:11px;color:#999;margin-top:4px;">
+              <span style="color:#16a34a;">━</span> Revenue &nbsp; <span style="color:#dc2626;">╌</span> Cost
+            </div>
+          </div>
+          <!-- Compact project list -->
+          <div style="font-size:11px;color:#666;text-transform:uppercase;margin-bottom:6px;">Projects</div>
+          <div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f3f4f6;cursor:pointer;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+              <span><strong>Suncoast 3A</strong> <span style="color:#999;">· 12% GP</span></span>
+              <span style="color:#dc2626;">▼ 1.0% vs bid</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 12px;cursor:pointer;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+              <span><strong>Harbor Walk</strong> <span style="color:#999;">· 10% GP</span></span>
+              <span style="color:#dc2626;">▼ 3.0% vs bid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:8px;font-size:13px;color:#666;">Chart in the middle shows the trend at a glance. More visual, takes more vertical space.</p>
+    </div>
+  </div>
+</div>

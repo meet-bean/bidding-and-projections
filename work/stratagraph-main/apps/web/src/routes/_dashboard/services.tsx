@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo } from 'react';
-import { Badge } from '@repo/ui';
+import { Badge, Button } from '@repo/ui';
+import { Pencil, GitBranch } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import {
   BILLING_UNIT_LABELS,
@@ -8,9 +9,9 @@ import {
 } from '~/data/service-catalog';
 import type {
   BillingUnit,
-  DailyCode,
   ServiceCategory,
 } from '~/lib/types';
+import type { ServiceAlias } from '@repo/projections';
 import {
   DataListShell,
   createColumnHelper,
@@ -41,126 +42,207 @@ const BILLING_UNIT_ORDER: BillingUnit[] = [
 interface ServiceRow {
   id: string;
   name: string;
-  category: ServiceCategory;
   categoryLabel: string;
-  dailyCode: DailyCode | '';
-  billingUnit: BillingUnit;
-  billingUnitLabel: string;
-  defaultRate: number | null;
+  code: string;
+  unitLabel: string;
+  rate: number | null;
   rateNote: string | null;
+  aliasCount: number;
+  aliases: ServiceAlias[];
+  projectCount: number;
+  category: ServiceCategory;
+  billingUnit: BillingUnit;
+  registryItemId: string | null;
 }
 
 function ServicesPage() {
   const catalog = useStore((s) => s.serviceCatalog);
   const tenantId = useStore((s) => s.tenantId);
-  const registry = useStore((s) => s.lineItemRegistry);
+  const registry = useStore((s) => s.serviceRegistry);
+  const jobs = useStore((s) => s.jobs);
+  const editName = useStore((s) => s.editRegistryItemName);
+  const separate = useStore((s) => s.separateRegistryAlias);
+  const tenant = useStore((s) => s.getTenantConfig());
+  const projectLabel = tenant.features.operations ? 'Jobs' : 'Projects';
 
   const rows: ServiceRow[] = useMemo(() => {
-    if (tenantId === 'stratagraph') {
+    if (tenantId !== 'superior') {
+      const jobCountByService = new Map<string, number>();
+      for (const job of jobs) {
+        const seen = new Set<string>();
+        for (const run of job.serviceRuns) {
+          const item = catalog.find((c) => c.dailyCode === run.code);
+          if (item && !seen.has(item.id)) {
+            seen.add(item.id);
+            jobCountByService.set(item.id, (jobCountByService.get(item.id) ?? 0) + 1);
+          }
+        }
+      }
+
       return catalog.map((item) => ({
         id: item.id,
         name: item.name,
-        category: item.category,
         categoryLabel: CATEGORY_LABELS[item.category],
-        dailyCode: item.dailyCode ?? '',
-        billingUnit: item.billingUnit,
-        billingUnitLabel: BILLING_UNIT_LABELS[item.billingUnit],
-        defaultRate: item.defaultRate,
+        code: item.dailyCode ?? '',
+        unitLabel: BILLING_UNIT_LABELS[item.billingUnit],
+        rate: item.defaultRate,
         rateNote: item.rateNote,
+        aliasCount: 0,
+        aliases: [],
+        projectCount: jobCountByService.get(item.id) ?? 0,
+        category: item.category,
+        billingUnit: item.billingUnit,
+        registryItemId: null,
       }));
     }
-    // Superior: show registry items
+
     return registry.items.map((item) => ({
       id: item.id,
       name: item.canonicalName,
-      category: 'logging' as ServiceCategory,  // placeholder — Superior doesn't use ServiceCategory
       categoryLabel: item.costType || '—',
-      dailyCode: '' as DailyCode | '',
-      billingUnit: 'per_other' as BillingUnit,  // placeholder
-      billingUnitLabel: item.unitOfMeasure || '—',
-      defaultRate: null,
+      code: '',
+      unitLabel: item.unitOfMeasure || '—',
+      rate: null,
       rateNote: null,
+      aliasCount: item.aliases.length,
+      aliases: item.aliases,
+      projectCount: item.projectIds.length,
+      category: 'logging' as ServiceCategory,
+      billingUnit: 'per_other' as BillingUnit,
+      registryItemId: item.id,
     }));
-  }, [tenantId, catalog, registry.items]);
+  }, [tenantId, catalog, registry.items, jobs]);
 
   const columnHelper = createColumnHelper<ServiceRow>();
-  const columns = useMemo(
-    () => [
-      columnHelper.accessor('name', {
-        id: 'name',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Service" />,
-        cell: (info) => <span className="text-sm">{info.getValue()}</span>,
-      }),
-      columnHelper.accessor('categoryLabel', {
-        id: 'category',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Type" />,
-        cell: (info) => (
-          <span className="text-muted-foreground text-sm">{info.getValue()}</span>
-        ),
-        size: 200,
-      }),
-      columnHelper.accessor('dailyCode', {
-        id: 'dailyCode',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Code" />,
-        cell: (info) => {
-          const code = info.getValue();
-          if (!code) return <span className="text-muted-foreground">—</span>;
-          return (
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {code === 'GAS_M' ? 'GAS M' : code}
-            </Badge>
-          );
-        },
-        size: 80,
-      }),
-      columnHelper.accessor('billingUnitLabel', {
-        id: 'billingUnit',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
-        cell: (info) => (
-          <Badge variant="secondary" className="text-[10px] font-normal">
-            {info.getValue()}
+  const columns = useMemo(() => [
+    columnHelper.accessor('name', {
+      id: 'name',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Service" />,
+      cell: (info) => <span className="text-sm">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('categoryLabel', {
+      id: 'category',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Type" />,
+      cell: (info) => (
+        <span className="text-muted-foreground text-sm">{info.getValue()}</span>
+      ),
+      size: 200,
+    }),
+    columnHelper.accessor('code', {
+      id: 'code',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Code" />,
+      cell: (info) => {
+        const code = info.getValue();
+        if (!code) return <span className="text-muted-foreground">—</span>;
+        return (
+          <Badge variant="outline" className="font-mono text-[10px]">
+            {code === 'GAS_M' ? 'GAS M' : code}
           </Badge>
-        ),
-        size: 110,
-      }),
-      columnHelper.accessor('defaultRate', {
-        id: 'rate',
-        header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Rate" className="justify-end" />
-        ),
-        cell: (info) => {
-          const rate = info.getValue();
-          const note = info.row.original.rateNote;
-          if (rate != null) {
-            return (
-              <div className="text-right text-sm tabular-nums">
-                $
-                {rate.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </div>
-            );
-          }
+        );
+      },
+      size: 80,
+    }),
+    columnHelper.accessor('unitLabel', {
+      id: 'unit',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
+      cell: (info) => (
+        <Badge variant="secondary" className="text-[10px] font-normal">
+          {info.getValue()}
+        </Badge>
+      ),
+      size: 110,
+    }),
+    columnHelper.accessor('rate', {
+      id: 'rate',
+      header: ({ column }) => (
+        <DataGridColumnHeader column={column} title="Rate" className="justify-end" />
+      ),
+      cell: (info) => {
+        const rate = info.getValue();
+        const note = info.row.original.rateNote;
+        if (rate != null) {
           return (
-            <div className="text-muted-foreground text-right text-xs italic">
-              {note ?? '—'}
+            <div className="text-right text-sm tabular-nums">
+              ${rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           );
-        },
-        size: 120,
-      }),
-    ],
-    [columnHelper]
-  );
+        }
+        return (
+          <div className="text-muted-foreground text-right text-xs italic">
+            {note ?? '—'}
+          </div>
+        );
+      },
+      size: 120,
+    }),
+    columnHelper.accessor('aliasCount', {
+      id: 'aliases',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Aliases" />,
+      cell: (info) => {
+        const count = info.getValue();
+        if (!count) return <span className="text-muted-foreground">—</span>;
+        return <Badge variant="secondary">{count}</Badge>;
+      },
+      size: 80,
+    }),
+    columnHelper.accessor('projectCount', {
+      id: 'projects',
+      header: ({ column }) => <DataGridColumnHeader column={column} title={projectLabel} />,
+      cell: (info) => {
+        const count = info.getValue();
+        if (!count) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-sm">{count}</span>;
+      },
+      size: 80,
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: '',
+      cell: (info) => {
+        const row = info.row.original;
+        if (!row.registryItemId) return null;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                const name = prompt('New name:', row.name);
+                if (name) editName(row.registryItemId!, name);
+              }}
+              title="Rename service"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            {row.aliases.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => {
+                  const alias = row.aliases[0];
+                  if (alias) separate(row.registryItemId!, alias.raw);
+                }}
+                title="Separate first alias"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        );
+      },
+      size: 80,
+    }),
+  ], [columnHelper, projectLabel, editName, separate]);
 
   return (
     <DataListShell
       data={rows}
       columns={columns}
       searchPlaceholder="Search services..."
-      searchableKeys={['name', 'dailyCode']}
-      filters={tenantId === 'stratagraph' ? [
+      searchableKeys={['name', 'categoryLabel', 'code']}
+      filters={tenantId !== 'superior' ? [
         {
           id: 'category',
           label: 'Service type',
@@ -178,7 +260,7 @@ function ServicesPage() {
           })),
         },
       ] : []}
-      emptyMessage="No services match your filters."
+      emptyMessage="No services yet."
       defaultPageSize={50}
     />
   );

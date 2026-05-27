@@ -138,7 +138,7 @@ function CustomerDetail() {
     let jobSum = 0;
     for (const code of codes) {
       const days = countCodeDays(j.id, code, j.startDate, j.endDate ?? today);
-      const li = bid.lineItems.find((l) => {
+      const li = bid.services.find((l) => {
         const c = catalog.find((x) => x.id === l.catalogItemId);
         return c?.dailyCode === code;
       });
@@ -330,7 +330,7 @@ function CustomerDetail() {
                   rateLookup={(code) => {
                     const bid = allBids.find((b) => b.id === j.bidId);
                     if (!bid) return 0;
-                    const li = bid.lineItems.find((l) => {
+                    const li = bid.services.find((l) => {
                       const c = catalog.find((x) => x.id === l.catalogItemId);
                       return c?.dailyCode === code;
                     });
@@ -377,7 +377,7 @@ function CustomerDetail() {
                     </Badge>
                     <Badge className="bg-strat-green text-white">Active</Badge>
                     <span className="text-muted-foreground text-sm">
-                      Created {activeBid.createdDate} · {activeBid.lineItems.length} line items
+                      Created {activeBid.createdDate} · {activeBid.services.length} services
                     </span>
                   </div>
                 </Link>

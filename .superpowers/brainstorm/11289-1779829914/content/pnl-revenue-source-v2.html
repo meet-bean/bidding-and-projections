@@ -1,0 +1,62 @@
+<h2>Revenue is already in the data</h2>
+<p class="subtitle">The projection upload includes monthly revenue totals + original bid values</p>
+
+<div class="section">
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+    <h3 style="color:#16a34a;margin:0 0 8px;">What the spreadsheet already provides</h3>
+    <div style="font-size:14px;line-height:1.8;color:#333;">
+      <strong>Monthly snapshots:</strong> revenue, cost, profit, GP% per month<br>
+      <strong>Original bid:</strong> total revenue, cost, profit, GP% from the contract<br>
+      <strong>Per-line-item detail:</strong> costs only (Labor, Material, Sub, Rental, etc.)
+    </div>
+  </div>
+
+  <p style="font-size:14px;color:#666;line-height:1.6;">
+    So the P&L view can use what's already imported — no new data source needed.
+    The question becomes: <strong>what should the P&L view actually show?</strong>
+  </p>
+</div>
+
+<h2 style="margin-top:32px;">What level of detail for the P&L?</h2>
+<p class="subtitle">Given that revenue is project-level and costs are per-line-item</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Summary P&L only</h3>
+      <p>Monthly revenue vs total cost, with profit and GP% per month. One row per month. Simple table + trend chart.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Matches the data granularity — revenue is already monthly totals</li>
+        <li>Clean, focused view: "are we making money on this project?"</li>
+        <li>Original bid comparison shows contract vs actual trajectory</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Summary + cost breakdown</h3>
+      <p>Top section: monthly revenue/cost/profit summary. Below: cost breakdown by type (Labor, Material, Sub, etc.) showing where the money goes.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Revenue stays as monthly totals (that's all we have)</li>
+        <li>Cost side drills down by cost type — leverages existing ProjectionItem detail</li>
+        <li>Answers both "are we profitable?" AND "where are we over budget?"</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Full dashboard with charts</h3>
+      <p>KPI cards (total revenue, total cost, GP%, variance from bid) + monthly trend chart + cost type breakdown + alerts for margin erosion.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Most visually rich — reuse projection engine's variance and alert logic</li>
+        <li>Heavier to build but makes the biggest demo impact</li>
+        <li>Could reuse existing trend modal SVG chart patterns</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -221,7 +221,7 @@ const fakeJob = (id: string, bidId: string): Job =>
 const fakeBid = (id: string): Bid =>
   ({
     id,
-    lineItems: [
+    services: [
       { id: 'li-1', catalogItemId: 'cat-log', rate: 3500, estimatedQty: 30 },
     ],
   }) as unknown as Bid;

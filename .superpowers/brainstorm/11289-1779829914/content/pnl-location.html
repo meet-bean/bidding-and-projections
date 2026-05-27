@@ -1,0 +1,43 @@
+<h2>Where should the P&L view live?</h2>
+<p class="subtitle">This determines navigation structure and how users discover the feature</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)" style="border-left: 3px solid #22c55e;">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Dedicated /p-and-l route <span style="background:#22c55e22;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:12px;margin-left:8px;">Recommended</span></h3>
+      <p>Own top-level sidebar item, between Projections and Invoices. Project list that drills into per-project P&L detail.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>First-class visibility — Superior is paying for this</li>
+        <li>Clean separation from cost forecasting (projections) and billing (invoices)</li>
+        <li>Room to grow: multi-project rollups, portfolio views later</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tab on projection detail page</h3>
+      <p>Add a "P&L" tab alongside existing projection table/comments/alerts on /projections/:projectId.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Data is already on the page — just adds a financial lens</li>
+        <li>No new nav item needed</li>
+        <li>Downside: projection detail already has a lot going on</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Section under Reports</h3>
+      <p>Add P&L as a sub-tab within /reports, alongside equipment utilization and crew availability.</p>
+      <ul style="margin-top:8px;font-size:14px;color:#666;">
+        <li>Groups all analytics together</li>
+        <li>Reports page currently only has operational metrics</li>
+        <li>Downside: buries a premium feature under a generic label</li>
+      </ul>
+    </div>
+  </div>
+</div>

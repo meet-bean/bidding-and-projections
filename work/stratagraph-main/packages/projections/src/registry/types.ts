@@ -1,27 +1,27 @@
-export interface LineItemAlias {
+export interface ServiceAlias {
   raw: string;
   normalizedTo: string;
   sourceProjectId: string;
   sourceUploadDate: string;
 }
 
-export interface LineItem {
+export interface ServiceItem {
   id: string;
   canonicalName: string;
   unitOfMeasure: string;
   costType: string;
-  aliases: LineItemAlias[];
+  aliases: ServiceAlias[];
   createdAt: string;
   projectIds: string[];
 }
 
-export interface LineItemRegistry {
+export interface ServiceRegistry {
   tenantId: string;
-  items: LineItem[];
+  items: ServiceItem[];
 }
 
 export interface FuzzyMatch {
-  existingItem: LineItem;
+  existingItem: ServiceItem;
   matchedFields: ('name' | 'costType' | 'unitOfMeasure')[];
   confidence: number;
 }

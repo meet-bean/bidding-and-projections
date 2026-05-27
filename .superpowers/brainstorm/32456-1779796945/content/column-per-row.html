@@ -1,0 +1,137 @@
+<h2>Column Mapping — One row per column</h2>
+<p class="subtitle">User uploads a file, we show every column with auto-detected type and formula detection</p>
+
+<div class="mockup">
+  <div class="mockup-header">Mapping: vista-export-may.xlsx — 12 columns detected</div>
+  <div class="mockup-body" style="padding:0;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f8f8f8;border-bottom:2px solid #e5e5e5;">
+          <th style="padding:10px 14px;text-align:left;font-weight:600;width:180px;">File Column</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;width:100px;">Sample Data</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;width:140px;">Detected As</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;">Formula / Source</th>
+          <th style="padding:10px 14px;text-align:center;font-weight:600;width:60px;">Include</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Raw data columns -->
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">Phase</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">B-100</td>
+          <td style="padding:10px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:11px;">Line Item ID</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">PhaseDescription</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">Mobilization</td>
+          <td style="padding:10px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:11px;">Line Item Name</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">CostType UM</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">2Labor</td>
+          <td style="padding:10px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:11px;">Cost Type</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">CTP Qty</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">1,200</td>
+          <td style="padding:10px 14px;"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;">CTP &gt; Quantity</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">CTD Qty</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">850</td>
+          <td style="padding:10px 14px;"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;">CTD &gt; Quantity</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">F Qty</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">1,500</td>
+          <td style="padding:10px 14px;"><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px;">Forecast &gt; Quantity</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">F Hours</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">320</td>
+          <td style="padding:10px 14px;"><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px;">Forecast &gt; Hours</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 14px;font-weight:500;">F Cost</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">$48,000</td>
+          <td style="padding:10px 14px;"><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px;">Forecast &gt; Cost</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— raw data</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+
+        <!-- Formula columns -->
+        <tr style="border-bottom:1px solid #eee;background:#fefce8;">
+          <td style="padding:10px 14px;font-weight:500;">F Unit Cost</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">$32.00</td>
+          <td style="padding:10px 14px;"><span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:4px;font-size:11px;">Forecast &gt; Unit Cost</span></td>
+          <td style="padding:10px 14px;">
+            <span style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;">= F Cost / F Qty</span>
+          </td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;background:#fefce8;">
+          <td style="padding:10px 14px;font-weight:500;">F MPU</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">0.213</td>
+          <td style="padding:10px 14px;"><span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:4px;font-size:11px;">Forecast &gt; Man-Per-Unit</span></td>
+          <td style="padding:10px 14px;">
+            <span style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;">= F Hours / F Qty</span>
+          </td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;background:#fefce8;">
+          <td style="padding:10px 14px;font-weight:500;">% Complete</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">70.8%</td>
+          <td style="padding:10px 14px;"><span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:4px;font-size:11px;">Completion %</span></td>
+          <td style="padding:10px 14px;">
+            <span style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;">= CTD Qty / F Qty × 100</span>
+          </td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;background:#fefce8;">
+          <td style="padding:10px 14px;font-weight:500;">CTC Cost</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">$14,400</td>
+          <td style="padding:10px 14px;"><span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:4px;font-size:11px;">CTC &gt; Cost</span></td>
+          <td style="padding:10px 14px;">
+            <span style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;">= F Cost − CTD Cost</span>
+          </td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#22c55e;">✓</span></td>
+        </tr>
+
+        <!-- Unrecognized column -->
+        <tr style="background:#fef2f2;">
+          <td style="padding:10px 14px;font-weight:500;">Notes</td>
+          <td style="padding:10px 14px;color:#666;font-family:monospace;font-size:12px;">PM review</td>
+          <td style="padding:10px 14px;"><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:11px;">⚠ Unknown</span></td>
+          <td style="padding:10px 14px;color:#999;font-style:italic;">— not recognized</td>
+          <td style="padding:10px 14px;text-align:center;"><span style="color:#ccc;">○</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="margin-top:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-size:13px;color:#666;">8 raw columns · 4 formula columns · 1 unrecognized</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="mock-button" style="background:#f1f5f9;color:#333;border:1px solid #ccc;">Edit Mapping</button>
+      <button class="mock-button" style="background:#2563eb;color:#fff;border:none;">Save Template & Import</button>
+    </div>
+  </div>
+</div>

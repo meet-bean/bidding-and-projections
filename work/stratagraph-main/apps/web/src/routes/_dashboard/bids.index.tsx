@@ -45,7 +45,7 @@ interface BidRow {
   isActive: boolean;
   createdDate: string;
   salesperson: string;
-  lineItemCount: number;
+  serviceCount: number;
   estDailyTotal: number;
 }
 
@@ -60,7 +60,7 @@ function BidsPage() {
   const rows: BidRow[] = useMemo(() => {
     return bids.map((b) => {
       const cust = customers.find((c) => c.id === b.customerId);
-      const est = b.lineItems
+      const est = b.services
         .filter((li) => {
           const c = catalog.find((x) => x.id === li.catalogItemId);
           return (
@@ -77,7 +77,7 @@ function BidsPage() {
         isActive: b.isActive,
         createdDate: b.createdDate,
         salesperson: b.salesperson,
-        lineItemCount: b.lineItems.length,
+        serviceCount: b.services.length,
         estDailyTotal: est,
       };
     });
@@ -159,11 +159,11 @@ function BidsPage() {
         cell: (info) => <span className="text-sm">{info.getValue()}</span>,
         size: 120,
       }),
-      columnHelper.accessor('lineItemCount', {
-        id: 'lineItemCount',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Line Items" />,
+      columnHelper.accessor('serviceCount', {
+        id: 'serviceCount',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Services" />,
         cell: (info) => (
-          <span className="text-muted-foreground text-sm">{info.getValue()} items</span>
+          <span className="text-muted-foreground text-sm">{info.getValue()} services</span>
         ),
         size: 110,
       }),

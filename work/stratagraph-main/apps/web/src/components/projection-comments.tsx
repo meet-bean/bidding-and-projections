@@ -32,7 +32,7 @@ export function ProjectionComments({
   const [showPrevious, setShowPrevious] = useState(false);
 
   const comments: ProjectionComment[] = lineKey ? (project.comments[lineKey] ?? []) : [];
-  // Get the line item label for the header
+  // Get the service label for the header
   const currentVersion = project.draft ?? project.versions[project.versions.length - 1];
   const item =
     lineKey && currentVersion

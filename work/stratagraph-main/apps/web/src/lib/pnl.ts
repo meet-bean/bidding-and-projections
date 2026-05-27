@@ -129,7 +129,7 @@ export function buildStratagraphPnl(
       const bid = bids.find((b) => b.id === job.bidId);
       if (bid) {
         for (const run of job.serviceRuns) {
-          const li = bid.lineItems.find((l) => {
+          const li = bid.services.find((l) => {
             const cat = catalog.find((c) => c.id === l.catalogItemId);
             return cat?.dailyCode === run.code;
           });

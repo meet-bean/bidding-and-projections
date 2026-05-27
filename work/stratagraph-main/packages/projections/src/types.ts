@@ -36,9 +36,9 @@ export interface ProjectionItem {
   calcHrs: number;
   /** Worksheet risk formula: F.cost - (CTD.cost * F.qty / CTD.qty). Derived. */
   wsRisk: number;
-  /** True when this line item first appeared in the current cycle. */
+  /** True when this service first appeared in the current cycle. */
   isNew: boolean;
-  /** True when this line item was in a prior version but missing from the current dump. */
+  /** True when this service was in a prior version but missing from the current dump. */
   stale: boolean;
 }
 

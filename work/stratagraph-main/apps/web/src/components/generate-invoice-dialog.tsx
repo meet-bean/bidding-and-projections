@@ -110,7 +110,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, job }: GenerateInvoi
             <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-3 text-sm">
               <AlertCircle className="text-warning mt-0.5 size-4 shrink-0" />
               <div>
-                No bid is attached to this job, so line items will have $0 unit prices. Attach a
+                No bid is attached to this job, so services will have $0 unit prices. Attach a
                 bid before generating, or proceed and adjust on the invoice.
               </div>
             </div>

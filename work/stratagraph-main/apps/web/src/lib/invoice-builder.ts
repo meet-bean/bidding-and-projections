@@ -32,7 +32,7 @@ function rateMapFromBid(bid: Bid | undefined, catalog: ServiceCatalogItem[]): {
   let crewMileRate: number | undefined;
   let unitMileRate: number | undefined;
   if (bid) {
-    bid.lineItems.forEach((li) => {
+    bid.services.forEach((li) => {
       const cat = catalog.find((c) => c.id === li.catalogItemId);
       if (cat?.dailyCode) rateMap[cat.dailyCode] = li.rate;
       if (li.catalogItemId.startsWith('logging-004-unit-transportation')) unitMileRate = li.rate;

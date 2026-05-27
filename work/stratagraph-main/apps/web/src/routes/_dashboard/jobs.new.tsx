@@ -497,7 +497,7 @@ function BidPicker({ initialCustomerId }: { initialCustomerId?: string }) {
                         <div>
                           <div className="font-medium">{cust?.name ?? '—'}</div>
                           <div className="text-muted-foreground text-xs">
-                            v{b.version} · {b.lineItems.length} line items · created{' '}
+                            v{b.version} · {b.services.length} services · created{' '}
                             {b.createdDate}
                           </div>
                         </div>

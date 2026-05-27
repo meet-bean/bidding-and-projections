@@ -11,8 +11,7 @@ import {
   exportProjectionToVistaXLSX,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult } from '@repo/projections';
-import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, ThemeModeButton } from '@repo/ui';
-import type { Theme, ResolvedTheme } from '@repo/ui';
+import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions } from '@repo/ui';
 import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
 import { ProjectionComments } from '~/components/projection-comments';
@@ -37,24 +36,6 @@ function ProjectionDetailPage() {
   const setActiveProjection = useStore((s) => s.setActiveProjection);
   const tenantId = useStore((s) => s.tenantId);
   const submitForecast = useStore((s) => s.submitForecast);
-
-  // Dark mode state
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light';
-    return (localStorage.getItem('theme') as Theme) ?? 'light';
-  });
-  const resolvedTheme: ResolvedTheme =
-    theme === 'system'
-      ? (typeof window !== 'undefined' &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? 'dark'
-          : 'light')
-      : theme;
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-    localStorage.setItem('theme', theme);
-  }, [theme, resolvedTheme]);
 
   // Panel state
   const [trendLineKey, setTrendLineKey] = useState<string | null>(null);
@@ -156,64 +137,42 @@ function ProjectionDetailPage() {
   const { open: openAlerts } = computeAlerts(project);
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between px-1">
-        <div>
-          <h1 className="text-xl font-semibold">{project.name}</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-6">
+      <PageHeader>
+        <div className="space-y-1">
+          <PageHeaderTitle>{project.name}</PageHeaderTitle>
+          <p className="text-muted-foreground text-sm">
             {project.customer} · {project.versions.length} version
             {project.versions.length !== 1 ? 's' : ''}
             {project.draft ? ' + draft' : ''}
+            {currentVersion && ` · ${currentVersion.label}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {currentVersion && (
-            <span className="text-sm text-muted-foreground">{currentVersion.label}</span>
-          )}
+        <PageHeaderActions>
           {tenantId === 'superior' && currentVersion && (
             <Button
-              size="sm"
-              variant="default"
               onClick={() => submitForecast(project.id, currentVersion.id)}
               disabled={currentVersion.saved}
             >
               {currentVersion.saved ? 'Submitted' : 'Submit Forecast'}
             </Button>
           )}
-          <ThemeModeButton
-            theme={theme}
-            resolvedTheme={resolvedTheme}
-            setTheme={setTheme}
-            size="sm"
-            variant="ghost"
-            show="icon"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowUpload(true)}
-          >
-            <Upload className="mr-1.5 size-3.5" />
+          <Button variant="outline" onClick={() => setShowUpload(true)}>
+            <Upload />
             Upload
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowHistory(true)}
-          >
-            <Clock className="mr-1.5 size-3.5" />
+          <Button variant="outline" onClick={() => setShowHistory(true)}>
+            <Clock />
             History
             <Badge variant="secondary" size="sm" className="ml-1.5">
               {project.versions.length}
             </Badge>
           </Button>
           <Button
-            size="sm"
             variant={openAlerts.length > 0 ? 'destructive' : 'outline'}
             onClick={() => setShowAlerts(true)}
           >
-            <AlertTriangle className="mr-1.5 size-3.5" />
+            <AlertTriangle />
             Alerts
             {openAlerts.length > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-xs px-1.5">
@@ -221,10 +180,9 @@ function ProjectionDetailPage() {
               </Badge>
             )}
           </Button>
-        </div>
-      </div>
+        </PageHeaderActions>
+      </PageHeader>
 
-      {/* Read-only banner when viewing a past version */}
       {isReadOnly && (
         <div className="rounded-lg border border-warning bg-warning/10 px-4 py-2 flex items-center justify-between">
           <span className="text-sm">
@@ -236,7 +194,6 @@ function ProjectionDetailPage() {
         </div>
       )}
 
-      {/* Main table */}
       <ProjectionTable
         project={tableProject}
         onUpdateForecast={handleUpdateForecast}
@@ -245,12 +202,11 @@ function ProjectionDetailPage() {
         onExport={handleExport}
       />
 
-      {/* Monthly entry form — Superior tenant only */}
       {tenantId === 'superior' && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-3">Monthly Entry</h2>
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">Monthly Entry</h2>
           <MonthlyEntryForm projectId={projectId} />
-        </div>
+        </section>
       )}
 
       {/* Comments sheet */}

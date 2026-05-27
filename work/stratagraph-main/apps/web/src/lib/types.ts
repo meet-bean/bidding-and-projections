@@ -46,7 +46,7 @@ export type BillingUnit =
   | 'per_sample'
   | 'per_other';
 
-/** A line item in the master service catalog (sourced from Blank bid.xlsx). */
+/** A service in the master service catalog (sourced from Blank bid.xlsx). */
 export interface ServiceCatalogItem {
   id: string;
   category: ServiceCategory;
@@ -139,7 +139,7 @@ export const WELL_STATUS_LABELS: Record<Well['status'], string> = {
   inactive: 'Inactive',
 };
 
-export interface BidLineItem {
+export interface BidService {
   id: string;
   catalogItemId: string;
   /** Bid-specific rate override. Falls back to catalog defaultRate when null. */
@@ -180,7 +180,7 @@ export interface Bid {
   /** Date the customer accepted the bid (set when status flips to 'accepted'). */
   acceptedDate?: string;
   salesperson: string;
-  lineItems: BidLineItem[];
+  services: BidService[];
   notes?: string;
 }
 

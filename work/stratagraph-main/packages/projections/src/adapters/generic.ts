@@ -28,7 +28,7 @@ export function parseWithMetrics(
   const activeColumns = mappedColumns.filter((c) => !c.skipped && c.metricId);
 
   for (const row of rows) {
-    let lineItemValue = '';
+    let serviceValue = '';
     let costTypeValue = '';
     let descriptionValue = '';
     let umValue = '';
@@ -44,7 +44,7 @@ export function parseWithMetrics(
 
       if (mapping.sliceGroup === null) {
         const strVal = String(rawValue ?? '');
-        if (mapping.field === 'lineItem') lineItemValue = strVal;
+        if (mapping.field === 'service') serviceValue = strVal;
         else if (mapping.field === 'costType') {
           const parsed = splitCostTypeUM(strVal);
           costTypeValue = parsed.costType;
@@ -82,19 +82,19 @@ export function parseWithMetrics(
 
           if (computed !== null && Math.abs(computed - numVal) > Math.abs(numVal) * 0.05 + 0.01) {
             warnings.push(
-              `${col.columnHeader}: file says ${numVal}, formula gives ${computed.toFixed(2)} for ${lineItemValue}`,
+              `${col.columnHeader}: file says ${numVal}, formula gives ${computed.toFixed(2)} for ${serviceValue}`,
             );
           }
         }
       }
     }
 
-    if (!lineItemValue) continue;
+    if (!serviceValue) continue;
 
     const item: ProjectionItem = {
-      lineKey: makeLineKey(lineItemValue, costTypeValue),
-      keyParts: [lineItemValue, costTypeValue],
-      label: descriptionValue || lineItemValue,
+      lineKey: makeLineKey(serviceValue, costTypeValue),
+      keyParts: [serviceValue, costTypeValue],
+      label: descriptionValue || serviceValue,
       unitOfMeasure: umValue,
       CTP: { ...blankSlice(), ...slices['CTP'] },
       CTD: { ...blankSlice(), ...slices['CTD'] },

@@ -39,7 +39,7 @@ const FIELD_OPTIONS = [
   { value: 'uc', label: 'Unit Cost' },
   { value: 'mpu', label: 'Man-Per-Unit' },
   { value: 'upm', label: 'Units-Per-Man' },
-  { value: 'lineItem', label: 'Line Item ID' },
+  { value: 'service', label: 'Service ID' },
   { value: 'costType', label: 'Cost Type' },
   { value: 'description', label: 'Description' },
   { value: 'unitOfMeasure', label: 'Unit of Measure' },

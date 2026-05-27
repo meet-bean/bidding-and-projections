@@ -79,44 +79,21 @@ Seed data lives in [seed-data.ts](apps/web/src/data/seed-data.ts). Ticket genera
 
 ## Current State
 
-### Platform merge (done 2026-05-23)
-- **done** — `packages/projections`: engine, Vista adapter, batch-upload, XLSX/CSV export
-- **done** — Projection routes: `/projections` (list) + `/projections/:projectId` (detail)
-- **done** — Projection table with editable forecast cells, variance highlighting, progress bars
-- **done** — Trend modal (SVG multi-line chart per line item)
-- **done** — Comments panel (project-level, rolls over across versions)
-- **done** — Alerts panel (computed from engine, 9 alert types)
-- **done** — Upload dialog (batch Vista file import)
-- **done** — Multi-tenant sidebar + tenant switcher
-- **done** — P&L View on Reports page: portfolio rollup (KPIs, trend chart, project table) + per-project drill-down (monthly P&L, cost-type breakdown). Both tenants: Superior uses uploaded financials, Stratagraph derives from invoices + job service runs. Margin alerts on project rows.
+Platform merge, projections engine, P0 demo flows, and 22-feature projection table parity are all complete. See git history for details.
 
-### Stratagraph P0 — Demo flows (all done)
-1. **done** — Bid creation and editing ([bid-editor.tsx](apps/web/src/components/bid-editor.tsx))
-2. **done** — Bid → Job conversion
-3. **done** — Job detail with field workers, equipment, services, day cards, activity tab
-4. **done** — Ticket generation from job
-5. **done** — Customer + unit (well) dialogs, equipment, yards, services, reports, home dashboard
-
-### Stratagraph P1 — Pre-demo polish (from 2026-05-20 internal review)
+### Stratagraph P1 — Pre-demo polish
 1. Wells as child of Customer; well selector on Bid
 2. Bid accept/reject state (Pending → Accepted)
 3. New Job pulls from Accepted bids only; auto-populates from bid
-4. Equipment + crew assignment moves to the Bid (kill Job's Services & Assignment tab)
-5. Field ticket start date locked to "day after last ticket"; end date editable
-6. Generate-ticket button always says "Generate" (not "View")
-7. Home screen rework (needs OK — nav-adjacent)
+4. Equipment + crew assignment moves to the Bid
+5. Field ticket start date locked to "day after last ticket"
+6. Generate-ticket button always says "Generate"
+7. Home screen rework
 8. Equipment utilization report
 9. Crew availability report
 10. Equipment status terms: Deployed / Available
 11. Job → Activity tab: show equipment; "replace equipment" action
 12. Ticket statuses: Created / Sent / Signed / Paid
-
-### P2 — Deferred
-1. Service shorthands → multi-line-items schema
-2. Mobile UX
-3. Cosmetic: double-border on team/customers search bar
-4. Click-yard-to-see-units
-5. Bid PDF / send-bid flow
 
 ## Conventions
 
@@ -131,6 +108,3 @@ Seed data lives in [seed-data.ts](apps/web/src/data/seed-data.ts). Ticket genera
 - **Mickey (core user):** Feels the daily pain of tracking projects in his head and Excel. Wants to see his workflow reflected — bids, jobs, wells, crews, equipment — without leaving the app. Demo must make him feel "this is mine."
 - **Mickey's boss (budget approver):** Joining the demo. Time-saved + error-reduction is necessary but **not sufficient**. The pitch to him is that better visibility into equipment and crew utilization will **increase revenue**. Surface anything that demonstrates utilization, capacity, or bottlenecks.
 
-## Reference Documents
-
-- Stakeholder transcript (forthcoming) — source for the P1 feedback pass.

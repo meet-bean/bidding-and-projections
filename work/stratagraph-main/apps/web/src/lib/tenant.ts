@@ -47,12 +47,12 @@ const OPERATIONS_NAV: NavItem[] = [
     children: [
       { id: 'admin-org', label: 'Organization', href: '/admin/organization', icon: 'Building' },
       { id: 'admin-team', label: 'Team', href: '/users', icon: 'Users' },
+      { id: 'admin-crew', label: 'Field Crew', href: '/crew', icon: 'UserCog' },
       { id: 'admin-customers', label: 'Customers', href: '/customers', icon: 'Building2' },
       { id: 'admin-equipment', label: 'Equipment', href: '/equipment', icon: 'Truck' },
       { id: 'admin-services', label: 'Services', href: '/services', icon: 'Wrench' },
       { id: 'admin-yards', label: 'Yards', href: '/yards', icon: 'MapPin' },
       { id: 'admin-metrics', label: 'Metrics', href: '/admin/metrics', icon: 'Calculator' },
-      { id: 'admin-registry', label: 'Line Items', href: '/admin/registry', icon: 'List' },
     ],
   },
 ];
@@ -68,8 +68,8 @@ const PROJECTIONS_NAV: NavItem[] = [
     defaultOpen: true,
     children: [
       { id: 'admin-org', label: 'Organization', href: '/admin/organization', icon: 'Building' },
+      { id: 'admin-services', label: 'Services', href: '/services', icon: 'Wrench' },
       { id: 'admin-metrics', label: 'Metrics', href: '/admin/metrics', icon: 'Calculator' },
-      { id: 'admin-registry', label: 'Line Items', href: '/admin/registry', icon: 'List' },
     ],
   },
 ];

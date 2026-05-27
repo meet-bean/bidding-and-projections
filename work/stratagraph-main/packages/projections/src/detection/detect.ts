@@ -48,13 +48,13 @@ export function detectColumns(
     };
   });
 
-  const lineItemResults = results.filter((r) => r.matched && catalog.metrics.find((m) => m.id === r.metricId)?.field === 'lineItem');
+  const serviceResults = results.filter((r) => r.matched && catalog.metrics.find((m) => m.id === r.metricId)?.field === 'service');
   let structureInfo: { structure: 'flat' | 'breakout'; breakoutPattern: string | null } = { structure: 'flat', breakoutPattern: null };
 
-  if (lineItemResults.length > 0) {
-    const lineItemHeader = lineItemResults[0]!.columnHeader;
-    const lineItems = sampleRows.map((row) => String(row[lineItemHeader] ?? ''));
-    structureInfo = detectStructure(lineItems);
+  if (serviceResults.length > 0) {
+    const serviceHeader = serviceResults[0]!.columnHeader;
+    const serviceNames = sampleRows.map((row) => String(row[serviceHeader] ?? ''));
+    structureInfo = detectStructure(serviceNames);
   }
 
   return {
@@ -121,11 +121,11 @@ function checkFormula(
 }
 
 export function detectStructure(
-  lineItems: string[],
+  serviceNames: string[],
 ): { structure: 'flat' | 'breakout'; breakoutPattern: string | null } {
   const suffixPattern = /^(.+?)\s*[-–]\s*(Labor|Material|Rental|SubCont|Equipment|Parts|Fuel|Health|Other)$/i;
-  const withSuffix = lineItems.filter((item) => suffixPattern.test(item));
-  const ratio = lineItems.length > 0 ? withSuffix.length / lineItems.length : 0;
+  const withSuffix = serviceNames.filter((item) => suffixPattern.test(item));
+  const ratio = serviceNames.length > 0 ? withSuffix.length / serviceNames.length : 0;
 
   if (ratio >= 0.2 && withSuffix.length >= 2) {
     const match = withSuffix[0]!.match(suffixPattern);

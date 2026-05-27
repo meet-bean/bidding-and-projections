@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricsCatalog, LineItemRegistry, LineItemAlias } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricsCatalog, ServiceRegistry, ServiceAlias } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -22,10 +22,10 @@ import {
   removeMetric,
   updateMetric,
   createRegistry,
-  addLineItem,
-  mergeLineItems,
+  addServiceItem,
+  mergeServiceItems,
   separateAlias,
-  editLineItemName,
+  editServiceItemName,
   lockVersion,
 } from '@repo/projections';
 import {
@@ -54,7 +54,7 @@ import {
   SC_WELLS,
   SC_YARDS,
 } from '~/data/seed-superior';
-import { SEED_SUNCOAST_3A } from '~/data/seed-projections';
+
 import { buildForecastInvoiceLines, sumForecastInvoiceTotal } from './forecast-invoice-builder';
 
 function getInitialTenantId(): TenantId {
@@ -499,6 +499,10 @@ interface StratagraphState {
   setTenant: (id: TenantId) => void;
   getTenantConfig: () => TenantConfig;
 
+  // Feature flag overrides (hide nav items)
+  hiddenNavItems: Record<string, boolean>;
+  toggleNavItem: (id: string) => void;
+
   // Projections
   projectionProjects: ProjectionProject[];
   activeProjectionId: string | null;
@@ -524,16 +528,16 @@ interface StratagraphState {
   removeMetricFromStore: (metricId: string) => void;
   updateMetricInStore: (metricId: string, patch: Partial<Metric>) => void;
 
-  // Line item registry (per-tenant)
-  lineItemRegistry: LineItemRegistry;
+  // Service registry (per-tenant)
+  serviceRegistry: ServiceRegistry;
   addRegistryItem: (input: { canonicalName: string; unitOfMeasure: string; costType: string; sourceProjectId: string }) => void;
-  mergeRegistryItems: (targetId: string, alias: LineItemAlias) => void;
+  mergeRegistryItems: (targetId: string, alias: ServiceAlias) => void;
   separateRegistryAlias: (itemId: string, aliasRaw: string) => void;
   editRegistryItemName: (itemId: string, newName: string) => void;
 
   // Monthly quantity helpers (Superior tenant)
-  getMonthlyQuantity: (projectId: string, lineItemId: string, yearMonth: string) => { qty: number; hours: number };
-  setMonthlyQuantity: (projectId: string, lineItemId: string, yearMonth: string, qty: number, hours: number) => void;
+  getMonthlyQuantity: (projectId: string, serviceId: string, yearMonth: string) => { qty: number; hours: number };
+  setMonthlyQuantity: (projectId: string, serviceId: string, yearMonth: string, qty: number, hours: number) => void;
 
   submitForecast: (projectId: string, versionId: string) => void;
   generateInvoiceFromForecast: (projectId: string, versionId: string) => void;
@@ -560,7 +564,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
       id: 'notif-seed-devon',
       kind: 'bid_accepted',
       title: 'Bid accepted — Foothill Energy',
-      description: 'Cana Woodford 22H · 4 line items, ready to spin up a job.',
+      description: 'Cana Woodford 22H · 4 services, ready to spin up a job.',
       createdAt: '2026-05-19T16:42:00Z',
       read: false,
       sourceId: 'bid-devon-v1',
@@ -887,7 +891,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
       const catalog = get().serviceCatalog;
       if (bid) {
         const codes = new Set<DailyCode>();
-        for (const li of bid.lineItems) {
+        for (const li of bid.services) {
           const cat = catalog.find((c) => c.id === li.catalogItemId);
           if (cat?.dailyCode && cat.billingUnit === 'per_day') {
             codes.add(cat.dailyCode);
@@ -1003,7 +1007,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         customerId: input.customerId,
         status: input.status,
         salesperson: input.salesperson,
-        lineItems: input.lineItems,
+        services: input.services,
         notes: input.notes,
       };
       return { bids: [...s.bids, bid] };
@@ -1032,8 +1036,8 @@ export const useStore = create<StratagraphState>((set, get) => ({
         kind: 'bid_accepted',
         title: `Bid accepted — ${customer?.name ?? 'customer'}`,
         description: well
-          ? `${well.name} · ${bid.lineItems.length} line items, ready to spin up a job.`
-          : `${bid.lineItems.length} line items, ready to spin up a job.`,
+          ? `${well.name} · ${bid.services.length} services, ready to spin up a job.`
+          : `${bid.services.length} services, ready to spin up a job.`,
         createdAt: new Date().toISOString(),
         read: false,
         sourceId: bid.id,
@@ -1113,14 +1117,19 @@ export const useStore = create<StratagraphState>((set, get) => ({
       ...seed,
       organization: seed.organization,
       notifications: [],
-      projectionProjects: id === 'superior' ? [SEED_SUNCOAST_3A] : [],
+      projectionProjects: [],
       metricsCatalog: createCatalog(id),
-      lineItemRegistry: createRegistry(id),
+      serviceRegistry: createRegistry(id),
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
 
-  projectionProjects: _initialTenant === 'superior' ? [SEED_SUNCOAST_3A] : [],
+  hiddenNavItems: {},
+  toggleNavItem: (id) => set((s) => ({
+    hiddenNavItems: { ...s.hiddenNavItems, [id]: !s.hiddenNavItems[id] },
+  })),
+
+  projectionProjects: [],
   activeProjectionId: null,
   getActiveProjection: () => {
     const s = get();
@@ -1159,7 +1168,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
     project.jobNumber = `SC-${String(get().projectionProjects.length + 1).padStart(3, '0')}`;
 
     // Create bid from estimate values
-    const bidLineItems = items
+    const bidServices = items
       .filter((item) => item.Est.cost > 0)
       .map((item, i) => ({
         id: `bli-${i}`,
@@ -1168,7 +1177,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         estimatedQty: item.Est.qty > 0 ? item.Est.qty : undefined,
       }));
 
-    if (bidLineItems.length > 0) {
+    if (bidServices.length > 0) {
       const bidId = `bid-auto-${Date.now()}`;
       const bid: Bid = {
         id: bidId,
@@ -1179,12 +1188,12 @@ export const useStore = create<StratagraphState>((set, get) => ({
         createdDate: new Date().toISOString().slice(0, 10),
         acceptedDate: new Date().toISOString().slice(0, 10),
         salesperson: pm,
-        lineItems: bidLineItems,
+        services: bidServices,
       };
       set((s) => ({ bids: [...s.bids, bid] }));
     }
 
-    // Add line items to registry
+    // Add services to registry
     for (const item of items) {
       get().addRegistryItem({
         canonicalName: item.label || item.lineKey,
@@ -1210,17 +1219,17 @@ export const useStore = create<StratagraphState>((set, get) => ({
   updateMetricInStore: (metricId, patch) =>
     set((s) => ({ metricsCatalog: updateMetric(s.metricsCatalog, metricId, patch) })),
 
-  lineItemRegistry: createRegistry(_initialTenant),
+  serviceRegistry: createRegistry(_initialTenant),
   addRegistryItem: (input) =>
-    set((s) => ({ lineItemRegistry: addLineItem(s.lineItemRegistry, input) })),
+    set((s) => ({ serviceRegistry: addServiceItem(s.serviceRegistry, input) })),
   mergeRegistryItems: (targetId, alias) =>
-    set((s) => ({ lineItemRegistry: mergeLineItems(s.lineItemRegistry, targetId, alias) })),
+    set((s) => ({ serviceRegistry: mergeServiceItems(s.serviceRegistry, targetId, alias) })),
   separateRegistryAlias: (itemId, aliasRaw) =>
-    set((s) => ({ lineItemRegistry: separateAlias(s.lineItemRegistry, itemId, aliasRaw) })),
+    set((s) => ({ serviceRegistry: separateAlias(s.serviceRegistry, itemId, aliasRaw) })),
   editRegistryItemName: (itemId, newName) =>
-    set((s) => ({ lineItemRegistry: editLineItemName(s.lineItemRegistry, itemId, newName) })),
+    set((s) => ({ serviceRegistry: editServiceItemName(s.serviceRegistry, itemId, newName) })),
 
-  getMonthlyQuantity: (projectId, lineItemId, yearMonth) => {
+  getMonthlyQuantity: (projectId, serviceId, yearMonth) => {
     const job = get().jobs.find((j) => j.id === projectId);
     if (!job) return { qty: 0, hours: 0 };
     const parts = yearMonth.split('-');
@@ -1232,7 +1241,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = `${yearMonth}-${String(d).padStart(2, '0')}`;
       const entry = job.dailyQuantities?.find(
-        (dq) => dq.date === iso && dq.code === (lineItemId as DailyCode)
+        (dq) => dq.date === iso && dq.code === (serviceId as DailyCode)
       );
       if (entry) {
         totalQty += entry.qty;
@@ -1241,7 +1250,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
     return { qty: totalQty, hours: totalHours };
   },
 
-  setMonthlyQuantity: (projectId, lineItemId, yearMonth, qty, _hours) => {
+  setMonthlyQuantity: (projectId, serviceId, yearMonth, qty, _hours) => {
     const ymParts = yearMonth.split('-');
     const y = Number(ymParts[0]);
     const m = Number(ymParts[1]);
@@ -1259,11 +1268,11 @@ export const useStore = create<StratagraphState>((set, get) => ({
       const jobs = s.jobs.map((job) => {
         if (job.id !== projectId) return job;
         const existing = (job.dailyQuantities ?? []).filter(
-          (dq) => !(dq.code === (lineItemId as DailyCode) && dq.date.startsWith(yearMonth))
+          (dq) => !(dq.code === (serviceId as DailyCode) && dq.date.startsWith(yearMonth))
         );
         const newEntries = workingDays.map((date) => ({
           date,
-          code: lineItemId as DailyCode,
+          code: serviceId as DailyCode,
           qty: perDay,
         }));
         return { ...job, dailyQuantities: [...existing, ...newEntries] };

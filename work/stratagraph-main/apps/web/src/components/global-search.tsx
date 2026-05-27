@@ -60,7 +60,7 @@ export function GlobalSearch() {
         key: `bid-${b.id}`,
         group: 'Bids',
         label: `${c?.name ?? 'Bid'} v${b.version}`,
-        sub: `${b.lineItems.length} line items · ${b.status}`,
+        sub: `${b.services.length} services · ${b.status}`,
         icon: 'bid' as const,
         href: `/bids/${b.id}`,
         searchText: `${c?.name ?? ''} v${b.version} ${b.status}`,

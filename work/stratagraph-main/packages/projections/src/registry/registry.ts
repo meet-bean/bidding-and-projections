@@ -1,7 +1,7 @@
 import type {
-  LineItem,
-  LineItemAlias,
-  LineItemRegistry,
+  ServiceItem,
+  ServiceAlias,
+  ServiceRegistry,
   FuzzyMatch,
 } from './types';
 
@@ -17,17 +17,17 @@ export function normalizeKey(s: string): string {
 function levenshtein(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array<number>(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i]![0] = i;
+  for (let j = 0; j <= n; j++) dp[0]![j] = j;
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      dp[i]![j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1]![j - 1]!
+        : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!);
     }
   }
-  return dp[m][n];
+  return dp[m]![n]!;
 }
 
 function isFuzzyMatch(a: string, b: string, threshold = 0.3): boolean {
@@ -39,19 +39,19 @@ function isFuzzyMatch(a: string, b: string, threshold = 0.3): boolean {
   return levenshtein(na, nb) / maxLen <= threshold;
 }
 
-export function createRegistry(tenantId: string): LineItemRegistry {
+export function createRegistry(tenantId: string): ServiceRegistry {
   return { tenantId, items: [] };
 }
 
-export function addLineItem(
-  registry: LineItemRegistry,
+export function addServiceItem(
+  registry: ServiceRegistry,
   input: {
     canonicalName: string;
     unitOfMeasure: string;
     costType: string;
     sourceProjectId: string;
   }
-): LineItemRegistry {
+): ServiceRegistry {
   const normName = normalizeKey(input.canonicalName);
   const normCost = normalizeKey(input.costType);
   const existing = registry.items.find(
@@ -70,7 +70,7 @@ export function addLineItem(
     }
     return registry;
   }
-  const newItem: LineItem = {
+  const newItem: ServiceItem = {
     id: uid(),
     canonicalName: input.canonicalName,
     unitOfMeasure: input.unitOfMeasure,
@@ -82,11 +82,11 @@ export function addLineItem(
   return { ...registry, items: [...registry.items, newItem] };
 }
 
-export function findLineItem(
-  registry: LineItemRegistry,
+export function findServiceItem(
+  registry: ServiceRegistry,
   name: string,
   costType: string
-): LineItem | undefined {
+): ServiceItem | undefined {
   const normName = normalizeKey(name);
   const normCost = normalizeKey(costType);
   return registry.items.find((item) => {
@@ -98,7 +98,7 @@ export function findLineItem(
 }
 
 export function findFuzzyMatches(
-  registry: LineItemRegistry,
+  registry: ServiceRegistry,
   name: string,
   unitOfMeasure: string,
   costType: string
@@ -116,11 +116,11 @@ export function findFuzzyMatches(
   return results;
 }
 
-export function mergeLineItems(
-  registry: LineItemRegistry,
+export function mergeServiceItems(
+  registry: ServiceRegistry,
   targetItemId: string,
-  alias: LineItemAlias
-): LineItemRegistry {
+  alias: ServiceAlias
+): ServiceRegistry {
   return {
     ...registry,
     items: registry.items.map((item) =>
@@ -132,10 +132,10 @@ export function mergeLineItems(
 }
 
 export function separateAlias(
-  registry: LineItemRegistry,
+  registry: ServiceRegistry,
   itemId: string,
   aliasRaw: string
-): LineItemRegistry {
+): ServiceRegistry {
   const source = registry.items.find((i) => i.id === itemId);
   if (!source) return registry;
   const alias = source.aliases.find((a) => a.raw === aliasRaw);
@@ -145,7 +145,7 @@ export function separateAlias(
     ...source,
     aliases: source.aliases.filter((a) => a.raw !== aliasRaw),
   };
-  const newItem: LineItem = {
+  const newItem: ServiceItem = {
     id: uid(),
     canonicalName: aliasRaw,
     unitOfMeasure: source.unitOfMeasure,
@@ -161,11 +161,11 @@ export function separateAlias(
   };
 }
 
-export function editLineItemName(
-  registry: LineItemRegistry,
+export function editServiceItemName(
+  registry: ServiceRegistry,
   itemId: string,
   newName: string
-): LineItemRegistry {
+): ServiceRegistry {
   return {
     ...registry,
     items: registry.items.map((item) =>
@@ -174,10 +174,10 @@ export function editLineItemName(
   };
 }
 
-export function removeLineItem(
-  registry: LineItemRegistry,
+export function removeServiceItem(
+  registry: ServiceRegistry,
   itemId: string
-): LineItemRegistry {
+): ServiceRegistry {
   return {
     ...registry,
     items: registry.items.filter((i) => i.id !== itemId),

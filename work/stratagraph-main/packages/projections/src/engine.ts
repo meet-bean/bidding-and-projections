@@ -240,7 +240,7 @@ export function ingestBatch(
     const items: ProjectionItem[] = cycle.items.map((r) => {
       carriedKeys.add(r.lineKey);
       const prevF = prevMap.get(r.lineKey) ?? null;
-      const isNew = prevVersion != null && !prevMap.has(r.lineKey);
+      const isNew = prevVersion == null || !prevMap.has(r.lineKey);
       return { ...deriveItem(r, prevF), isNew, stale: false };
     });
 
@@ -742,7 +742,7 @@ const alertIdStr = (cycleId: string, key: string, type: string): string =>
 const SEV_RANK: Record<AlertSeverity, number> = { high: 0, medium: 1, info: 2 };
 
 const alertBuilders: AlertBuilder[] = [
-  // New line item
+  // New service
   (_project, item, cycleId) => {
     if (!item.isNew) return null;
     const detail =
@@ -754,7 +754,7 @@ const alertBuilders: AlertBuilder[] = [
       key: item.lineKey,
       type: 'new',
       severity: item.F.cost > 0 ? 'info' : 'medium',
-      title: 'New line item',
+      title: 'New service',
       detail,
     };
   },
@@ -1020,7 +1020,7 @@ export const SEVERITY_TONE: Record<
 };
 
 export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
-  new: 'New Item',
+  new: 'New Service',
   stale: 'Stale',
   'var-prev': 'Variance · MoM',
   'var-orig': 'Variance · Bid',

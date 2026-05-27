@@ -22,6 +22,8 @@ import {
   formatNumber,
   formatPercent,
   lensVsPrev,
+  lensVsOrig,
+  lensLeftToSpend,
   computeAlerts,
   computeSummaryRows,
   riskScore,
@@ -49,9 +51,10 @@ interface ProjectionTableProps {
 const helper = createColumnHelper<ProjectionItem>();
 
 const SLICES = ['CTP', 'CTD', 'CTC', 'F', 'Est'] as const;
-const FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const STD_FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const F_FIELDS = ['qty', 'hours', 'calcHrs', 'upm', 'mpu', 'uc'] as const;
 const FIELD_LABELS: Record<string, string> = {
-  qty: 'Qty', hours: 'Hours', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
+  qty: 'Qty', hours: 'Hours', calcHrs: 'Calc Hrs', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
 };
 
 // Inline editable cell for forecast fields
@@ -175,11 +178,35 @@ export function ProjectionTable({
   const sliceColumns = useMemo(() => {
     const cols = [];
     for (const slice of SLICES) {
-      for (const field of FIELDS) {
+      const fields = slice === 'F' ? F_FIELDS : STD_FIELDS;
+      for (const field of fields) {
         if (!colVis.isVisible(slice, field)) continue;
+
+        if (slice === 'F' && field === 'calcHrs') {
+          cols.push(
+            helper.accessor('calcHrs', {
+              id: 'F-calcHrs',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="F Calc Hrs" />
+              ),
+              cell: ({ getValue }) => (
+                <div className="text-right text-sm tabular-nums">
+                  {(getValue() as number) === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    formatNumber(getValue() as number)
+                  )}
+                </div>
+              ),
+              size: 90,
+            }),
+          );
+          continue;
+        }
+
         const sliceName = slice as keyof Pick<ProjectionItem, 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'>;
         const fieldName = field as keyof TimeSlice;
-        const isEditable = slice === 'F' && (field === 'qty' || field === 'hours' || field === 'cost');
+        const isEditable = slice === 'F' && (field === 'qty' || field === 'hours');
 
         cols.push(
           helper.accessor((row) => row[sliceName][fieldName], {
@@ -211,13 +238,35 @@ export function ProjectionTable({
           }),
         );
       }
+
+      // After F slice: insert prevForecast column
+      if (slice === 'F' && colVis.isVisible('meta', 'prevForecast')) {
+        cols.push(
+          helper.accessor('prevForecast', {
+            id: 'meta-prevForecast',
+            header: ({ column }) => (
+              <DataGridColumnHeader column={column} title="Last Month FC" />
+            ),
+            cell: ({ getValue }) => (
+              <div className="text-right text-sm tabular-nums">
+                {(getValue() as number) === 0 ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : (
+                  formatCurrency(getValue() as number)
+                )}
+              </div>
+            ),
+            size: 110,
+          }),
+        );
+      }
     }
     return cols;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colVis.vis, onUpdateForecast]);
 
   const columns = useMemo(() => [
-    // Static columns
+    // ── Static: Phase → Description → Cost Type/UM ──
     helper.accessor((row) => row.keyParts[0] ?? '', {
       id: 'phase',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Phase" />,
@@ -244,89 +293,148 @@ export function ProjectionTable({
         ),
       },
     }),
-    helper.accessor((row) => row.keyParts[1] ?? '', {
-      id: 'costType',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="Cost Type" />,
-      cell: ({ getValue }) => <span className="text-xs">{getValue()}</span>,
-      size: 100,
-    }),
     helper.accessor('label', {
+      id: 'description',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Description" />,
       cell: ({ getValue }) => <span className="text-sm">{getValue()}</span>,
       size: 200,
     }),
-    helper.accessor('unitOfMeasure', {
-      header: ({ column }) => <DataGridColumnHeader column={column} title="UM" />,
-      cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground">{getValue()}</span>
+    helper.accessor((row) => `${row.keyParts[1] ?? ''} ${row.unitOfMeasure}`.trim(), {
+      id: 'costTypeUM',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Cost Type/UM" />,
+      cell: ({ row }) => (
+        <span className="text-xs">
+          {row.original.keyParts[1] ?? ''}
+          {row.original.unitOfMeasure ? (
+            <span className="text-muted-foreground"> {row.original.unitOfMeasure}</span>
+          ) : null}
+        </span>
       ),
-      size: 60,
+      size: 120,
     }),
-    // Dynamic slice columns
+    // ── Dynamic: CTP → CTD → CTC → F (with calcHrs) → prevForecast → Est/OE ──
     ...sliceColumns,
-    // Variance vs prev month — color coded, sorts by absolute value
+    // ── Projection summary ──
+    helper.accessor((row) => row.F.cost, {
+      id: 'proj-forecast',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Forecast" />,
+      cell: ({ getValue }) => (
+        <div className="text-right text-sm font-medium tabular-nums">
+          {(getValue() as number) === 0 ? (
+            <span className="text-muted-foreground">—</span>
+          ) : (
+            formatCurrency(getValue() as number)
+          )}
+        </div>
+      ),
+      size: 120,
+    }),
     helper.accessor(
       (row) => {
         const v = lensVsPrev(project, row.lineKey);
-        return v?.pct ?? 0;
+        return v?.delta ?? 0;
       },
       {
-        id: 'vsPrev',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Var MoM" />,
-        sortingFn: (a, b) => Math.abs(a.getValue('vsPrev') as number) - Math.abs(b.getValue('vsPrev') as number),
-        cell: ({ getValue, row }) => {
-          const pct = getValue();
-          const v = lensVsPrev(project, row.original.lineKey);
-          if (!v || Math.abs(pct) < 0.1)
-            return (
-              <div className="text-right text-xs text-muted-foreground">—</div>
-            );
-          const significant = Math.abs(pct) >= VARIANCE_THRESHOLD_PCT;
+        id: 'proj-chgPrev',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Chg From Prev" />,
+        sortingFn: (a, b) => Math.abs(a.getValue('proj-chgPrev') as number) - Math.abs(b.getValue('proj-chgPrev') as number),
+        cell: ({ getValue }) => {
+          const delta = getValue() as number;
+          if (Math.abs(delta) < 0.5)
+            return <div className="text-right text-xs text-muted-foreground">—</div>;
           return (
             <div
               className={cn(
-                'rounded px-1.5 py-0.5 text-right text-xs tabular-nums transition-colors',
-                significant && pct > 0 && 'bg-destructive/10 text-destructive',
-                significant && pct < 0 && 'bg-success/10 text-success',
-                !significant && 'text-muted-foreground',
+                'rounded px-1.5 py-0.5 text-right text-xs tabular-nums',
+                delta > 0 && 'text-destructive',
+                delta < 0 && 'text-success',
               )}
             >
-              {formatPercent(pct)}
+              {formatCurrency(delta)}
             </div>
           );
         },
-        size: 90,
+        size: 110,
       },
     ),
-    // % complete
-    helper.accessor('comp', {
-      header: ({ column }) => <DataGridColumnHeader column={column} title="% Done" />,
-      cell: ({ row }) => {
-        const item = row.original;
-        const qPct = qtyComplete(item);
-        const dPct = dollarComplete(item);
-        return (
-          <div className="flex items-center gap-2">
-            {qPct != null && (
-              <CompletionRing pct={qPct} size={28} label={`${qPct.toFixed(0)}%`} />
-            )}
-            {dPct != null && (
-              <CompletionRing
-                pct={dPct}
-                size={28}
-                label={`$${dPct.toFixed(0)}%`}
-                className="text-muted-foreground"
-              />
-            )}
-            {qPct == null && dPct == null && (
-              <span className="text-xs text-muted-foreground">--</span>
-            )}
-          </div>
-        );
+    helper.accessor(
+      (row) => {
+        const v = lensLeftToSpend(project, row.lineKey);
+        return v?.delta ?? 0;
       },
-      size: 140,
-    }),
-    // Risk score
+      {
+        id: 'proj-lts',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Left To Spend" />,
+        cell: ({ getValue }) => {
+          const val = getValue() as number;
+          if (Math.abs(val) < 0.5)
+            return <div className="text-right text-xs text-muted-foreground">—</div>;
+          return (
+            <div className="text-right text-sm tabular-nums">
+              {formatCurrency(val)}
+            </div>
+          );
+        },
+        size: 110,
+      },
+    ),
+    helper.accessor(
+      (row) => {
+        const v = lensVsOrig(project, row.lineKey);
+        return v?.delta ?? 0;
+      },
+      {
+        id: 'proj-chgOrig',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Chg From Orig" />,
+        sortingFn: (a, b) => Math.abs(a.getValue('proj-chgOrig') as number) - Math.abs(b.getValue('proj-chgOrig') as number),
+        cell: ({ getValue }) => {
+          const delta = getValue() as number;
+          if (Math.abs(delta) < 0.5)
+            return <div className="text-right text-xs text-muted-foreground">—</div>;
+          return (
+            <div
+              className={cn(
+                'rounded px-1.5 py-0.5 text-right text-xs tabular-nums',
+                delta > 0 && 'text-destructive',
+                delta < 0 && 'text-success',
+              )}
+            >
+              {formatCurrency(delta)}
+            </div>
+          );
+        },
+        size: 110,
+      },
+    ),
+    // ── Qty % Complete ──
+    helper.accessor(
+      (row) => qtyComplete(row) ?? -1,
+      {
+        id: 'qtyPct',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Qty %" />,
+        cell: ({ row }) => {
+          const pct = qtyComplete(row.original);
+          if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
+          return <CompletionRing pct={pct} size={28} label={`${pct.toFixed(0)}%`} />;
+        },
+        size: 80,
+      },
+    ),
+    // ── $ % Complete ──
+    helper.accessor(
+      (row) => dollarComplete(row) ?? -1,
+      {
+        id: 'dollarPct',
+        header: ({ column }) => <DataGridColumnHeader column={column} title="$ %" />,
+        cell: ({ row }) => {
+          const pct = dollarComplete(row.original);
+          if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
+          return <CompletionRing pct={pct} size={28} label={`${pct.toFixed(0)}%`} />;
+        },
+        size: 80,
+      },
+    ),
+    // ── Risk ──
     helper.accessor(
       (row) => riskScore(project, row.lineKey)?.exposure ?? 0,
       {
@@ -351,7 +459,7 @@ export function ProjectionTable({
         size: 100,
       },
     ),
-    // Actions: trend chart + comments
+    // ── Actions: trend chart + comments ──
     helper.display({
       id: 'actions',
       header: '',
@@ -448,7 +556,7 @@ export function ProjectionTable({
       <DataGrid
         table={table}
         recordCount={visibleItems.length}
-        tableLayout={{ headerSticky: true, dense: true, rowBorder: true }}
+        tableLayout={{ headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
       >
         <DataGridContainer>
           <DataGridTable />
