@@ -25,9 +25,9 @@ export function detectColumns(
         sampleValue,
         matched: true,
         metricId: metric.id,
-        formulaGuess: metric.kind === 'formula' ? { expression: metric.formula ?? '', refs: metric.formulaRefs } : null,
-        sliceGroup: metric.sliceGroup,
-        kind: metric.kind,
+        formulaGuess: metric.type === 'formula' ? { expression: metric.formula ?? '', refs: metric.formulaRefs } : null,
+        group: metric.group,
+        type: metric.type,
         skipped: false,
       };
     }
@@ -42,8 +42,8 @@ export function detectColumns(
       matched: false,
       metricId: null,
       formulaGuess,
-      sliceGroup: null,
-      kind: formulaGuess ? 'formula' as const : 'raw' as const,
+      group: null,
+      type: formulaGuess ? 'formula' as const : 'vista-upload' as const,
       skipped: false,
     };
   });

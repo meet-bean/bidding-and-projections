@@ -9,8 +9,8 @@ function makeDetectionResult(overrides: Partial<DetectionResult> & Pick<Detectio
     matched: true,
     metricId: null,
     formulaGuess: null,
-    sliceGroup: null,
-    kind: 'raw',
+    group: null,
+    type: 'vista-upload',
     skipped: false,
     ...overrides,
   };
@@ -19,17 +19,17 @@ function makeDetectionResult(overrides: Partial<DetectionResult> & Pick<Detectio
 describe('parseWithMetrics', () => {
   it('maps flat rows to ProjectionItems', () => {
     const mappedColumns: DetectionResult[] = [
-      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', sliceGroup: null, kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', sliceGroup: null, kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 2, columnHeader: 'F Qty', metricId: 'f-qty', sliceGroup: 'F', kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 3, columnHeader: 'F Cost', metricId: 'f-cost', sliceGroup: 'F', kind: 'raw' }),
+      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', group: null, type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', group: null, type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 2, columnHeader: 'F Qty', metricId: 'f-qty', group: 'F', type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 3, columnHeader: 'F Cost', metricId: 'f-cost', group: 'F', type: 'vista-upload' }),
     ];
 
-    const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'service' },
-      'costtype-um': { sliceGroup: null, field: 'costType' },
-      'f-qty': { sliceGroup: 'F', field: 'qty' },
-      'f-cost': { sliceGroup: 'F', field: 'cost' },
+    const fieldMap: Record<string, { group: string | null; field: string }> = {
+      'phase': { group: null, field: 'service' },
+      'costtype-um': { group: null, field: 'costType' },
+      'f-qty': { group: 'F', field: 'qty' },
+      'f-cost': { group: 'F', field: 'cost' },
     };
 
     const rows = [
@@ -48,14 +48,14 @@ describe('parseWithMetrics', () => {
 
   it('skips columns flagged as skipped', () => {
     const mappedColumns: DetectionResult[] = [
-      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', sliceGroup: null, kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', sliceGroup: null, kind: 'raw' }),
+      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', group: null, type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', group: null, type: 'vista-upload' }),
       makeDetectionResult({ columnIndex: 2, columnHeader: 'Notes', matched: false, skipped: true }),
     ];
 
-    const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'service' },
-      'costtype-um': { sliceGroup: null, field: 'costType' },
+    const fieldMap: Record<string, { group: string | null; field: string }> = {
+      'phase': { group: null, field: 'service' },
+      'costtype-um': { group: null, field: 'costType' },
     };
 
     const rows = [{ 'Phase': 'B-100', 'CostType UM': '2Labor', 'Notes': 'test' }];
@@ -65,22 +65,22 @@ describe('parseWithMetrics', () => {
 
   it('flags formula verification warnings', () => {
     const mappedColumns: DetectionResult[] = [
-      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', sliceGroup: null, kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', sliceGroup: null, kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 2, columnHeader: 'F Qty', metricId: 'f-qty', sliceGroup: 'F', kind: 'raw' }),
-      makeDetectionResult({ columnIndex: 3, columnHeader: 'F Cost', metricId: 'f-cost', sliceGroup: 'F', kind: 'raw' }),
+      makeDetectionResult({ columnIndex: 0, columnHeader: 'Phase', metricId: 'phase', group: null, type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 1, columnHeader: 'CostType UM', metricId: 'costtype-um', group: null, type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 2, columnHeader: 'F Qty', metricId: 'f-qty', group: 'F', type: 'vista-upload' }),
+      makeDetectionResult({ columnIndex: 3, columnHeader: 'F Cost', metricId: 'f-cost', group: 'F', type: 'vista-upload' }),
       makeDetectionResult({
-        columnIndex: 4, columnHeader: 'F UC', metricId: 'f-uc', sliceGroup: 'F', kind: 'formula',
+        columnIndex: 4, columnHeader: 'F UC', metricId: 'f-uc', group: 'F', type: 'formula',
         formulaGuess: { expression: '= F Cost / F Qty', refs: ['f-cost', 'f-qty'] },
       }),
     ];
 
-    const fieldMap: Record<string, { sliceGroup: string | null; field: string }> = {
-      'phase': { sliceGroup: null, field: 'service' },
-      'costtype-um': { sliceGroup: null, field: 'costType' },
-      'f-qty': { sliceGroup: 'F', field: 'qty' },
-      'f-cost': { sliceGroup: 'F', field: 'cost' },
-      'f-uc': { sliceGroup: 'F', field: 'uc' },
+    const fieldMap: Record<string, { group: string | null; field: string }> = {
+      'phase': { group: null, field: 'service' },
+      'costtype-um': { group: null, field: 'costType' },
+      'f-qty': { group: 'F', field: 'qty' },
+      'f-cost': { group: 'F', field: 'cost' },
+      'f-uc': { group: 'F', field: 'uc' },
     };
 
     const rows = [

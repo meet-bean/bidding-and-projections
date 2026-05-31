@@ -54,6 +54,7 @@ export interface DataGridProps<TData extends object> {
   recordCount: number;
   children?: ReactNode;
   onRowClick?: (row: TData, event: React.MouseEvent) => void;
+  onRowDoubleClick?: (row: TData, event: React.MouseEvent) => void;
   isLoading?: boolean;
   isFetching?: boolean;
   skeletonRowCount?: number;

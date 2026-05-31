@@ -140,6 +140,25 @@ function FieldSubmenu<T = unknown>({
   // Track pending range selection for date range calendars
   const [pendingRange, setPendingRange] = React.useState<DateRange | undefined>(undefined);
 
+  if (field.customRenderer) {
+    return (
+      <>
+        {field.customRenderer({
+          field,
+          values: existingFilter?.values ?? [],
+          onChange: (values) => {
+            if (values.length === 0) {
+              removeFilter(fieldKey);
+            } else {
+              upsertFilter(fieldKey, existingFilter?.operator ?? 'is_any_of', values);
+            }
+          },
+          operator: existingFilter?.operator ?? 'is_any_of',
+        })}
+      </>
+    );
+  }
+
   if (submenuType === 'date') {
     const standaloneOps = operators.filter((op) => isStandaloneOperator(op));
     const valueOps = operators.filter((op) => !isStandaloneOperator(op));

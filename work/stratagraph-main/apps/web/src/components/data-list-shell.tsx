@@ -6,6 +6,7 @@ import {
   Filters,
   type Filter,
   type FilterFieldConfig,
+  type CustomRendererProps,
   createColumnHelper,
   DataGrid,
   DataGridColumnHeader,
@@ -26,6 +27,7 @@ export interface FilterDef {
   id: string;
   label: string;
   options: { value: string; label: string }[];
+  customRenderer?: (props: CustomRendererProps<string>) => React.ReactNode;
 }
 
 export interface DataListShellProps<TRow extends { id: string }> {
@@ -35,8 +37,10 @@ export interface DataListShellProps<TRow extends { id: string }> {
   searchableKeys?: (keyof TRow)[];
   filters?: FilterDef[];
   onRowClick?: (row: TRow) => void;
+  onRowDoubleClick?: (row: TRow) => void;
   emptyMessage?: string;
   actions?: React.ReactNode;
+  toolbarExtra?: React.ReactNode;
   defaultPageSize?: number;
 }
 
@@ -47,8 +51,10 @@ export function DataListShell<TRow extends { id: string }>({
   searchableKeys,
   filters: filterDefs = [],
   onRowClick,
+  onRowDoubleClick,
   emptyMessage = 'No results found',
   actions,
+  toolbarExtra,
   defaultPageSize = 25,
 }: DataListShellProps<TRow>) {
   const [search, setSearch] = useState('');
@@ -66,10 +72,11 @@ export function DataListShell<TRow extends { id: string }>({
       filterDefs.map((f) => ({
         key: f.id,
         label: f.label,
-        type: 'multiselect',
+        type: f.customRenderer ? 'custom' as const : 'multiselect' as const,
         options: f.options.map((o) => ({ value: o.value, label: o.label })),
         operators: [{ value: 'is_any_of', label: 'is' }],
         defaultOperator: 'is_any_of',
+        customRenderer: f.customRenderer,
       })),
     [filterDefs]
   );
@@ -143,6 +150,7 @@ export function DataListShell<TRow extends { id: string }>({
             radius="md"
           />
         ) : null}
+        {toolbarExtra}
         {hasActiveFilters ? (
           <Button
             variant="ghost"
@@ -162,6 +170,7 @@ export function DataListShell<TRow extends { id: string }>({
         recordCount={filteredData.length}
         emptyMessage={emptyMessage}
         onRowClick={onRowClick ? (row) => onRowClick(row) : undefined}
+        onRowDoubleClick={onRowDoubleClick ? (row) => onRowDoubleClick(row) : undefined}
         tableLayout={{ rowBorder: true, headerBorder: true, headerBackground: true }}
       >
         <DataGridContainer>

@@ -279,9 +279,10 @@ function DataGridTableBodyRow<TData>({
       data-state={table.options.enableRowSelection && row.getIsSelected() ? 'selected' : undefined}
       data-depth={row.depth > 0 ? row.depth : undefined}
       onClick={(e) => props.onRowClick?.(row.original, e)}
+      onDoubleClick={(e) => props.onRowDoubleClick?.(row.original, e)}
       className={cn(
         'hover:bg-muted/40 data-[state=selected]:bg-muted/50',
-        props.onRowClick && 'cursor-pointer',
+        (props.onRowClick || props.onRowDoubleClick) && 'cursor-pointer',
         !props.tableLayout?.stripped &&
           props.tableLayout?.rowBorder &&
           'border-border border-b [&:not(:last-child)>td]:border-b',

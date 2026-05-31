@@ -5,19 +5,19 @@ import type { Metric } from '../metrics/types.js';
 
 const F_QTY: Metric = {
   id: 'f-qty', name: 'F Qty', aliases: ['Forecast Qty'],
-  sliceGroup: 'F', field: 'qty', kind: 'raw', formula: null, formulaRefs: [],
+  group: 'F', field: 'qty', type: 'vista-upload', formula: null, formulaRefs: [],
 };
 const F_HOURS: Metric = {
   id: 'f-hours', name: 'F Hours', aliases: [],
-  sliceGroup: 'F', field: 'hours', kind: 'raw', formula: null, formulaRefs: [],
+  group: 'F', field: 'hours', type: 'vista-upload', formula: null, formulaRefs: [],
 };
 const F_COST: Metric = {
   id: 'f-cost', name: 'F Cost', aliases: ['Forecast Cost'],
-  sliceGroup: 'F', field: 'cost', kind: 'raw', formula: null, formulaRefs: [],
+  group: 'F', field: 'cost', type: 'vista-upload', formula: null, formulaRefs: [],
 };
 const PHASE: Metric = {
   id: 'phase', name: 'Phase', aliases: [],
-  sliceGroup: null, field: 'service', kind: 'raw', formula: null, formulaRefs: [],
+  group: null, field: 'service', type: 'vista-upload', formula: null, formulaRefs: [],
 };
 
 function buildCatalog() {

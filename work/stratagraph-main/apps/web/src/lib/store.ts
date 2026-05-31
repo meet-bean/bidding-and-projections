@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricsCatalog, ServiceRegistry, ServiceAlias } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -21,6 +21,9 @@ import {
   addMetric,
   removeMetric,
   updateMetric,
+  addGroup,
+  updateGroup,
+  removeGroup,
   createRegistry,
   addServiceItem,
   mergeServiceItems,
@@ -56,6 +59,12 @@ import {
 } from '~/data/seed-superior';
 
 import { buildForecastInvoiceLines, sumForecastInvoiceTotal } from './forecast-invoice-builder';
+import {
+  DEMO_PROJECTION_PROJECTS,
+  DEMO_BIDS,
+  DEMO_INVOICES,
+  buildDemoRegistry,
+} from '~/data/seed-demo';
 
 function getInitialTenantId(): TenantId {
   if (typeof window === 'undefined') return 'stratagraph';
@@ -499,6 +508,10 @@ interface StratagraphState {
   setTenant: (id: TenantId) => void;
   getTenantConfig: () => TenantConfig;
 
+  // Demo mode
+  demoMode: boolean;
+  toggleDemoMode: () => void;
+
   // Feature flag overrides (hide nav items)
   hiddenNavItems: Record<string, boolean>;
   toggleNavItem: (id: string) => void;
@@ -527,6 +540,9 @@ interface StratagraphState {
   addMetricToStore: (metric: Metric) => void;
   removeMetricFromStore: (metricId: string) => void;
   updateMetricInStore: (metricId: string, patch: Partial<Metric>) => void;
+  addGroupToStore: (group: MetricGroup) => void;
+  updateGroupInStore: (groupId: string, patch: Partial<MetricGroup>) => void;
+  removeGroupFromStore: (groupId: string) => void;
 
   // Service registry (per-tenant)
   serviceRegistry: ServiceRegistry;
@@ -534,6 +550,9 @@ interface StratagraphState {
   mergeRegistryItems: (targetId: string, alias: ServiceAlias) => void;
   separateRegistryAlias: (itemId: string, aliasRaw: string) => void;
   editRegistryItemName: (itemId: string, newName: string) => void;
+
+  /** Wipe all projection projects, metrics, and service registry for the current tenant. */
+  clearProjectionData: () => void;
 
   // Monthly quantity helpers (Superior tenant)
   getMonthlyQuantity: (projectId: string, serviceId: string, yearMonth: string) => { qty: number; hours: number };
@@ -545,6 +564,8 @@ interface StratagraphState {
 
 const _initialTenant = getInitialTenantId();
 const _initialSeed = seedForTenant(_initialTenant);
+const _initialDemoMode =
+  typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
 
 export const useStore = create<StratagraphState>((set, get) => ({
   serviceCatalog: SERVICE_CATALOG,
@@ -1112,17 +1133,46 @@ export const useStore = create<StratagraphState>((set, get) => ({
   setTenant: (id) => {
     if (typeof window !== 'undefined') localStorage.setItem('tenant', id);
     const seed = seedForTenant(id);
+    const demo = get().demoMode;
     set({
       tenantId: id,
       ...seed,
       organization: seed.organization,
       notifications: [],
-      projectionProjects: [],
+      projectionProjects: demo ? [...DEMO_PROJECTION_PROJECTS] : [],
+      bids: demo ? [...seed.bids, ...DEMO_BIDS] : seed.bids,
+      invoices: demo ? [...seed.invoices, ...DEMO_INVOICES] : seed.invoices,
       metricsCatalog: createCatalog(id),
-      serviceRegistry: createRegistry(id),
+      serviceRegistry: demo ? buildDemoRegistry(id) : createRegistry(id),
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
+
+  demoMode: _initialDemoMode,
+  toggleDemoMode: () => {
+    const next = !get().demoMode;
+    if (typeof window !== 'undefined') localStorage.setItem('demoMode', String(next));
+    if (next) {
+      const tid = get().tenantId;
+      set((s) => ({
+        demoMode: true,
+        projectionProjects: [...s.projectionProjects, ...DEMO_PROJECTION_PROJECTS],
+        bids: [...s.bids, ...DEMO_BIDS],
+        invoices: [...s.invoices, ...DEMO_INVOICES],
+        serviceRegistry: buildDemoRegistry(tid),
+      }));
+    } else {
+      const tid = get().tenantId;
+      set((s) => ({
+        demoMode: false,
+        projectionProjects: s.projectionProjects.filter((p) => !p.id.startsWith('demo-')),
+        bids: s.bids.filter((b) => !b.id.startsWith('demo-')),
+        invoices: s.invoices.filter((i) => !i.id.startsWith('demo-')),
+        activeProjectionId: s.activeProjectionId?.startsWith('demo-') ? null : s.activeProjectionId,
+        serviceRegistry: createRegistry(tid),
+      }));
+    }
+  },
 
   hiddenNavItems: {},
   toggleNavItem: (id) => set((s) => ({
@@ -1198,7 +1248,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
       get().addRegistryItem({
         canonicalName: item.label || item.lineKey,
         unitOfMeasure: item.unitOfMeasure || '',
-        costType: '',
+        costType: item.keyParts[1] || item.keyParts[0] || '',
         sourceProjectId: project.id,
       });
     }
@@ -1218,6 +1268,12 @@ export const useStore = create<StratagraphState>((set, get) => ({
     set((s) => ({ metricsCatalog: removeMetric(s.metricsCatalog, metricId) })),
   updateMetricInStore: (metricId, patch) =>
     set((s) => ({ metricsCatalog: updateMetric(s.metricsCatalog, metricId, patch) })),
+  addGroupToStore: (group) =>
+    set((s) => ({ metricsCatalog: addGroup(s.metricsCatalog, group) })),
+  updateGroupInStore: (groupId, patch) =>
+    set((s) => ({ metricsCatalog: updateGroup(s.metricsCatalog, groupId, patch) })),
+  removeGroupFromStore: (groupId) =>
+    set((s) => ({ metricsCatalog: removeGroup(s.metricsCatalog, groupId) })),
 
   serviceRegistry: createRegistry(_initialTenant),
   addRegistryItem: (input) =>
@@ -1228,6 +1284,16 @@ export const useStore = create<StratagraphState>((set, get) => ({
     set((s) => ({ serviceRegistry: separateAlias(s.serviceRegistry, itemId, aliasRaw) })),
   editRegistryItemName: (itemId, newName) =>
     set((s) => ({ serviceRegistry: editServiceItemName(s.serviceRegistry, itemId, newName) })),
+
+  clearProjectionData: () => {
+    const tid = get().tenantId;
+    set({
+      projectionProjects: [],
+      activeProjectionId: null,
+      metricsCatalog: createCatalog(tid),
+      serviceRegistry: createRegistry(tid),
+    });
+  },
 
   getMonthlyQuantity: (projectId, serviceId, yearMonth) => {
     const job = get().jobs.find((j) => j.id === projectId);

@@ -1,17 +1,33 @@
+export interface MetricGroup {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export type MetricType = 'vista-upload' | 'formula' | 'carry-over';
+
+export interface MetricFallback {
+  type: MetricType;
+  source?: string;
+}
+
 export interface Metric {
   id: string;
   name: string;
   aliases: string[];
-  sliceGroup: 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est' | null;
+  group: string | null;
   field: 'qty' | 'hours' | 'cost' | 'uc' | 'mpu' | 'upm' | 'service' | 'costType' | 'description' | 'unitOfMeasure';
-  kind: 'raw' | 'formula';
+  type: MetricType;
   formula: string | null;
   formulaRefs: string[];
+  carryOverSource?: string;
+  fallback?: MetricFallback;
 }
 
 export interface MetricsCatalog {
   tenantId: string;
   metrics: Metric[];
+  groups: MetricGroup[];
 }
 
 export interface DetectionResult {
@@ -21,8 +37,8 @@ export interface DetectionResult {
   matched: boolean;
   metricId: string | null;
   formulaGuess: { expression: string; refs: string[] } | null;
-  sliceGroup: Metric['sliceGroup'];
-  kind: Metric['kind'];
+  group: Metric['group'];
+  type: Metric['type'];
   skipped: boolean;
 }
 

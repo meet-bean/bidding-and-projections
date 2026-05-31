@@ -4,7 +4,7 @@ import { blankSlice, deriveItem, makeLineKey } from '../engine.js';
 import { splitCostTypeUM } from './vista.js';
 
 interface FieldMapping {
-  sliceGroup: string | null;
+  group: string | null;
   field: string;
 }
 
@@ -42,7 +42,7 @@ export function parseWithMetrics(
 
       const rawValue = row[col.columnHeader];
 
-      if (mapping.sliceGroup === null) {
+      if (mapping.group === null) {
         const strVal = String(rawValue ?? '');
         if (mapping.field === 'service') serviceValue = strVal;
         else if (mapping.field === 'costType') {
@@ -56,14 +56,14 @@ export function parseWithMetrics(
       }
 
       const numVal = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue)) || 0;
-      const sk = mapping.sliceGroup as typeof SLICE_KEYS[number];
+      const sk = mapping.group as typeof SLICE_KEYS[number];
       const sf = mapping.field as typeof SLICE_FIELDS[number];
 
       if (slices[sk] && SLICE_FIELDS.includes(sf)) {
         (slices[sk] as Record<string, number>)[sf] = numVal;
       }
 
-      if (col.kind === 'formula' && col.formulaGuess) {
+      if (col.type === 'formula' && col.formulaGuess) {
         const refs = col.formulaGuess.refs;
         const refColumns = activeColumns.filter((c) => c.metricId && refs.includes(c.metricId));
         if (refColumns.length === 2) {

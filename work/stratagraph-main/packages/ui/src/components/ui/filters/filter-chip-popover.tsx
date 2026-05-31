@@ -268,7 +268,21 @@ function NonDateChipPopover<T = unknown>({
 
   let content: React.ReactNode;
 
-  if (submenuType === 'operator-dynamic') {
+  if (field.customRenderer) {
+    content = field.customRenderer({
+      field,
+      values: filter.values,
+      onChange: (values) => {
+        if (values.length === 0) {
+          onRemove();
+          setOpen(false);
+        } else {
+          onFilterChange({ ...filter, values });
+        }
+      },
+      operator: filter.operator,
+    });
+  } else if (submenuType === 'operator-dynamic') {
     content = (
       <OperatorDynamicSetContent
         operators={operators}
