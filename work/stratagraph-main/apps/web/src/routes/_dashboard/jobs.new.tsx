@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 import {
   Badge,
@@ -10,6 +10,8 @@ import {
   CardTitle,
   Input,
   Label,
+  MultiSelect,
+  type Option,
   Select,
   SelectContent,
   SelectItem,
@@ -70,7 +72,36 @@ function NewJobPage({ bidId }: { bidId: string }) {
   const [nightLoggerId, setNightLoggerId] = useState<string>('');
   const [unitId, setUnitId] = useState<string>('');
   const [projectManagerId, setProjectManagerId] = useState<string>('');
+  const [selectedCertOptions, setSelectedCertOptions] = useState<Option[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const certOptions: Option[] = useMemo(() => {
+    const set = new Set<string>();
+    crew.forEach((c) => c.certifications?.forEach((cert) => set.add(cert)));
+    return Array.from(set)
+      .sort()
+      .map((cert) => ({ value: cert, label: cert }));
+  }, [crew]);
+
+  const requiredCerts = useMemo(
+    () => selectedCertOptions.map((o) => o.value),
+    [selectedCertOptions]
+  );
+
+  const filteredCrew = useMemo(
+    () =>
+      requiredCerts.length === 0
+        ? crew
+        : crew.filter((c) =>
+            requiredCerts.every((cert) => c.certifications?.includes(cert))
+          ),
+    [crew, requiredCerts]
+  );
+
+  useEffect(() => {
+    if (dayLoggerId && !filteredCrew.some((c) => c.id === dayLoggerId)) setDayLoggerId('');
+    if (nightLoggerId && !filteredCrew.some((c) => c.id === nightLoggerId)) setNightLoggerId('');
+  }, [filteredCrew, dayLoggerId, nightLoggerId]);
 
   const projectedStatus = startDate ? 'scheduled' : 'speculative';
   // When the bid has a well, lock it. Otherwise allow picking from customer wells.
@@ -264,6 +295,28 @@ function NewJobPage({ bidId }: { bidId: string }) {
               <div className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
                 Crew, equipment &amp; management <span className="font-normal normal-case">(optional — can be set later)</span>
               </div>
+
+              {certOptions.length > 0 && (
+                <div className="mb-4">
+                  <Field
+                    label="Required certifications"
+                    hint={
+                      requiredCerts.length > 0
+                        ? `${filteredCrew.length} of ${crew.length} crew match`
+                        : 'Filter loggers by certification'
+                    }
+                  >
+                    <MultiSelect
+                      options={certOptions}
+                      value={selectedCertOptions}
+                      onChange={setSelectedCertOptions}
+                      placeholder="Select certifications..."
+                      hidePlaceholderWhenSelected
+                    />
+                  </Field>
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label="Day Logger">
                   <Select
@@ -283,7 +336,7 @@ function NewJobPage({ bidId }: { bidId: string }) {
                       <SelectItem value="__none__">
                         <span className="text-muted-foreground italic">Unassigned</span>
                       </SelectItem>
-                      {crew.map((c) => (
+                      {filteredCrew.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}
                           <span className="text-muted-foreground ml-2 text-xs">
@@ -312,7 +365,7 @@ function NewJobPage({ bidId }: { bidId: string }) {
                       <SelectItem value="__none__">
                         <span className="text-muted-foreground italic">Unassigned</span>
                       </SelectItem>
-                      {crew.map((c) => (
+                      {filteredCrew.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}
                           <span className="text-muted-foreground ml-2 text-xs">
