@@ -17,6 +17,7 @@ const OUTPUT = join(ROOT, 'dist-pages');
 const SERVER = join(ROOT, '.output/server/index.mjs');
 const PUBLIC = join(ROOT, '.output/public');
 const PORT = 4199;
+const BASE = process.env.GITHUB_PAGES ? '/bidding-and-projections' : '';
 
 const ROUTES = [
   '/',
@@ -32,7 +33,7 @@ const ROUTES = [
 ];
 
 async function fetchPage(route) {
-  const url = `http://127.0.0.1:${PORT}${route}`;
+  const url = `http://127.0.0.1:${PORT}${BASE}${route}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${route} -> ${res.status}`);
   return res.text();

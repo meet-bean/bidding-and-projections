@@ -5,7 +5,10 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import { nitro } from 'nitro/vite';
 import path from 'node:path';
 
+const base = process.env.GITHUB_PAGES ? '/bidding-and-projections/' : '/';
+
 export default defineConfig({
+  base,
   plugins: [
     tanstackStart({
       srcDirectory: './src',

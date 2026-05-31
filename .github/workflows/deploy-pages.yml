@@ -36,10 +36,14 @@ jobs:
       - name: Build SSR app
         run: pnpm --filter web build
         working-directory: work/stratagraph-main
+        env:
+          GITHUB_PAGES: true
 
       - name: Pre-render to static HTML
         run: node apps/web/scripts/prerender.mjs
         working-directory: work/stratagraph-main
+        env:
+          GITHUB_PAGES: true
 
       - uses: actions/configure-pages@v5
 
