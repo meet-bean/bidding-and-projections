@@ -21,7 +21,6 @@ import { ProjectionUpload } from '~/components/projection-upload';
 import { ProjectionVersionHistory } from '~/components/projection-version-history';
 import { MonthlyEntryForm } from '~/components/monthly-entry-form';
 import { computeAlerts } from '@repo/projections';
-import { vistaAdapter } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/$projectId')({
   component: ProjectionDetailPage,
@@ -242,7 +241,6 @@ function ProjectionDetailPage() {
 
       {/* Upload modal */}
       <ProjectionUpload
-        adapter={vistaAdapter}
         open={showUpload}
         onOpenChange={setShowUpload}
         onBatchImport={handleBatchImport}

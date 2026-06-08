@@ -240,7 +240,7 @@ export function ingestBatch(
     const items: ProjectionItem[] = cycle.items.map((r) => {
       carriedKeys.add(r.lineKey);
       const prevF = prevMap.get(r.lineKey) ?? null;
-      const isNew = prevVersion == null || !prevMap.has(r.lineKey);
+      const isNew = prevVersion != null && !prevMap.has(r.lineKey);
       return { ...deriveItem(r, prevF), isNew, stale: false };
     });
 

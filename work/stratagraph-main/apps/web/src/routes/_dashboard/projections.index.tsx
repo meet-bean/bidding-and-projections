@@ -10,7 +10,6 @@ import {
 } from '~/components/data-list-shell';
 import { ProjectionDashboard } from '~/components/projection-dashboard';
 import { ProjectionUpload } from '~/components/projection-upload';
-import { vistaAdapter } from '@repo/projections';
 import type { BatchUploadResult } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/')({
@@ -50,13 +49,13 @@ function ProjectionsIndexPage() {
   const [view, setView] = useState<'list' | 'dashboard'>('list');
 
   const handleNewProjectUpload = (result: BatchUploadResult) => {
-    const cycle = result.cycles[0];
-    if (!cycle || cycle.items.length === 0) return;
+    const first = result.cycles[0];
+    if (!first || first.items.length === 0) return;
     autoCreate(
-      cycle.label || 'New Project',
+      first.label || 'New Project',
       tenantConfig.name,
       '',
-      cycle.items,
+      result,
     );
   };
 
@@ -229,7 +228,6 @@ function ProjectionsIndexPage() {
         </div>
         <ProjectionDashboard projects={projects} />
         <ProjectionUpload
-          adapter={vistaAdapter}
           open={uploadOpen}
           onOpenChange={setUploadOpen}
           onBatchImport={handleNewProjectUpload}
@@ -274,7 +272,6 @@ function ProjectionsIndexPage() {
       }
     />
     <ProjectionUpload
-      adapter={vistaAdapter}
       open={uploadOpen}
       onOpenChange={setUploadOpen}
       onBatchImport={handleNewProjectUpload}

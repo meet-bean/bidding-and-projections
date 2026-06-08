@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias, BatchUploadResult } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -532,7 +532,7 @@ interface StratagraphState {
     projectName: string,
     customer: string,
     pm: string,
-    items: ProjectionItem[]
+    result: BatchUploadResult,
   ) => void;
 
   // Metrics catalog (per-tenant)
@@ -1211,11 +1211,14 @@ export const useStore = create<StratagraphState>((set, get) => ({
     }),
 
   // Called by the upload dialog after parsing completes when no existing projection is selected.
-  autoCreateProjectionFromUpload: (projectName, customer, pm, items) => {
+  autoCreateProjectionFromUpload: (projectName, customer, pm, result) => {
     const project = createEmptyProject(projectName);
     project.customer = customer;
     project.pm = pm;
     project.jobNumber = `SC-${String(get().projectionProjects.length + 1).padStart(3, '0')}`;
+
+    // Use latest cycle's items for bid/registry setup
+    const items = result.cycles[result.cycles.length - 1]?.items ?? [];
 
     // Create bid from estimate values
     const bidServices = items
@@ -1253,8 +1256,14 @@ export const useStore = create<StratagraphState>((set, get) => ({
       });
     }
 
-    // Ingest items into the project
-    const ingested = ingestDump(project, items, 'Initial Upload');
+    // Ingest all cycles into the project
+    const cycles = result.cycles.map((c) => ({
+      label: c.label,
+      detectedDate: c.detectedDate,
+      items: c.items,
+      notes: c.notes ?? {},
+    }));
+    const ingested = ingestBatch(project, cycles, result.financials);
     set((s) => ({
       projectionProjects: [...s.projectionProjects, ingested],
       activeProjectionId: ingested.id,
