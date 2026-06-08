@@ -9,9 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  cn,
 } from '@repo/ui';
 import type { CustomRendererProps } from '@repo/ui';
-import { Plus, Trash2, Pencil, Check, X, Info } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X, Info, Database, PencilLine } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import { uid } from '@repo/projections';
 import type { Metric, MetricGroup, MetricType, MetricFallback } from '@repo/projections';
@@ -20,6 +21,7 @@ import {
   createColumnHelper,
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
+import { Combobox } from '~/components/combobox';
 
 export const Route = createFileRoute('/_dashboard/admin/metrics')({
   component: MetricsPage,
@@ -54,6 +56,174 @@ const PRESET_COLORS = [
   '#e8f0fe', '#fef7e0', '#e6f4ea', '#fce8e6', '#f3e8fd',
   '#e0f2f1', '#fff3e0', '#fce4ec', '#e8eaf6', '#f1f8e9',
 ];
+
+type FormulaToken = { type: 'metric'; value: string } | { type: 'op'; value: string } | { type: 'paren'; value: '(' | ')' };
+
+const OPS = ['+', '-', '*', '/'] as const;
+
+function parseFormula(formula: string, metrics: Metric[]): FormulaToken[] {
+  if (!formula) return [];
+  const tokens: FormulaToken[] = [];
+  const raw = formula.trim();
+  let i = 0;
+  while (i < raw.length) {
+    const ch = raw[i]!;
+    if (ch === ' ') { i++; continue; }
+    if (ch === '(' || ch === ')') { tokens.push({ type: 'paren', value: ch }); i++; continue; }
+    if (OPS.includes(ch as typeof OPS[number])) { tokens.push({ type: 'op', value: ch }); i++; continue; }
+    // Read a word token like "F.cost" or "CTD.hours"
+    let word = '';
+    while (i < raw.length && raw[i] !== ' ' && !OPS.includes(raw[i] as typeof OPS[number]) && raw[i] !== '(' && raw[i] !== ')') {
+      word += raw[i]; i++;
+    }
+    if (word) {
+      // Try to match "Group.field" to a metric name
+      const matched = metrics.find((m) => {
+        const group = metrics.length > 0 ? undefined : null; // placeholder
+        return m.name.toLowerCase().replace(/\s+/g, '.').toLowerCase() === word.toLowerCase()
+          || `${m.group}.${m.field}`.toLowerCase() === word.toLowerCase();
+      });
+      tokens.push({ type: 'metric', value: matched?.id ?? word });
+    }
+  }
+  return tokens;
+}
+
+function tokensToFormula(tokens: FormulaToken[], metrics: Metric[]): { formula: string; refs: string[] } {
+  const refs: string[] = [];
+  const parts: string[] = [];
+  for (const t of tokens) {
+    if (t.type === 'paren') { parts.push(t.value); continue; }
+    if (t.type === 'op') { parts.push(t.value); continue; }
+    const m = metrics.find((mt) => mt.id === t.value);
+    if (m && m.group) {
+      parts.push(`${m.group}.${m.field}`);
+      if (!refs.includes(m.id)) refs.push(m.id);
+    } else {
+      parts.push(t.value);
+    }
+  }
+  return { formula: parts.join(' '), refs };
+}
+
+function FormulaBuilder({
+  formula,
+  metrics,
+  currentMetricId,
+  onChange,
+  compact,
+}: {
+  formula: string | null;
+  metrics: Metric[];
+  currentMetricId: string;
+  onChange: (formula: string | null, refs: string[]) => void;
+  compact?: boolean;
+}) {
+  const [tokens, setTokens] = useState<FormulaToken[]>(() =>
+    parseFormula(formula ?? '', metrics),
+  );
+
+  const metricOptions = useMemo(() =>
+    metrics
+      .filter((m) => m.id !== currentMetricId)
+      .map((m) => ({
+        value: m.id,
+        label: m.name,
+        hint: m.group ? `${m.group}.${m.field}` : m.field,
+      })),
+    [metrics, currentMetricId],
+  );
+
+  const commit = (next: FormulaToken[]) => {
+    setTokens(next);
+    if (next.length === 0) { onChange(null, []); return; }
+    const { formula: f, refs } = tokensToFormula(next, metrics);
+    onChange(f, refs);
+  };
+
+  const addMetric = () => commit([...tokens, { type: 'metric', value: '' }]);
+  const addOp = (op: string) => commit([...tokens, { type: 'op', value: op }]);
+  const addParen = (p: '(' | ')') => commit([...tokens, { type: 'paren', value: p }]);
+  const removeToken = (idx: number) => commit(tokens.filter((_, i) => i !== idx));
+  const updateMetricToken = (idx: number, metricId: string) => {
+    const next = [...tokens];
+    next[idx] = { type: 'metric', value: metricId };
+    commit(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1">
+        {tokens.map((t, i) => {
+          if (t.type === 'paren') {
+            return (
+              <span key={i} className="inline-flex items-center gap-0.5">
+                <span className="text-lg font-bold text-muted-foreground">{t.value}</span>
+                <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => removeToken(i)}>
+                  <X className="size-2.5" />
+                </button>
+              </span>
+            );
+          }
+          if (t.type === 'op') {
+            return (
+              <span key={i} className="inline-flex items-center gap-0.5">
+                <select
+                  className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono font-bold"
+                  value={t.value}
+                  onChange={(e) => {
+                    const next = [...tokens];
+                    next[i] = { type: 'op', value: e.target.value };
+                    commit(next);
+                  }}
+                >
+                  {OPS.map((op) => <option key={op} value={op}>{op}</option>)}
+                </select>
+                <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => removeToken(i)}>
+                  <X className="size-2.5" />
+                </button>
+              </span>
+            );
+          }
+          return (
+            <span key={i} className="inline-flex items-center gap-0.5">
+              <Combobox
+                value={t.value}
+                onChange={(v) => updateMetricToken(i, v)}
+                options={metricOptions}
+                placeholder="metric..."
+                searchPlaceholder="Search metrics..."
+                className={cn('h-7 text-xs', compact ? 'min-w-[100px]' : 'min-w-[130px]')}
+              />
+              <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => removeToken(i)}>
+                <X className="size-2.5" />
+              </button>
+            </span>
+          );
+        })}
+        {tokens.length === 0 && (
+          <span className="text-xs text-muted-foreground">No formula — add tokens below</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        <button type="button" className="rounded border px-2 py-0.5 text-[10px] hover:bg-accent" onClick={addMetric}>
+          + Metric
+        </button>
+        {OPS.map((op) => (
+          <button key={op} type="button" className="rounded border px-2 py-0.5 text-[10px] font-mono font-bold hover:bg-accent" onClick={() => addOp(op)}>
+            {op}
+          </button>
+        ))}
+        <button type="button" className="rounded border px-2 py-0.5 text-[10px] font-mono hover:bg-accent" onClick={() => addParen('(')}>
+          (
+        </button>
+        <button type="button" className="rounded border px-2 py-0.5 text-[10px] font-mono hover:bg-accent" onClick={() => addParen(')')}>
+          )
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function GroupFilterContent({ values, onChange }: CustomRendererProps<string>) {
   const catalog = useStore((s) => s.metricsCatalog);
@@ -243,6 +413,7 @@ function MetricsPage() {
       type: 'vista-upload',
       formula: null,
       formulaRefs: [],
+      editable: false,
     });
   };
 
@@ -292,16 +463,51 @@ function MetricsPage() {
           const metric = info.row.original;
           if (editingId === metric.id && draft) {
             return (
-              <input
-                className={inputClass}
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                autoFocus
-              />
+              <div className="space-y-1">
+                <input
+                  className={inputClass}
+                  value={draft.name}
+                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                  autoFocus
+                />
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={draft.editable ?? false}
+                      onCheckedChange={(checked) => setDraft({ ...draft, editable: !!checked })}
+                      className="size-3"
+                    />
+                    Editable
+                  </label>
+                  {draft.type === 'vista-upload' && (
+                    <input
+                      className="rounded border px-1.5 py-0 text-[10px] bg-background w-24"
+                      value={draft.vistaField ?? ''}
+                      onChange={(e) => setDraft({ ...draft, vistaField: e.target.value || undefined })}
+                      placeholder="Vista column"
+                    />
+                  )}
+                </div>
+              </div>
             );
           }
-          return <span className="font-medium">{info.getValue()}</span>;
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium">{info.getValue()}</span>
+              {metric.vistaField && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground" title={`Vista column: ${metric.vistaField}`}>
+                  <Database className="size-2.5" />
+                  <span className="font-mono">{metric.vistaField}</span>
+                </span>
+              )}
+              {metric.editable && (
+                <span className="text-blue-500" title="Editable by PM">
+                  <PencilLine className="size-3" />
+                </span>
+              )}
+            </div>
+          );
         },
       }),
       columnHelper.accessor('group', {
@@ -426,12 +632,12 @@ function MetricsPage() {
           if (editingId === metric.id && draft) {
             if (draft.type === 'formula') {
               return (
-                <input
-                  className={`${inputClass} font-mono`}
-                  value={draft.formula ?? ''}
-                  onChange={(e) => setDraft({ ...draft, formula: e.target.value || null })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                  placeholder="= F.cost / F.qty"
+                <FormulaBuilder
+                  formula={draft.formula}
+                  metrics={catalog.metrics}
+                  currentMetricId={metric.id}
+                  onChange={(f, refs) => setDraft({ ...draft, formula: f, formulaRefs: refs })}
+                  compact
                 />
               );
             }
@@ -648,15 +854,39 @@ function MetricsPage() {
                   {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
+              {newMetric.type === 'vista-upload' && (
+                <div>
+                  <label className="text-sm font-medium">Vista Column Name</label>
+                  <input
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm font-mono"
+                    value={newMetric.vistaField ?? ''}
+                    onChange={(e) => setNewMetric({ ...newMetric, vistaField: e.target.value || undefined })}
+                    placeholder="e.g. F Cost"
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="new-editable"
+                  checked={newMetric.editable ?? false}
+                  onCheckedChange={(checked) => setNewMetric({ ...newMetric, editable: !!checked })}
+                />
+                <label htmlFor="new-editable" className="text-sm font-medium cursor-pointer">
+                  Editable by PM
+                </label>
+                <span className="text-xs text-muted-foreground">Allow manual value overrides in the projection table</span>
+              </div>
               {newMetric.type === 'formula' && (
                 <div>
                   <label className="text-sm font-medium">Formula</label>
-                  <input
-                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm font-mono"
-                    value={newMetric.formula ?? ''}
-                    onChange={(e) => setNewMetric({ ...newMetric, formula: e.target.value || null })}
-                    placeholder="= F.cost / F.qty"
-                  />
+                  <div className="mt-1">
+                    <FormulaBuilder
+                      formula={newMetric.formula}
+                      metrics={catalog.metrics}
+                      currentMetricId={newMetric.id}
+                      onChange={(f, refs) => setNewMetric({ ...newMetric, formula: f, formulaRefs: refs })}
+                    />
+                  </div>
                 </div>
               )}
               {newMetric.type === 'carry-over' && (

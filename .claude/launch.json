@@ -2,16 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Stratagraph (all packages via Turbo)",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "work/stratagraph-main", "dev"],
-      "port": 5173
-    },
-    {
       "name": "Web app only (Vite)",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "work/stratagraph-main", "--filter", "@repo/web", "dev"],
-      "port": 5173
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "cwd": "work/stratagraph-main/apps/web",
+      "autoPort": true
     }
   ]
 }

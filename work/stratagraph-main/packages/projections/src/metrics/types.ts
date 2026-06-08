@@ -22,6 +22,8 @@ export interface Metric {
   formulaRefs: string[];
   carryOverSource?: string;
   fallback?: MetricFallback;
+  vistaField?: string;
+  editable?: boolean;
 }
 
 export interface MetricsCatalog {

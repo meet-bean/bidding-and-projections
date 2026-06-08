@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import { AppLayout } from '@repo/ui';
 import { AppSidebar } from '../navigation/app-sidebar';
@@ -6,12 +6,22 @@ import { Breadcrumb } from '../navigation/breadcrumb';
 import { GlobalSearch } from '../global-search';
 import { NotificationsBell } from '../notifications-bell';
 import { useStore } from '~/lib/store';
-import { getNavItems, TENANTS } from '~/lib/tenant';
+import { getNavItems, TENANTS, type TenantId } from '~/lib/tenant';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const tenantId = useStore((s) => s.tenantId);
+  const setTenant = useStore((s) => s.setTenant);
   const hiddenNavItems = useStore((s) => s.hiddenNavItems);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('tenant') as TenantId | null;
+    if (fromUrl && (fromUrl === 'superior' || fromUrl === 'stratagraph') && fromUrl !== tenantId) {
+      setTenant(fromUrl);
+    }
+  }, [tenantId, setTenant]);
   const tenant = TENANTS[tenantId] ?? TENANTS.stratagraph;
   const navItems = getNavItems(tenant).filter((item) => !hiddenNavItems[item.id]);
   return (

@@ -32,6 +32,7 @@ import {
   dollarComplete,
 } from '@repo/projections';
 import type { ProjectionItem, ProjectionProject, TimeSlice } from '@repo/projections';
+import { useStore } from '~/lib/store';
 import { ProjectionToolbar, filterItems, searchItems, type FilterId } from './projection-toolbar';
 import { useColumnVisibility } from './projection-column-picker';
 import { ProjectionSummaryRows } from './projection-summary-rows';
@@ -57,13 +58,15 @@ const FIELD_LABELS: Record<string, string> = {
   qty: 'Qty', hours: 'Hours', calcHrs: 'Calc Hrs', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
 };
 
-// Inline editable cell for forecast fields
+// Inline editable cell for any metric marked editable
 function EditableCell({
   value,
   onCommit,
+  format = 'number',
 }: {
   value: number;
   onCommit: (newValue: number) => void;
+  format?: 'currency' | 'number';
 }) {
   const [editing, setEditing] = useState(false);
   const [raw, setRaw] = useState('');
@@ -79,7 +82,6 @@ function EditableCell({
     setEditing(false);
     let parsed: number;
     try {
-      // Allow math expressions like 38*5
       // eslint-disable-next-line no-new-func
       parsed = Number(new Function('"use strict"; return (' + raw + ')')());
     } catch {
@@ -94,6 +96,10 @@ function EditableCell({
     if (e.key === 'Enter') handleCommit();
     if (e.key === 'Escape') setEditing(false);
   };
+
+  const display = value === 0
+    ? <span className="text-muted-foreground">—</span>
+    : format === 'currency' ? formatCurrency(value) : formatNumber(value);
 
   if (editing) {
     return (
@@ -116,11 +122,7 @@ function EditableCell({
       tabIndex={0}
       onFocus={handleFocus}
     >
-      {value === 0 ? (
-        <span className="text-muted-foreground">—</span>
-      ) : (
-        formatCurrency(value)
-      )}
+      {display}
     </div>
   );
 }
@@ -174,6 +176,22 @@ export function ProjectionTable({
   // Summary rows (cost type grouping + grand totals)
   const summary = useMemo(() => computeSummaryRows(items), [items]);
 
+  const catalog = useStore((s) => s.metricsCatalog);
+
+  // Build a lookup: "CTP-qty" → metric, to check editable flag
+  const metricLookup = useMemo(() => {
+    const map = new Map<string, { editable: boolean }>();
+    const GROUP_TO_SLICE: Record<string, string> = { CTP: 'CTP', CTD: 'CTD', CTC: 'CTC', F: 'F', OE: 'Est' };
+    for (const m of catalog.metrics) {
+      if (!m.group) continue;
+      const slice = GROUP_TO_SLICE[m.group];
+      if (slice) {
+        map.set(`${slice}-${m.field}`, { editable: m.editable ?? false });
+      }
+    }
+    return map;
+  }, [catalog.metrics]);
+
   // Dynamic slice columns based on visibility
   const sliceColumns = useMemo(() => {
     const cols = [];
@@ -206,7 +224,8 @@ export function ProjectionTable({
 
         const sliceName = slice as keyof Pick<ProjectionItem, 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'>;
         const fieldName = field as keyof TimeSlice;
-        const isEditable = slice === 'F' && (field === 'qty' || field === 'hours');
+        const isEditable = metricLookup.get(`${slice}-${fieldName}`)?.editable ?? false;
+        const isCost = fieldName === 'cost' || fieldName === 'uc';
 
         cols.push(
           helper.accessor((row) => row[sliceName][fieldName], {
@@ -218,6 +237,7 @@ export function ProjectionTable({
               ? ({ row, getValue }) => (
                   <EditableCell
                     value={getValue() as number}
+                    format={isCost ? 'currency' : 'number'}
                     onCommit={(v) => {
                       const patch: Record<string, number> = {};
                       patch[field] = v;
@@ -230,7 +250,7 @@ export function ProjectionTable({
                     {(getValue() as number) === 0 ? (
                       <span className="text-muted-foreground">—</span>
                     ) : (
-                      formatNumber(getValue() as number)
+                      isCost ? formatCurrency(getValue() as number) : formatNumber(getValue() as number)
                     )}
                   </div>
                 ),
@@ -245,7 +265,7 @@ export function ProjectionTable({
           helper.accessor('prevForecast', {
             id: 'meta-prevForecast',
             header: ({ column }) => (
-              <DataGridColumnHeader column={column} title="Last Month FC" />
+              <DataGridColumnHeader column={column} title="New Projection" />
             ),
             cell: ({ getValue }) => (
               <div className="text-right text-sm tabular-nums">
@@ -263,7 +283,7 @@ export function ProjectionTable({
     }
     return cols;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colVis.vis, onUpdateForecast]);
+  }, [colVis.vis, onUpdateForecast, metricLookup]);
 
   const columns = useMemo(() => [
     // ── Static: Phase → Description → Cost Type/UM ──

@@ -1,3 +1,6 @@
 work/stratagraph-main/node_modules
+work/sop-platform
 work/__MACOSX
 .DS_Store
+*.zip
+.claude/worktrees

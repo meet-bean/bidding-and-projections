@@ -1,23 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useStore } from '~/lib/store';
-import { TENANTS, type TenantId } from '~/lib/tenant';
+import { TENANTS } from '~/lib/tenant';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Sidebar,
   SidebarContent,
@@ -53,11 +47,10 @@ import {
   Wrench,
   ChevronRight,
   ChevronsUpDown,
-  LogOut,
-  User,
+  ArrowRightLeft,
+  ToggleRight,
   Sun,
   Moon,
-  Flag,
   HelpCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -175,23 +168,22 @@ function NavItemWithChildren({
   );
 }
 
-const FLAGGABLE_ITEMS = [
-  { id: 'bids', label: 'Show Bids' },
-  { id: 'jobs', label: 'Show Jobs' },
-  { id: 'projections', label: 'Show Projections' },
-  { id: 'invoices', label: 'Show Invoices' },
-] as const;
-
 export function AppSidebar({ navItems, currentPath, tenantName = 'Stratagraph', tenantShortName = 'SG' }: AppSidebarProps) {
   const tenantId = useStore((s) => s.tenantId);
   const setTenant = useStore((s) => s.setTenant);
-  const hiddenNavItems = useStore((s) => s.hiddenNavItems);
-  const toggleNavItem = useStore((s) => s.toggleNavItem);
-  const navigate = useNavigate();
+  const demoMode = useStore((s) => s.demoMode);
+  const toggleDemoMode = useStore((s) => s.toggleDemoMode);
+  const otherTenant = tenantId === 'stratagraph' ? 'superior' : 'stratagraph';
 
-  const handleTenantChange = (id: TenantId) => {
-    setTenant(id);
-    navigate({ to: '/home' });
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  const toggleTheme = () => {
+    const next = isDark ? 'light' : 'dark';
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(next);
+    localStorage.setItem('stratagraph-theme', next);
+    setIsDark(!isDark);
   };
 
   return (
@@ -254,95 +246,47 @@ export function AppSidebar({ navItems, currentPath, tenantName = 'Stratagraph', 
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-full">
-                <SidebarMenuButton size="lg" className="hover:bg-sidebar-accent cursor-pointer">
-                  <div className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full text-xs font-semibold">
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm outline-none transition-colors cursor-pointer"
+                >
+                  <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                     MR
                   </div>
-                  <div className="grid flex-1 text-left leading-tight">
+                  <div className="grid flex-1 leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-sm font-medium">Morgan Reed</span>
                     <span className="text-muted-foreground truncate text-xs">morgan@{TENANTS[tenantId]?.id ?? 'company'}.com</span>
                   </div>
-                  <ChevronsUpDown className="text-muted-foreground ml-auto size-4" />
-                </SidebarMenuButton>
+                  <ChevronsUpDown className="text-muted-foreground ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="min-w-56 rounded-lg"
-                side="right"
-                align="end"
-                sideOffset={8}
-              >
+              <DropdownMenuContent side="right" align="end" className="min-w-56">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel className="p-0 font-normal">
-                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                      <div className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full text-xs font-semibold">
-                        MR
-                      </div>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">Morgan Reed</span>
-                        <span className="text-muted-foreground truncate text-xs">morgan@{TENANTS[tenantId]?.id ?? 'company'}.com</span>
-                        <span className="bg-muted text-muted-foreground mt-1 w-fit rounded px-1.5 py-0.5 text-[10px] font-medium">Ops Manager</span>
-                      </div>
+                  <DropdownMenuLabel>Options</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setTenant(otherTenant);
+                      window.location.href = `/home?tenant=${otherTenant}`;
+                    }}
+                  >
+                    <ArrowRightLeft className="mr-2 size-4" />
+                    Switch to {TENANTS[otherTenant]?.name ?? otherTenant}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Preferences</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={toggleDemoMode}>
+                    <ToggleRight className="mr-2 size-4" />
+                    <span>Demo Data</span>
+                    <div className={`ml-auto relative h-5 w-9 rounded-full transition-colors ${demoMode ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                      <div className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform ${demoMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
                     </div>
-                  </DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <User className="mr-2 size-4" />
-                    Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    document.documentElement.classList.toggle('dark');
-                  }}>
-                    <Sun className="mr-2 size-4 dark:hidden" />
-                    <Moon className="mr-2 hidden size-4 dark:block" />
-                    Toggle theme
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Flag className="mr-2 size-4" />
-                      Switch Tenant
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup value={tenantId} onValueChange={(v) => handleTenantChange(v as TenantId)}>
-                        {Object.values(TENANTS).map((t) => (
-                          <DropdownMenuRadioItem key={t.id} value={t.id}>
-                            {t.name}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Flag className="mr-2 size-4" />
-                      Feature Flags
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {FLAGGABLE_ITEMS.map((item) => (
-                        <DropdownMenuCheckboxItem
-                          key={item.id}
-                          checked={!hiddenNavItems[item.id]}
-                          onCheckedChange={() => toggleNavItem(item.id)}
-                        >
-                          {item.label}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <LogOut className="mr-2 size-4" />
-                    Sign out
+                  <DropdownMenuItem onClick={toggleTheme}>
+                    {isDark ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />}
+                    <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>

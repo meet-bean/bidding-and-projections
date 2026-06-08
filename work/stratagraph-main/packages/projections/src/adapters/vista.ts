@@ -73,7 +73,7 @@ interface ColumnMap {
   F_mpu: number;
   F_uc: number;
   F_cost: number;
-  F_cost_alt: number;
+
   Est_start: number;
   estVar: number;
   comp: number;
@@ -103,8 +103,7 @@ function resolveColumns(headers: string[]): ColumnMap {
     F_upm: idxOf('F U/M'),
     F_mpu: idxOf('F M/U'),
     F_uc: idxOf('F UC'),
-    F_cost: firstOf(idxOf, 'F Cost', 'Current Projection / Forecast', 'Current Projection'),
-    F_cost_alt: firstOf(idxOf, 'Current Projection / Forecast', 'Current Projection'),
+    F_cost: idxOf('F Cost'),
     Est_start: firstOf(idxOf, 'Est Qty', 'OE Qty'),
     estVar: idxOf('EstVar'),
     comp: firstOf(idxOf, 'Comp', '$ % Complete'),
@@ -119,10 +118,7 @@ function fSliceFromRow(row: unknown[], cols: ColumnMap) {
   if (cols.F_consecutive && cols.F_start >= 0) {
     return sliceFromRow(row, cols.F_start);
   }
-  let cost = cols.F_cost >= 0 ? num(row[cols.F_cost]) : 0;
-  if (cost === 0 && cols.F_cost_alt >= 0) {
-    cost = num(row[cols.F_cost_alt]);
-  }
+  const cost = cols.F_cost >= 0 ? num(row[cols.F_cost]) : 0;
   return {
     qty: cols.F_qty >= 0 ? num(row[cols.F_qty]) : 0,
     hours: cols.F_hours >= 0 ? num(row[cols.F_hours]) : 0,

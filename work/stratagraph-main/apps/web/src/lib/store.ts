@@ -571,7 +571,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
   serviceCatalog: SERVICE_CATALOG,
   customers: _initialSeed.customers,
   wells: _initialSeed.wells,
-  bids: _initialSeed.bids,
+  bids: _initialDemoMode ? [..._initialSeed.bids, ...DEMO_BIDS] : _initialSeed.bids,
   jobs: _initialSeed.jobs,
   units: _initialSeed.units,
   yards: _initialSeed.yards,
@@ -579,7 +579,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
   rigs: _initialSeed.rigs,
   users: _initialSeed.users,
   organization: _initialSeed.organization,
-  invoices: _initialSeed.invoices,
+  invoices: _initialDemoMode ? [..._initialSeed.invoices, ...DEMO_INVOICES] : _initialSeed.invoices,
   notifications: _initialTenant === 'stratagraph' ? [
     {
       id: 'notif-seed-devon',
@@ -1179,7 +1179,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
     hiddenNavItems: { ...s.hiddenNavItems, [id]: !s.hiddenNavItems[id] },
   })),
 
-  projectionProjects: [],
+  projectionProjects: _initialDemoMode ? [...DEMO_PROJECTION_PROJECTS] : [],
   activeProjectionId: null,
   getActiveProjection: () => {
     const s = get();
@@ -1275,7 +1275,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
   removeGroupFromStore: (groupId) =>
     set((s) => ({ metricsCatalog: removeGroup(s.metricsCatalog, groupId) })),
 
-  serviceRegistry: createRegistry(_initialTenant),
+  serviceRegistry: _initialDemoMode ? buildDemoRegistry(_initialTenant) : createRegistry(_initialTenant),
   addRegistryItem: (input) =>
     set((s) => ({ serviceRegistry: addServiceItem(s.serviceRegistry, input) })),
   mergeRegistryItems: (targetId, alias) =>
