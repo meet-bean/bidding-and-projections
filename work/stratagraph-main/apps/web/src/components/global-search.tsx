@@ -128,7 +128,7 @@ export function GlobalSearch() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="overflow-hidden p-0" hideCloseButton>
+        <DialogContent className="overflow-hidden p-0" showCloseButton={false}>
           <Command className={cn('[&_[cmdk-input-wrapper]]:border-b')}>
             <CommandInput placeholder="Search jobs, bids, customers, wells, invoices…" />
             <CommandList className="max-h-[420px]">

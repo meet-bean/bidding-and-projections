@@ -12,7 +12,9 @@ const MONTH_NAMES = [
 ];
 
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
-  const [year, month] = value.split('-').map(Number);
+  const [yearStr = '0', monthStr = '1'] = value.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
 
   function shift(delta: number) {
     const d = new Date(year, month - 1 + delta, 1);

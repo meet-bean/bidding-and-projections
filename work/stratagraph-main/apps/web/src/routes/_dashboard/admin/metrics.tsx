@@ -617,7 +617,7 @@ function MetricsPage() {
           }
           const t = info.getValue();
           return (
-            <Badge variant={t === 'formula' ? 'secondary' : t === 'carry-over' ? 'default' : 'outline'}>
+            <Badge variant={t === 'formula' ? 'secondary' : t === 'carry-over' ? 'primary' : 'outline'}>
               {TYPE_LABELS[t]}
             </Badge>
           );

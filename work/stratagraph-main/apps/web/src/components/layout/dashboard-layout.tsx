@@ -6,22 +6,22 @@ import { Breadcrumb } from '../navigation/breadcrumb';
 import { GlobalSearch } from '../global-search';
 import { NotificationsBell } from '../notifications-bell';
 import { useStore } from '~/lib/store';
-import { getNavItems, TENANTS, type TenantId } from '~/lib/tenant';
+import { getNavItems, TENANTS } from '~/lib/tenant';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const tenantId = useStore((s) => s.tenantId);
-  const setTenant = useStore((s) => s.setTenant);
+  const hydrateClientPrefs = useStore((s) => s.hydrateClientPrefs);
   const hiddenNavItems = useStore((s) => s.hiddenNavItems);
 
+  // Reconcile client-only prefs (tenant + demo mode from localStorage/URL) once
+  // after mount. The store starts from the SSR default, so the first client
+  // render matches the server HTML; this swaps in the real prefs afterward,
+  // avoiding a hydration mismatch.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get('tenant') as TenantId | null;
-    if (fromUrl && (fromUrl === 'superior' || fromUrl === 'stratagraph') && fromUrl !== tenantId) {
-      setTenant(fromUrl);
-    }
-  }, [tenantId, setTenant]);
+    hydrateClientPrefs();
+  }, [hydrateClientPrefs]);
+
   const tenant = TENANTS[tenantId] ?? TENANTS.stratagraph;
   const navItems = getNavItems(tenant).filter((item) => !hiddenNavItems[item.id]);
   return (

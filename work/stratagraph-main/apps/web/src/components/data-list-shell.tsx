@@ -32,7 +32,12 @@ export interface FilterDef {
 
 export interface DataListShellProps<TRow extends { id: string }> {
   data: TRow[];
-  columns: ColumnDef<TRow, unknown>[];
+  // Columns come from createColumnHelper<TRow>() in each page, where accessors
+  // infer concrete value types (Region, string, enums). ColumnDef is invariant
+  // in its value generic, so `unknown` rejects them; `any` is the idiomatic
+  // TanStack type for a heterogeneous column array.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: ColumnDef<TRow, any>[];
   searchPlaceholder?: string;
   searchableKeys?: (keyof TRow)[];
   filters?: FilterDef[];
@@ -135,7 +140,6 @@ export function DataListShell<TRow extends { id: string }>({
           placeholder={searchPlaceholder}
           onClear={() => setSearch('')}
           className="w-64"
-          // @ts-expect-error size variant
           size="sm"
         />
         {filterDefs.length > 0 ? (

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '~/lib/store';
 import {
   updateForecast,
@@ -128,10 +128,14 @@ function ProjectionDetailPage() {
     : currentVersion;
   const isReadOnly = viewingVersionId !== null && viewingVersionId !== currentVersion?.id;
 
-  // When in read-only mode, swap in the selected version so the table reads it
-  const tableProject = isReadOnly && effectiveVersion
-    ? { ...project, draft: effectiveVersion }
-    : project;
+  // When in read-only mode, swap in the selected version so the table reads it.
+  // Memoized so the reference is stable across re-renders — ProjectionTable
+  // derives memos from this object, and an unstable ref triggers an infinite
+  // re-render loop once a non-'all' filter is active (see projection-table.tsx).
+  const tableProject = useMemo(
+    () => (isReadOnly && effectiveVersion ? { ...project, draft: effectiveVersion } : project),
+    [isReadOnly, effectiveVersion, project],
+  );
 
   const { open: openAlerts } = computeAlerts(project);
 

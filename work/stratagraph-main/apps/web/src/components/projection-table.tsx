@@ -146,12 +146,21 @@ export function ProjectionTable({
     project.draft ?? project.versions[project.versions.length - 1] ?? null;
   const items = currentVersion?.items ?? [];
 
-  // Compute alerts to get alert counts per line
-  const alertsResult = computeAlerts(project);
-  const alertsByKey = new Map<string, number>();
-  for (const a of alertsResult.open) {
-    alertsByKey.set(a.key, (alertsByKey.get(a.key) ?? 0) + 1);
-  }
+  // Compute alerts to get alert counts per line.
+  // Memoized on `project` so the reference stays stable across re-renders.
+  // Without this, `visibleItems`/`columns` (which depend on it) get rebuilt
+  // every render; combined with TanStack's default autoResetExpanded that
+  // becomes an infinite re-render loop whenever a non-'all' filter is active
+  // (filtered arrays are fresh references each render, unlike the 'all' case
+  // which returns the original `items` ref). That loop froze the page.
+  const alertsResult = useMemo(() => computeAlerts(project), [project]);
+  const alertsByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of alertsResult.open) {
+      m.set(a.key, (m.get(a.key) ?? 0) + 1);
+    }
+    return m;
+  }, [alertsResult]);
 
   // Comment counts for filter
   const commentCounts = useMemo(() => {

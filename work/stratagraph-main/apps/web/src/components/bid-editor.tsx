@@ -322,7 +322,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
                   <AccordionTrigger>
                     <div className="flex flex-1 items-center justify-between gap-3 pr-3">
                       <span>{CATEGORY_LABELS[cat]}</span>
-                      <Badge variant={selected > 0 ? 'default' : 'outline'} className="text-xs">
+                      <Badge variant={selected > 0 ? 'primary' : 'outline'} className="text-xs">
                         {selected} / {items.length} selected
                       </Badge>
                     </div>

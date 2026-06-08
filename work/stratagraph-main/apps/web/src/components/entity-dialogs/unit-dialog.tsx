@@ -113,7 +113,7 @@ export function UnitDialog({ open, onOpenChange, unit }: UnitDialogProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(UNIT_TYPE_OPTIONS[tenantId] ?? UNIT_TYPE_OPTIONS.stratagraph).map((opt) => (
+                  {(UNIT_TYPE_OPTIONS[tenantId] ?? UNIT_TYPE_OPTIONS.stratagraph!).map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>

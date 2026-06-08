@@ -128,7 +128,6 @@ export function ProjectionToolbar({
           placeholder="Search phase, description..."
           onClear={() => onSearchChange('')}
           className="w-64"
-          // @ts-expect-error size variant
           size="sm"
         />
         <div className="flex items-center gap-1 flex-wrap">

@@ -101,7 +101,7 @@ describe('buildPnlPortfolio', () => {
     expect(portfolio.totals.cost).toBe(7850000);
     expect(portfolio.totals.profit).toBe(1150000);
     expect(portfolio.months).toHaveLength(2);
-    expect(portfolio.months[0].revenue).toBe(6000000);
+    expect(portfolio.months[0]!.revenue).toBe(6000000);
   });
 
   it('returns empty portfolio when no projects have financials', () => {
@@ -124,8 +124,8 @@ describe('buildPnlPortfolio', () => {
       financials: { months: [month('2026-01-01', 5000000, 4000000)], originalBid: null },
     });
     const portfolio = buildPnlPortfolio([p1, p2]);
-    expect(portfolio.projects[0].name).toBe('Big');
-    expect(portfolio.projects[1].name).toBe('Small');
+    expect(portfolio.projects[0]!.name).toBe('Big');
+    expect(portfolio.projects[1]!.name).toBe('Small');
   });
 });
 
@@ -177,7 +177,7 @@ describe('buildCostBreakdown', () => {
   it('handles unknown cost types as Other', () => {
     const items = [fakeItem('99Unknown', 100000)];
     const result = buildCostBreakdown(items);
-    expect(result[0].type).toBe('Other');
+    expect(result[0]!.type).toBe('Other');
   });
 });
 
@@ -249,10 +249,10 @@ describe('buildStratagraphPnl', () => {
 
     const projects = buildStratagraphPnl(invoices, jobs, bids, catalog);
     expect(projects).toHaveLength(1);
-    expect(projects[0].months).toHaveLength(2);
-    expect(projects[0].months[0].revenue).toBe(100000);
-    expect(projects[0].months[1].revenue).toBe(120000);
-    expect(projects[0].totals.revenue).toBe(220000);
+    expect(projects[0]!.months).toHaveLength(2);
+    expect(projects[0]!.months[0]!.revenue).toBe(100000);
+    expect(projects[0]!.months[1]!.revenue).toBe(120000);
+    expect(projects[0]!.totals.revenue).toBe(220000);
   });
 
   it('returns empty when no invoices', () => {

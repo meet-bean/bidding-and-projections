@@ -107,7 +107,9 @@ export function Breadcrumb() {
               {seg.isLast ? (
                 <BreadcrumbPage>{seg.label}</BreadcrumbPage>
               ) : (
-                <BreadcrumbLink render={<Link to={seg.href} />}>{seg.label}</BreadcrumbLink>
+                <BreadcrumbLink asChild>
+                  <Link to={seg.href}>{seg.label}</Link>
+                </BreadcrumbLink>
               )}
             </BreadcrumbItem>
             {!seg.isLast && <BreadcrumbSeparator />}

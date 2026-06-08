@@ -66,7 +66,12 @@ import {
   buildDemoRegistry,
 } from '~/data/seed-demo';
 
-function getInitialTenantId(): TenantId {
+/**
+ * Resolve the tenant from client-only sources (URL `?tenant=` param, then
+ * localStorage). Client-only: never called during SSR or at module load, so
+ * it cannot skew the store's initial state vs. the server-rendered HTML.
+ */
+function resolveClientTenantId(): TenantId {
   if (typeof window === 'undefined') return 'stratagraph';
   const fromUrl = new URLSearchParams(window.location.search).get('tenant') as TenantId | null;
   if (fromUrl && (fromUrl === 'superior' || fromUrl === 'stratagraph')) {
@@ -512,6 +517,13 @@ interface StratagraphState {
   demoMode: boolean;
   toggleDemoMode: () => void;
 
+  /**
+   * Reconcile client-only preferences (tenant + demo mode) from localStorage /
+   * URL after the app mounts. Must run in a mount effect, not at module load,
+   * so the store's initial render matches the SSR output (no hydration mismatch).
+   */
+  hydrateClientPrefs: () => void;
+
   // Feature flag overrides (hide nav items)
   hiddenNavItems: Record<string, boolean>;
   toggleNavItem: (id: string) => void;
@@ -562,10 +574,13 @@ interface StratagraphState {
   generateInvoiceFromForecast: (projectId: string, versionId: string) => void;
 }
 
-const _initialTenant = getInitialTenantId();
+// SSR-safe initial state: always start from the server default so the first
+// client render matches the server-rendered HTML. The real tenant + demo-mode
+// preferences (from localStorage / URL) are reconciled after mount via
+// hydrateClientPrefs(), which avoids a React hydration mismatch.
+const _initialTenant: TenantId = 'stratagraph';
 const _initialSeed = seedForTenant(_initialTenant);
-const _initialDemoMode =
-  typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
+const _initialDemoMode = false;
 
 export const useStore = create<StratagraphState>((set, get) => ({
   serviceCatalog: SERVICE_CATALOG,
@@ -946,7 +961,10 @@ export const useStore = create<StratagraphState>((set, get) => ({
               ? {
                   ...u,
                   currentJobId: id,
-                  status: (status === 'active' ? 'logging' : 'ready') as Unit['status'],
+                  // A newly created job is always 'scheduled' or 'speculative'
+                  // (never 'active'), so the assigned unit is reserved/'ready'
+                  // rather than actively 'logging'.
+                  status: 'ready' as Unit['status'],
                 }
               : u
           )
@@ -1147,6 +1165,15 @@ export const useStore = create<StratagraphState>((set, get) => ({
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
+
+  hydrateClientPrefs: () => {
+    if (typeof window === 'undefined') return;
+    // Reconcile demo mode first so the subsequent setTenant re-seed honors it.
+    const demo = localStorage.getItem('demoMode') === 'true';
+    if (demo !== get().demoMode) get().toggleDemoMode();
+    const tenant = resolveClientTenantId();
+    if (tenant !== get().tenantId) get().setTenant(tenant);
+  },
 
   demoMode: _initialDemoMode,
   toggleDemoMode: () => {
