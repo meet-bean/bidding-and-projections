@@ -24,7 +24,7 @@ export interface ServiceItem {
   aliases: ServiceAlias[];
   createdAt: string;
   projectIds: string[];
-  sources?: ServiceSource[];
+  sources: ServiceSource[];
 }
 
 export interface ServiceRegistry {

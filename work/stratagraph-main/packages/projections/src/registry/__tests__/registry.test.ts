@@ -8,6 +8,7 @@ import {
   separateAlias,
   normalizeKey,
 } from '../registry';
+import type { ServiceSource } from '../types';
 
 describe('normalizeKey', () => {
   it('uppercases and strips delimiters', () => {
@@ -160,7 +161,7 @@ describe('separateAlias', () => {
 });
 
 describe('addServiceItem with sources', () => {
-  const src = (over = {}) => ({
+  const src = (over: Partial<ServiceSource> = {}): ServiceSource => ({
     projectId: 'p1', lineKey: 'B-300-|2Labor', phaseCode: 'B-300',
     qty: 100, cost: 1000, unitCost: 10, upm: 5, date: '2025-09-01', ...over,
   });
@@ -186,5 +187,31 @@ describe('addServiceItem with sources', () => {
     expect(reg.items).toHaveLength(1);
     expect(reg.items[0]!.sources).toHaveLength(2);
     expect(reg.items[0]!.projectIds).toEqual(['p1', 'p2']);
+  });
+
+  it('re-importing the same source (same projectId+lineKey) is idempotent', () => {
+    let reg = addServiceItem(createRegistry('superior'), {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src(),
+    });
+    // Add identical source again — should not grow
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src(),
+    });
+    expect(reg.items[0]!.sources).toHaveLength(1);
+  });
+
+  it('re-importing with a changed unitCost replaces the source, still length 1', () => {
+    let reg = addServiceItem(createRegistry('superior'), {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src({ unitCost: 10 }),
+    });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src({ unitCost: 20 }),
+    });
+    expect(reg.items[0]!.sources).toHaveLength(1);
+    expect(reg.items[0]!.sources![0]!.unitCost).toBe(20);
   });
 });

@@ -63,7 +63,17 @@ export function addServiceItem(
     const projectIds = existing.projectIds.includes(input.sourceProjectId)
       ? existing.projectIds
       : [...existing.projectIds, input.sourceProjectId];
-    const sources = input.source ? [...(existing.sources ?? []), input.source] : existing.sources;
+    let sources = existing.sources;
+    if (input.source) {
+      const idx = existing.sources.findIndex(
+        (s) => s.projectId === input.source!.projectId && s.lineKey === input.source!.lineKey
+      );
+      if (idx === -1) {
+        sources = [...existing.sources, input.source];
+      } else if (existing.sources[idx] !== input.source) {
+        sources = existing.sources.map((s, i) => (i === idx ? input.source! : s));
+      }
+    }
     if (projectIds === existing.projectIds && sources === existing.sources) return registry;
     return {
       ...registry,
@@ -156,6 +166,7 @@ export function separateAlias(
     aliases: [],
     createdAt: new Date().toISOString(),
     projectIds: [alias.sourceProjectId],
+    sources: [],
   };
 
   return {
