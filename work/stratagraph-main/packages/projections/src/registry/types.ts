@@ -10,29 +10,37 @@ export interface ServiceSource {
   lineKey: string;
   phaseCode: string;
   date: string;
-  qty: number;
-  hours: number;
-  cost: number;
+  ctd: { qty: number; hours: number; cost: number };
+  oe:  { qty: number; cost: number };
+  f:   { qty: number; cost: number };
 }
 
-export interface ServiceItem {
+export interface Service {
   id: string;
+  tenantId: 'stratagraph' | 'superior';
   canonicalName: string;
   unitOfMeasure: string;
-  costType: string;
+  costType: string;          // Superior cost type code, or Stratagraph category
   aliases: ServiceAlias[];
   createdAt: string;
   projectIds: string[];
   sources: ServiceSource[];
+  recommendedRate: number | null;  // Stratagraph defaultRate; Superior null
+  rateNote: string | null;
+  billingUnit: string | null;      // Stratagraph billing cadence; Superior null
+  dailyCode: string | null;        // Stratagraph code; Superior null (phase comes from sources)
 }
+
+/** @deprecated Use Service instead */
+export type ServiceItem = Service;
 
 export interface ServiceRegistry {
   tenantId: string;
-  items: ServiceItem[];
+  items: Service[];
 }
 
 export interface FuzzyMatch {
-  existingItem: ServiceItem;
+  existingItem: Service;
   matchedFields: ('name' | 'costType' | 'unitOfMeasure')[];
   confidence: number;
 }

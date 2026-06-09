@@ -1,5 +1,5 @@
 import type {
-  ServiceItem,
+  Service,
   ServiceAlias,
   ServiceRegistry,
   ServiceSource,
@@ -73,14 +73,16 @@ export function addServiceItem(
       );
       if (idx === -1) {
         newSources = [...existing.sources, src];
-      } else if (
-        existing.sources[idx]!.qty !== src.qty ||
-        existing.sources[idx]!.hours !== src.hours ||
-        existing.sources[idx]!.cost !== src.cost ||
-        existing.sources[idx]!.phaseCode !== src.phaseCode ||
-        existing.sources[idx]!.date !== src.date
-      ) {
-        newSources = existing.sources.map((s, i) => (i === idx ? src : s));
+      } else {
+        const ex = existing.sources[idx]!;
+        const changed =
+          ex.ctd.qty !== src.ctd.qty || ex.ctd.hours !== src.ctd.hours || ex.ctd.cost !== src.ctd.cost ||
+          ex.oe.qty !== src.oe.qty || ex.oe.cost !== src.oe.cost ||
+          ex.f.qty !== src.f.qty || ex.f.cost !== src.f.cost ||
+          ex.phaseCode !== src.phaseCode || ex.date !== src.date;
+        if (changed) {
+          newSources = existing.sources.map((s, i) => (i === idx ? src : s));
+        }
       }
     }
 
@@ -98,8 +100,9 @@ export function addServiceItem(
       ),
     };
   }
-  const newItem: ServiceItem = {
+  const newItem: Service = {
     id: uid(),
+    tenantId: 'superior',
     canonicalName: input.canonicalName,
     unitOfMeasure: input.unitOfMeasure,
     costType: input.costType,
@@ -107,6 +110,10 @@ export function addServiceItem(
     createdAt: new Date().toISOString(),
     projectIds: [input.sourceProjectId],
     sources: input.source ? [input.source] : [],
+    recommendedRate: null,
+    rateNote: null,
+    billingUnit: null,
+    dailyCode: null,
   };
   return { ...registry, items: [...registry.items, newItem] };
 }
@@ -115,7 +122,7 @@ export function findServiceItem(
   registry: ServiceRegistry,
   name: string,
   costType: string
-): ServiceItem | undefined {
+): Service | undefined {
   const normName = normalizeKey(name);
   const normCost = normalizeKey(costType);
   return registry.items.find((item) => {
@@ -174,8 +181,9 @@ export function separateAlias(
     ...source,
     aliases: source.aliases.filter((a) => a.raw !== aliasRaw),
   };
-  const newItem: ServiceItem = {
+  const newItem: Service = {
     id: uid(),
+    tenantId: 'superior',
     canonicalName: aliasRaw,
     unitOfMeasure: source.unitOfMeasure,
     costType: source.costType,
@@ -183,6 +191,10 @@ export function separateAlias(
     createdAt: new Date().toISOString(),
     projectIds: [alias.sourceProjectId],
     sources: [],
+    recommendedRate: null,
+    rateNote: null,
+    billingUnit: null,
+    dailyCode: null,
   };
 
   return {
@@ -214,7 +226,7 @@ export function removeServiceItem(
   };
 }
 
-export function primaryPhase(item: ServiceItem): { code: string | null; varies: boolean } {
+export function primaryPhase(item: Service): { code: string | null; varies: boolean } {
   const codes = item.sources.map((s) => s.phaseCode).filter(Boolean) as string[];
   if (codes.length === 0) return { code: null, varies: false };
   const counts = new Map<string, number>();
@@ -240,7 +252,7 @@ export interface ImportLine {
 export interface ClassifiedLine {
   line: ImportLine;
   bucket: 'auto' | 'review' | 'new';
-  suggestion: ServiceItem | null;
+  suggestion: Service | null;
   confidence: number;
 }
 

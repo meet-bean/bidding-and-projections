@@ -1,4 +1,4 @@
-import type { MetricsCatalog, ServiceItem } from '@repo/projections';
+import type { MetricsCatalog, Service } from '@repo/projections';
 import { primaryPhase } from '@repo/projections';
 import { costTypeLabel, type CostType } from './cost-types';
 import { aggregateCtd } from './service-catalog-aggregate';
@@ -13,10 +13,10 @@ export interface ServiceCatalogRow {
   phaseVaries: boolean;
   sourceCount: number;
   ctd: Record<string, number>;
-  item: ServiceItem;
+  item: Service;
 }
 
-export function toCatalogRows(items: ServiceItem[], catalog: MetricsCatalog): ServiceCatalogRow[] {
+export function toCatalogRows(items: Service[], catalog: MetricsCatalog): ServiceCatalogRow[] {
   return items.map((item) => {
     const phase = primaryPhase(item);
     return {

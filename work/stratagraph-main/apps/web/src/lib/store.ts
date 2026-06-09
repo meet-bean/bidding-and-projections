@@ -1341,7 +1341,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         const L = d.line;
         const pid = L.projectId;
         if (!pid) continue;
-        const src = { projectId: pid, lineKey: L.lineKey, phaseCode: L.phaseCode, qty: L.qty, hours: L.hours, cost: L.cost, date: L.date };
+        const src = { projectId: pid, lineKey: L.lineKey, phaseCode: L.phaseCode, date: L.date, ctd: { qty: L.qty, hours: L.hours, cost: L.cost }, oe: { qty: L.qty, cost: L.cost }, f: { qty: L.qty, cost: L.cost } };
         if (d.action === 'match') {
           const target = reg.items.find((i) => i.id === d.targetId);
           if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: pid, source: src });

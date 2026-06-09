@@ -48,7 +48,7 @@ export function aggregateCtd(
   sources: ServiceSource[],
 ): Record<string, number> {
   const sum = sources.reduce(
-    (a, s) => ({ qty: a.qty + s.qty, hours: a.hours + s.hours, cost: a.cost + s.cost }),
+    (a, s) => ({ qty: a.qty + s.ctd.qty, hours: a.hours + s.ctd.hours, cost: a.cost + s.ctd.cost }),
     { qty: 0, hours: 0, cost: 0 },
   );
   return resolveCtd(catalog, sum);

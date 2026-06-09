@@ -136,7 +136,7 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
                   {row.item.sources.map((src, i) => {
                     const project = projectionProjects.find((p) => p.id === src.projectId);
                     const projectName = project?.name ?? src.projectId;
-                    const vals = resolveCtd(catalog, { qty: src.qty, hours: src.hours, cost: src.cost });
+                    const vals = resolveCtd(catalog, { qty: src.ctd.qty, hours: src.ctd.hours, cost: src.ctd.cost });
                     return (
                       <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-3 py-2 whitespace-nowrap">

@@ -16,9 +16,9 @@ const src = (over: Partial<ServiceSource> = {}): ServiceSource => ({
   projectId: 'p1',
   lineKey: 'k1',
   phaseCode: 'B-300',
-  qty: 10,
-  hours: 1,
-  cost: 100,
+  ctd: { qty: 10, hours: 1, cost: 100 },
+  oe: { qty: 12, cost: 90 },
+  f: { qty: 12, cost: 110 },
   date: '2026-01-01',
   ...over,
 });
@@ -73,7 +73,7 @@ describe('addServiceItem', () => {
 
   it('source re-import idempotency: same source twice → sources.length === 1', () => {
     let reg = createRegistry('superior');
-    const source = src({ projectId: 'p1', lineKey: 'k1', cost: 500 });
+    const source = src({ projectId: 'p1', lineKey: 'k1' });
     reg = addServiceItem(reg, {
       canonicalName: 'Excavation',
       unitOfMeasure: 'CY',
@@ -98,17 +98,17 @@ describe('addServiceItem', () => {
       unitOfMeasure: 'CY',
       costType: '2Labor',
       sourceProjectId: 'p1',
-      source: src({ projectId: 'p1', lineKey: 'k1', cost: 500 }),
+      source: src({ projectId: 'p1', lineKey: 'k1', ctd: { qty: 10, hours: 1, cost: 500 } }),
     });
     reg = addServiceItem(reg, {
       canonicalName: 'Excavation',
       unitOfMeasure: 'CY',
       costType: '2Labor',
       sourceProjectId: 'p1',
-      source: src({ projectId: 'p1', lineKey: 'k1', cost: 999 }),
+      source: src({ projectId: 'p1', lineKey: 'k1', ctd: { qty: 10, hours: 1, cost: 999 } }),
     });
     expect(reg.items[0]!.sources).toHaveLength(1);
-    expect(reg.items[0]!.sources[0]!.cost).toBe(999);
+    expect(reg.items[0]!.sources[0]!.ctd.cost).toBe(999);
   });
 });
 
@@ -215,12 +215,13 @@ describe('separateAlias', () => {
 
 describe('derived selectors', () => {
   const item = {
-    id: 'i1', canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+    id: 'i1', tenantId: 'superior' as const, canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
     aliases: [], createdAt: '', projectIds: ['p1', 'p2', 'p3'],
+    recommendedRate: null, rateNote: null, billingUnit: null, dailyCode: null,
     sources: [
-      { projectId: 'p1', lineKey: 'a', phaseCode: 'B-300', qty: 10, hours: 1, cost: 100, date: '' },
-      { projectId: 'p2', lineKey: 'b', phaseCode: 'B-310', qty: 10, hours: 2, cost: 120, date: '' },
-      { projectId: 'p3', lineKey: 'c', phaseCode: 'B-300', qty: 10, hours: 0, cost: 110, date: '' },
+      { projectId: 'p1', lineKey: 'a', phaseCode: 'B-300', ctd: { qty: 10, hours: 1, cost: 100 }, oe: { qty: 10, cost: 90 }, f: { qty: 10, cost: 100 }, date: '' },
+      { projectId: 'p2', lineKey: 'b', phaseCode: 'B-310', ctd: { qty: 10, hours: 2, cost: 120 }, oe: { qty: 10, cost: 100 }, f: { qty: 10, cost: 120 }, date: '' },
+      { projectId: 'p3', lineKey: 'c', phaseCode: 'B-300', ctd: { qty: 10, hours: 0, cost: 110 }, oe: { qty: 10, cost: 90 }, f: { qty: 10, cost: 110 }, date: '' },
     ],
   };
   it('primaryPhase returns most frequent + varies flag', () => {
@@ -253,5 +254,21 @@ describe('classifyImport', () => {
   });
   it('no match → new', () => {
     expect(classifyImport(reg, [line({ name: 'Bridge Post-Tensioning', costType: '5SubCont' })])[0]!.bucket).toBe('new');
+  });
+});
+
+describe('ServiceSource OE/CTD/F bases', () => {
+  const oeCtdFSrc = () => ({
+    projectId: 'p1', lineKey: 'k', phaseCode: 'B-300', date: '2025-09-01',
+    ctd: { qty: 10, hours: 2, cost: 100 },
+    oe:  { qty: 12, cost: 90 },
+    f:   { qty: 12, cost: 110 },
+  });
+  it('stores all three slices on the source', () => {
+    const reg = addServiceItem(createRegistry('superior'), {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: oeCtdFSrc(),
+    });
+    expect(reg.items[0]!.sources[0]).toEqual(oeCtdFSrc());
   });
 });

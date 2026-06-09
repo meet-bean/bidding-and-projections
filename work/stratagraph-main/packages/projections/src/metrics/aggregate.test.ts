@@ -49,7 +49,7 @@ function aggregateCtd(
   sources: ServiceSource[],
 ): Record<string, number> {
   const sum = sources.reduce(
-    (a, s) => ({ qty: a.qty + s.qty, hours: a.hours + s.hours, cost: a.cost + s.cost }),
+    (a, s) => ({ qty: a.qty + s.ctd.qty, hours: a.hours + s.ctd.hours, cost: a.cost + s.ctd.cost }),
     { qty: 0, hours: 0, cost: 0 },
   );
   return resolveCtd(catalog, sum);
@@ -61,8 +61,8 @@ describe('aggregateCtd', () => {
   const catalog = createCatalog('superior');
 
   const sources: ServiceSource[] = [
-    { projectId: 'proj-a', lineKey: 'k1', phaseCode: 'B-100', date: '2026-01-01', qty: 100, hours: 10, cost: 1000 },
-    { projectId: 'proj-b', lineKey: 'k2', phaseCode: 'B-200', date: '2026-02-01', qty: 300, hours: 30, cost: 5000 },
+    { projectId: 'proj-a', lineKey: 'k1', phaseCode: 'B-100', date: '2026-01-01', ctd: { qty: 100, hours: 10, cost: 1000 }, oe: { qty: 100, cost: 1000 }, f: { qty: 100, cost: 1000 } },
+    { projectId: 'proj-b', lineKey: 'k2', phaseCode: 'B-200', date: '2026-02-01', ctd: { qty: 300, hours: 30, cost: 5000 }, oe: { qty: 300, cost: 5000 }, f: { qty: 300, cost: 5000 } },
   ];
 
   it('sums qty, hours, and cost across sources', () => {
@@ -92,7 +92,7 @@ describe('aggregateCtd', () => {
 
   it('returns 0 for formula metrics when denominator is zero', () => {
     const emptySources: ServiceSource[] = [
-      { projectId: 'p', lineKey: 'k', phaseCode: '', date: '', qty: 0, hours: 0, cost: 0 },
+      { projectId: 'p', lineKey: 'k', phaseCode: '', date: '', ctd: { qty: 0, hours: 0, cost: 0 }, oe: { qty: 0, cost: 0 }, f: { qty: 0, cost: 0 } },
     ];
     const result = aggregateCtd(catalog, emptySources);
     expect(result['ctd-uc']).toBe(0);
