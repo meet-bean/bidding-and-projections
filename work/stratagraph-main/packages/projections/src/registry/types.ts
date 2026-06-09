@@ -5,6 +5,17 @@ export interface ServiceAlias {
   sourceUploadDate: string;
 }
 
+export interface ServiceSource {
+  projectId: string;
+  lineKey: string;
+  phaseCode: string;
+  qty: number;
+  cost: number;
+  unitCost: number;
+  upm: number | null;
+  date: string;
+}
+
 export interface ServiceItem {
   id: string;
   canonicalName: string;
@@ -13,6 +24,7 @@ export interface ServiceItem {
   aliases: ServiceAlias[];
   createdAt: string;
   projectIds: string[];
+  sources?: ServiceSource[];
 }
 
 export interface ServiceRegistry {

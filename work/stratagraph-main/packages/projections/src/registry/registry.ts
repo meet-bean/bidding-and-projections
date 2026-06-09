@@ -2,6 +2,7 @@ import type {
   ServiceItem,
   ServiceAlias,
   ServiceRegistry,
+  ServiceSource,
   FuzzyMatch,
 } from './types';
 
@@ -50,6 +51,7 @@ export function addServiceItem(
     unitOfMeasure: string;
     costType: string;
     sourceProjectId: string;
+    source?: ServiceSource;
   }
 ): ServiceRegistry {
   const normName = normalizeKey(input.canonicalName);
@@ -58,17 +60,17 @@ export function addServiceItem(
     (item) => normalizeKey(item.canonicalName) === normName && normalizeKey(item.costType) === normCost
   );
   if (existing) {
-    if (!existing.projectIds.includes(input.sourceProjectId)) {
-      return {
-        ...registry,
-        items: registry.items.map((item) =>
-          item.id === existing.id
-            ? { ...item, projectIds: [...item.projectIds, input.sourceProjectId] }
-            : item
-        ),
-      };
-    }
-    return registry;
+    const projectIds = existing.projectIds.includes(input.sourceProjectId)
+      ? existing.projectIds
+      : [...existing.projectIds, input.sourceProjectId];
+    const sources = input.source ? [...(existing.sources ?? []), input.source] : existing.sources;
+    if (projectIds === existing.projectIds && sources === existing.sources) return registry;
+    return {
+      ...registry,
+      items: registry.items.map((item) =>
+        item.id === existing.id ? { ...item, projectIds, sources } : item
+      ),
+    };
   }
   const newItem: ServiceItem = {
     id: uid(),
@@ -78,6 +80,7 @@ export function addServiceItem(
     aliases: [],
     createdAt: new Date().toISOString(),
     projectIds: [input.sourceProjectId],
+    sources: input.source ? [input.source] : [],
   };
   return { ...registry, items: [...registry.items, newItem] };
 }

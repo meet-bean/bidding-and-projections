@@ -158,3 +158,33 @@ describe('separateAlias', () => {
     expect(reg.items[1]!.canonicalName).toBe('Conc. Formwork');
   });
 });
+
+describe('addServiceItem with sources', () => {
+  const src = (over = {}) => ({
+    projectId: 'p1', lineKey: 'B-300-|2Labor', phaseCode: 'B-300',
+    qty: 100, cost: 1000, unitCost: 10, upm: 5, date: '2025-09-01', ...over,
+  });
+
+  it('stores the source on a new item', () => {
+    const reg = addServiceItem(createRegistry('superior'), {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src(),
+    });
+    expect(reg.items[0]!.sources).toEqual([src()]);
+    expect(reg.items[0]!.projectIds).toEqual(['p1']);
+  });
+
+  it('appends a source when the same item recurs in another project', () => {
+    let reg = addServiceItem(createRegistry('superior'), {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p1', source: src(),
+    });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+      sourceProjectId: 'p2', source: src({ projectId: 'p2', unitCost: 12 }),
+    });
+    expect(reg.items).toHaveLength(1);
+    expect(reg.items[0]!.sources).toHaveLength(2);
+    expect(reg.items[0]!.projectIds).toEqual(['p1', 'p2']);
+  });
+});
