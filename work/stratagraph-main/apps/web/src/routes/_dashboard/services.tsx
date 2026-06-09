@@ -20,6 +20,7 @@ import {
 import { toCatalogRows, type ServiceCatalogRow } from '~/lib/service-catalog-rows';
 import { COST_TYPES, COST_TYPE_COLOR } from '~/lib/cost-types';
 import { ServiceDetailDialog } from '~/components/service-detail-dialog';
+import { ServiceReconcileDialog } from '~/components/service-reconcile-dialog';
 
 export const Route = createFileRoute('/_dashboard/services')({
   component: ServicesPage,
@@ -63,7 +64,9 @@ interface ServiceRow {
 function SuperiorServices() {
   const items = useStore((s) => s.serviceRegistry.items);
   const clearProjectionData = useStore((s) => s.clearProjectionData);
+  const projectionProjects = useStore((s) => s.projectionProjects);
   const [detailRow, setDetailRow] = useState<ServiceCatalogRow | null>(null);
+  const [reconcileProjectId, setReconcileProjectId] = useState<string | null>(null);
 
   const rows = useMemo(() => toCatalogRows(items), [items]);
 
@@ -223,23 +226,36 @@ function SuperiorServices() {
   );
 
   const headerActions = (
-    <Button
-      variant="outline"
-      size="sm"
-      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-      onClick={() => {
-        if (
-          confirm(
-            'Delete all projection data, services, and metrics? This cannot be undone.',
-          )
-        ) {
-          clearProjectionData();
-        }
-      }}
-    >
-      <Trash2 className="size-4 mr-1.5" />
-      Clear All Data
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          const first = projectionProjects[0];
+          if (first) setReconcileProjectId(first.id);
+        }}
+        disabled={projectionProjects.length === 0}
+      >
+        Import &amp; reconcile
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+        onClick={() => {
+          if (
+            confirm(
+              'Delete all projection data, services, and metrics? This cannot be undone.',
+            )
+          ) {
+            clearProjectionData();
+          }
+        }}
+      >
+        <Trash2 className="size-4 mr-1.5" />
+        Clear All Data
+      </Button>
+    </div>
   );
 
   return (
@@ -267,6 +283,10 @@ function SuperiorServices() {
         onRowClick={setDetailRow}
       />
       <ServiceDetailDialog row={detailRow} onClose={() => setDetailRow(null)} />
+      <ServiceReconcileDialog
+        projectId={reconcileProjectId}
+        onClose={() => setReconcileProjectId(null)}
+      />
     </>
   );
 }
