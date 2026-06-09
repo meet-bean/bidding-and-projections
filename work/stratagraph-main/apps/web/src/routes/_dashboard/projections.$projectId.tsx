@@ -49,6 +49,23 @@ function ProjectionDetailPage() {
     if (project) setActiveProjection(projectId);
   }, [projectId, project, setActiveProjection]);
 
+  // Read-only snapshot project for the table, memoized for a stable reference.
+  // Declared *before* the early return below so the hook order stays constant
+  // regardless of whether `project` is defined — otherwise the hook count
+  // changes when `project` flips undefined<->defined (e.g. during a tenant /
+  // demo re-seed) and React throws "Rendered more hooks than the previous
+  // render". The stable ref also prevents ProjectionTable's infinite
+  // re-render loop on non-'all' filters (see projection-table.tsx).
+  const tableProject = useMemo(() => {
+    if (!project) return null;
+    const cv = project.draft ?? project.versions[project.versions.length - 1];
+    const ev = viewingVersionId
+      ? project.versions.find((v) => v.id === viewingVersionId) ?? cv
+      : cv;
+    const readOnly = viewingVersionId !== null && viewingVersionId !== cv?.id;
+    return readOnly && ev ? { ...project, draft: ev } : project;
+  }, [project, viewingVersionId]);
+
   if (!project) {
     return <div className="p-6 text-muted-foreground">Project not found.</div>;
   }
@@ -128,15 +145,6 @@ function ProjectionDetailPage() {
     : currentVersion;
   const isReadOnly = viewingVersionId !== null && viewingVersionId !== currentVersion?.id;
 
-  // When in read-only mode, swap in the selected version so the table reads it.
-  // Memoized so the reference is stable across re-renders — ProjectionTable
-  // derives memos from this object, and an unstable ref triggers an infinite
-  // re-render loop once a non-'all' filter is active (see projection-table.tsx).
-  const tableProject = useMemo(
-    () => (isReadOnly && effectiveVersion ? { ...project, draft: effectiveVersion } : project),
-    [isReadOnly, effectiveVersion, project],
-  );
-
   const { open: openAlerts } = computeAlerts(project);
 
   return (
@@ -198,7 +206,7 @@ function ProjectionDetailPage() {
       )}
 
       <ProjectionTable
-        project={tableProject}
+        project={tableProject!}
         onUpdateForecast={handleUpdateForecast}
         onOpenTrend={handleOpenTrend}
         onOpenComments={handleOpenComments}

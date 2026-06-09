@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: work/stratagraph-main/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: work/stratagraph-main/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: work/stratagraph-main
+
+      - name: Typecheck
+        run: pnpm typecheck
+        working-directory: work/stratagraph-main
+
+      - name: Test
+        run: pnpm --filter web test
+        working-directory: work/stratagraph-main
+
+      - name: Build
+        run: pnpm build
+        working-directory: work/stratagraph-main

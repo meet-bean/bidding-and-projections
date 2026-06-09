@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Popover, PopoverContent, PopoverTrigger, Badge } from '@repo/ui';
 import { Columns3 } from 'lucide-react';
 
@@ -37,9 +37,23 @@ function fieldsForSlice(slice: string): readonly string[] {
 }
 
 export function useColumnVisibility() {
-  const [vis, setVis] = useState<ColumnVisibility>(loadVisibility);
+  // Start from DEFAULTS so the first client render matches the server-rendered
+  // HTML (localStorage is unavailable during SSR). The persisted layout is
+  // loaded after mount, avoiding a hydration mismatch.
+  const [vis, setVis] = useState<ColumnVisibility>(() => ({ ...DEFAULTS }));
+  const hydrated = useRef(false);
 
   useEffect(() => {
+    setVis(loadVisibility());
+  }, []);
+
+  useEffect(() => {
+    // Skip the initial DEFAULTS render so we don't clobber the stored layout
+    // before it has been loaded above.
+    if (!hydrated.current) {
+      hydrated.current = true;
+      return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(vis));
   }, [vis]);
 
