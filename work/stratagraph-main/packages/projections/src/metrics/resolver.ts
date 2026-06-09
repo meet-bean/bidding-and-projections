@@ -1,4 +1,5 @@
-import type { Metric } from './types';
+import type { Metric, MetricsCatalog } from './types';
+import type { ProjectionItem } from '../types';
 
 /** Matches SLICE.field reference tokens, e.g. F.cost, CTD.qty, LMF.cost. */
 const REF_TOKEN = /[A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9]*/g;
@@ -58,4 +59,79 @@ export function classifyMetric(metric: Metric): MetricClass {
     return { kind: 'standard', slice, field: metric.field as 'qty' | 'hours' | 'upm' | 'mpu' | 'uc' | 'cost' };
   }
   return { kind: 'extended' };
+}
+
+export interface ResolveCtx {
+  catalog: MetricsCatalog;
+  /** Previous version's items, for carry-over metrics. */
+  prevItems: ProjectionItem[];
+  /** Internal: cycle-detection set (metric ids currently resolving). */
+  _visiting?: Set<string>;
+}
+
+/** Find the metric whose group maps to `slice` and whose field is `field`. */
+function metricForSliceField(
+  catalog: MetricsCatalog, slice: string, field: string,
+): Metric | undefined {
+  const groupId = Object.keys(SLICE_BY_GROUP).find((g) => SLICE_BY_GROUP[g] === slice);
+  return catalog.metrics.find((m) => m.group === groupId && m.field === field);
+}
+
+/**
+ * Resolve a single metric's value for one line.
+ * Precedence: editable override → type-based resolution.
+ */
+export function resolveMetricValue(
+  item: ProjectionItem,
+  metric: Metric,
+  ctx: ResolveCtx,
+): number {
+  // 1. Editable override always wins.
+  if (metric.editable && item.values && metric.id in item.values) {
+    return item.values[metric.id] ?? 0;
+  }
+
+  const cls = classifyMetric(metric);
+  if (cls.kind === 'identity') return 0;
+
+  // 2. Standard cell read.
+  if (cls.kind === 'standard') {
+    return item[cls.slice][cls.field] ?? 0;
+  }
+
+  // 3. Extended: by type.
+  if (metric.type === 'formula' && metric.formula) {
+    const visiting = ctx._visiting ?? new Set<string>();
+    if (visiting.has(metric.id)) return 0; // cycle guard
+    visiting.add(metric.id);
+    const childCtx: ResolveCtx = { ...ctx, _visiting: visiting };
+    const value = evalFormula(metric.formula, (token) => {
+      const dotIdx = token.indexOf('.');
+      const sliceTok = dotIdx >= 0 ? token.slice(0, dotIdx) : token;
+      const fieldTok = dotIdx >= 0 ? token.slice(dotIdx + 1) : '';
+      // LMF.cost → the New Projection metric; otherwise the slice/field metric.
+      const slice = SLICE_BY_GROUP[sliceTok];
+      const ref =
+        sliceTok === 'LMF'
+          ? ctx.catalog.metrics.find((mm) => mm.id === 'lmf')
+          : slice
+            ? metricForSliceField(ctx.catalog, slice, fieldTok)
+            : undefined;
+      return ref ? resolveMetricValue(item, ref, childCtx) : 0;
+    });
+    visiting.delete(metric.id);
+    return value;
+  }
+
+  if (metric.type === 'carry-over') {
+    const src = metric.carryOverSource ?? metric.id;
+    const prev = ctx.prevItems.find((p) => p.lineKey === item.lineKey);
+    if (prev?.values && src in prev.values) return prev.values[src] ?? 0;
+    const srcMetric = ctx.catalog.metrics.find((mm) => mm.id === src);
+    if (prev && srcMetric) return resolveMetricValue(prev, srcMetric, { ...ctx, prevItems: [] });
+    return 0;
+  }
+
+  // vista-upload extended metric with no standard cell → generic store.
+  return item.values?.[metric.id] ?? 0;
 }

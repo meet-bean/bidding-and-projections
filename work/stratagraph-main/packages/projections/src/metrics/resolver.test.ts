@@ -29,6 +29,56 @@ describe('evalFormula', () => {
 
 import { classifyMetric, SLICE_BY_GROUP } from './resolver';
 import type { Metric } from './types';
+import { resolveMetricValue, type ResolveCtx } from './resolver';
+import type { ProjectionItem } from '../types';
+import type { MetricsCatalog } from './types';
+
+const emptySlice = { qty: 0, hours: 0, upm: 0, mpu: 0, uc: 0, cost: 0 };
+const item = (over: Partial<ProjectionItem>): ProjectionItem => ({
+  lineKey: 'B-100-|2Labor', keyParts: ['B-100-', '2Labor'], label: 'Traffic', unitOfMeasure: 'MOS',
+  CTP: { ...emptySlice }, CTD: { ...emptySlice, cost: 400 }, CTC: { ...emptySlice },
+  F: { ...emptySlice, qty: 186, cost: 1000 }, Est: { ...emptySlice },
+  estVar: 0, comp: 0, prevForecast: 0, calcHrs: 0, wsRisk: 0, isNew: false, stale: false, ...over,
+});
+
+const catalog: MetricsCatalog = {
+  tenantId: 'superior',
+  groups: [],
+  metrics: [
+    { id: 'f-qty', name: 'F Qty', aliases: [], group: 'F', field: 'qty', type: 'vista-upload', formula: null, formulaRefs: [], editable: true },
+    { id: 'f-cost', name: 'F Cost', aliases: [], group: 'F', field: 'cost', type: 'vista-upload', formula: null, formulaRefs: [] },
+    { id: 'ctd-cost', name: 'CTD Cost', aliases: [], group: 'CTD', field: 'cost', type: 'vista-upload', formula: null, formulaRefs: [] },
+    { id: 'left-spend', name: 'Left To Spend', aliases: [], group: 'PRJ', field: 'cost', type: 'formula', formula: 'F.cost - CTD.cost', formulaRefs: ['f-cost', 'ctd-cost'] },
+    { id: 'lmf', name: 'New Projection', aliases: [], group: 'PRJ', field: 'cost', type: 'formula', formula: 'F.cost', formulaRefs: ['f-cost'], editable: true },
+  ],
+};
+const ctx = (over: Partial<ResolveCtx> = {}): ResolveCtx => ({ catalog, prevItems: [], ...over });
+
+describe('resolveMetricValue', () => {
+  const byId = (id: string) => catalog.metrics.find((m) => m.id === id)!;
+
+  it('reads a standard cell', () => {
+    expect(resolveMetricValue(item({}), byId('f-cost'), ctx())).toBe(1000);
+  });
+
+  it('evaluates a formula metric from other metrics', () => {
+    expect(resolveMetricValue(item({}), byId('left-spend'), ctx())).toBe(600);
+  });
+
+  it('prefers a user override on an editable formula metric', () => {
+    const it2 = item({ values: { lmf: 1234 } });
+    expect(resolveMetricValue(it2, byId('lmf'), ctx())).toBe(1234);
+  });
+
+  it('falls back to the formula when no override is present', () => {
+    expect(resolveMetricValue(item({}), byId('lmf'), ctx())).toBe(1000);
+  });
+
+  it('reads an editable standard override from values', () => {
+    const it2 = item({ values: { 'f-qty': 372 } });
+    expect(resolveMetricValue(it2, byId('f-qty'), ctx())).toBe(372);
+  });
+});
 
 const m = (over: Partial<Metric>): Metric => ({
   id: 'x', name: 'X', aliases: [], group: 'F', field: 'qty',
