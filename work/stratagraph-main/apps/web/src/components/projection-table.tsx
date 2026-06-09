@@ -35,7 +35,7 @@ import {
 } from '@repo/projections';
 import type { ProjectionItem, ProjectionProject, Metric, ResolveCtx, MetricColumn } from '@repo/projections';
 import { useStore } from '~/lib/store';
-import { ProjectionToolbar, filterItems, searchItems, type FilterId } from './projection-toolbar';
+import { ProjectionToolbar, applyProjectionFilters, searchItems, type ProjectionFilter } from './projection-toolbar';
 import { useColumnVisibility } from './projection-column-picker';
 import { ProjectionSummaryRows } from './projection-summary-rows';
 import { ProjectionRowDetail } from './projection-row-detail';
@@ -246,8 +246,7 @@ export function ProjectionTable({
 }: ProjectionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
-  const [activeCostType, setActiveCostType] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ProjectionFilter[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const catalog = useStore((s) => s.metricsCatalog);
   const colVis = useColumnVisibility(catalog);
@@ -282,16 +281,13 @@ export function ProjectionTable({
     return m;
   }, [project.comments]);
 
-  // Chain filtering
+  // Chain filtering: free-text search, then the active filter chips.
   const visibleItems = useMemo(() => {
     let result = items;
     result = searchItems(result, searchQuery);
-    result = filterItems(result, activeFilter, alertsResult, commentCounts);
-    if (activeCostType) {
-      result = result.filter((it) => (it.keyParts[1] ?? '') === activeCostType);
-    }
+    result = applyProjectionFilters(result, filters, alertsResult, commentCounts);
     return result;
-  }, [items, searchQuery, activeFilter, alertsResult, commentCounts, activeCostType]);
+  }, [items, searchQuery, filters, alertsResult, commentCounts]);
 
   // Summary rows (cost type grouping + grand totals)
   const summary = useMemo(() => computeSummaryRows(items), [items]);
@@ -454,17 +450,14 @@ export function ProjectionTable({
     <div className="space-y-3">
       <ProjectionToolbar
         items={items}
-        alerts={alertsResult}
-        commentCounts={commentCounts}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        activeCostType={activeCostType}
-        onCostTypeChange={setActiveCostType}
+        filters={filters}
+        onFiltersChange={setFilters}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         catalog={catalog}
         columnVis={colVis.vis}
         onToggleColumn={colVis.toggle}
+        onSetColumns={colVis.setVisible}
         onResetColumns={colVis.reset}
         activeColumnCount={colVis.activeCount}
         onExport={onExport}
@@ -482,9 +475,9 @@ export function ProjectionTable({
       <DataGrid
         table={table}
         recordCount={visibleItems.length}
-        tableLayout={{ headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
+        tableLayout={{ width: 'auto', headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
       >
-        <DataGridContainer>
+        <DataGridContainer className="overflow-x-auto">
           <DataGridTable />
         </DataGridContainer>
       </DataGrid>

@@ -1,68 +1,44 @@
 'use client';
 
-import { Button, SearchInput } from '@repo/ui';
-import { Download } from 'lucide-react';
+import { useMemo } from 'react';
+import {
+  Button,
+  SearchInput,
+  Filters,
+  type Filter,
+  type FilterFieldConfig,
+} from '@repo/ui';
+import { Download, X } from 'lucide-react';
 import { ColumnPicker, type ColumnVisibility } from './projection-column-picker';
 import type { ProjectionItem, AlertsResult, MetricsCatalog } from '@repo/projections';
 import { COST_TYPES, VARIANCE_THRESHOLD_PCT } from '@repo/projections';
 
-export type FilterId = 'all' | 'variance' | 'high-risk' | 'new' | 'stale' | 'with-notes';
+/** A single active filter, using the shared @repo/ui Filter shape. */
+export type ProjectionFilter = Filter<string>;
 
 interface ProjectionToolbarProps {
   items: ProjectionItem[];
-  alerts: AlertsResult;
-  commentCounts: Map<string, number>;
-  activeFilter: FilterId;
-  onFilterChange: (filter: FilterId) => void;
-  activeCostType: string | null;
-  onCostTypeChange: (ct: string | null) => void;
+  filters: ProjectionFilter[];
+  onFiltersChange: (filters: ProjectionFilter[]) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   catalog: MetricsCatalog;
   columnVis: ColumnVisibility;
   onToggleColumn: (key: string) => void;
+  onSetColumns: (ids: string[], value: boolean) => void;
   onResetColumns: () => void;
   activeColumnCount: number;
   onExport: () => void;
 }
 
-const FILTER_DEFS: { id: FilterId; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'variance', label: 'Variances >=5%' },
+/** Status presets — computed predicates, surfaced as a multiselect filter field. */
+const STATUS_DEFS: { id: string; label: string }[] = [
+  { id: 'variance', label: 'Variance ≥5%' },
   { id: 'high-risk', label: 'High Risk' },
   { id: 'new', label: 'New' },
   { id: 'stale', label: 'Stale' },
   { id: 'with-notes', label: 'With Notes' },
 ];
-
-export function filterItems(
-  items: ProjectionItem[],
-  filter: FilterId,
-  alerts: AlertsResult,
-  commentCounts: Map<string, number>,
-): ProjectionItem[] {
-  switch (filter) {
-    case 'variance':
-      return items.filter((it) => {
-        const pct = it.prevForecast
-          ? Math.abs(((it.F.cost - it.prevForecast) / it.prevForecast) * 100)
-          : 0;
-        return pct >= VARIANCE_THRESHOLD_PCT;
-      });
-    case 'high-risk': {
-      const highKeys = new Set(alerts.open.filter((a) => a.severity === 'high').map((a) => a.key));
-      return items.filter((it) => highKeys.has(it.lineKey));
-    }
-    case 'new':
-      return items.filter((it) => it.isNew);
-    case 'stale':
-      return items.filter((it) => it.stale);
-    case 'with-notes':
-      return items.filter((it) => (commentCounts.get(it.lineKey) ?? 0) > 0);
-    default:
-      return items;
-  }
-}
 
 export function searchItems(items: ProjectionItem[], query: string): ProjectionItem[] {
   if (!query.trim()) return items;
@@ -75,119 +51,143 @@ export function searchItems(items: ProjectionItem[], query: string): ProjectionI
   );
 }
 
-function costTypeCounts(items: ProjectionItem[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const it of items) {
-    const ct = it.keyParts[1] ?? '';
-    counts.set(ct, (counts.get(ct) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function filterCounts(
+/**
+ * Apply the active filter chips to the item list. Filters of the same field are
+ * OR'd within the field (`is any of`); different fields are AND'd together —
+ * matching the platform `Filters` semantics used elsewhere (e.g. the metrics
+ * page via DataListShell).
+ */
+export function applyProjectionFilters(
   items: ProjectionItem[],
+  filters: ProjectionFilter[],
   alerts: AlertsResult,
   commentCounts: Map<string, number>,
-): Record<FilterId, number> {
-  return {
-    all: items.length,
-    variance: filterItems(items, 'variance', alerts, commentCounts).length,
-    'high-risk': filterItems(items, 'high-risk', alerts, commentCounts).length,
-    new: filterItems(items, 'new', alerts, commentCounts).length,
-    stale: filterItems(items, 'stale', alerts, commentCounts).length,
-    'with-notes': filterItems(items, 'with-notes', alerts, commentCounts).length,
+): ProjectionItem[] {
+  if (filters.length === 0) return items;
+
+  // Precompute the high-risk key set once (avoids an O(items × alerts) scan).
+  const highRiskKeys = new Set(
+    alerts.open.filter((a) => a.severity === 'high').map((a) => a.key),
+  );
+
+  const matchesStatus = (it: ProjectionItem, status: string): boolean => {
+    switch (status) {
+      case 'variance': {
+        const pct = it.prevForecast
+          ? Math.abs(((it.F.cost - it.prevForecast) / it.prevForecast) * 100)
+          : 0;
+        return pct >= VARIANCE_THRESHOLD_PCT;
+      }
+      case 'high-risk':
+        return highRiskKeys.has(it.lineKey);
+      case 'new':
+        return it.isNew;
+      case 'stale':
+        return it.stale;
+      case 'with-notes':
+        return (commentCounts.get(it.lineKey) ?? 0) > 0;
+      default:
+        return true;
+    }
   };
+
+  let result = items;
+  for (const f of filters) {
+    if (!f.values || f.values.length === 0) continue;
+    if (f.field === 'status') {
+      result = result.filter((it) => f.values!.some((v) => matchesStatus(it, v)));
+    } else if (f.field === 'costType') {
+      result = result.filter((it) => f.values!.includes(it.keyParts[1] ?? ''));
+    }
+  }
+  return result;
 }
 
 export function ProjectionToolbar({
   items,
-  alerts,
-  commentCounts,
-  activeFilter,
-  onFilterChange,
-  activeCostType,
-  onCostTypeChange,
+  filters,
+  onFiltersChange,
   searchQuery,
   onSearchChange,
   catalog,
   columnVis,
   onToggleColumn,
+  onSetColumns,
   onResetColumns,
   activeColumnCount,
   onExport,
 }: ProjectionToolbarProps) {
-  const counts = filterCounts(items, alerts, commentCounts);
-  const ctCounts = costTypeCounts(items);
+  // Only offer cost types that actually appear in the data.
+  const presentCostTypes = useMemo(() => {
+    const present = new Set(items.map((it) => it.keyParts[1] ?? ''));
+    return COST_TYPES.filter((ct) => present.has(ct));
+  }, [items]);
+
+  const fields: FilterFieldConfig<string>[] = useMemo(
+    () => [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'multiselect',
+        options: STATUS_DEFS.map((s) => ({ value: s.id, label: s.label })),
+        operators: [{ value: 'is_any_of', label: 'is' }],
+        defaultOperator: 'is_any_of',
+      },
+      {
+        key: 'costType',
+        label: 'Cost Type',
+        type: 'multiselect',
+        options: presentCostTypes.map((ct) => ({ value: ct, label: ct })),
+        operators: [{ value: 'is_any_of', label: 'is' }],
+        defaultOperator: 'is_any_of',
+      },
+    ],
+    [presentCostTypes],
+  );
+
+  const hasFilters = filters.length > 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search phase, description..."
-          onClear={() => onSearchChange('')}
-          className="w-64"
+    <div className="flex flex-wrap items-center gap-2">
+      <SearchInput
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search phase, description..."
+        onClear={() => onSearchChange('')}
+        className="w-64"
+        size="sm"
+      />
+      <Filters<string>
+        filters={filters}
+        fields={fields}
+        onChange={onFiltersChange}
+        size="sm"
+        radius="md"
+      />
+      <ColumnPicker
+        catalog={catalog}
+        vis={columnVis}
+        onToggle={onToggleColumn}
+        onSetGroup={onSetColumns}
+        onReset={onResetColumns}
+        activeCount={activeColumnCount}
+      />
+      {hasFilters ? (
+        <Button
+          variant="ghost"
           size="sm"
-        />
-        <div className="flex items-center gap-1 flex-wrap">
-          {FILTER_DEFS.map((f) => (
-            <button
-              key={f.id}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                activeFilter === f.id
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30'
-              }`}
-              onClick={() => onFilterChange(f.id)}
-            >
-              {f.label}
-              {counts[f.id] > 0 && f.id !== 'all' && (
-                <span className="ml-1 opacity-70">{counts[f.id]}</span>
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <ColumnPicker
-            catalog={catalog}
-            vis={columnVis}
-            onToggle={onToggleColumn}
-            onReset={onResetColumns}
-            activeCount={activeColumnCount}
-          />
-          <Button size="sm" variant="outline" onClick={onExport} className="gap-1.5">
-            <Download className="size-3.5" />
-            Export
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 flex-wrap">
-        <button
-          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition-colors ${
-            activeCostType === null
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          }`}
-          onClick={() => onCostTypeChange(null)}
+          onClick={() => onFiltersChange([])}
+          className="text-muted-foreground"
         >
-          All <span className="ml-0.5 opacity-70">{items.length}</span>
-        </button>
-        {COST_TYPES.filter((ct) => ctCounts.has(ct)).map((ct) => (
-          <button
-            key={ct}
-            className={`rounded-md border px-2 py-0.5 text-xs font-medium transition-colors ${
-              activeCostType === ct
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'
-            }`}
-            style={activeCostType === ct ? { borderColor: `var(--ct-${ct.replace(/\d/g, '').toLowerCase()})` } : undefined}
-            onClick={() => onCostTypeChange(activeCostType === ct ? null : ct)}
-          >
-            {ct} <span className="ml-0.5 opacity-70">{ctCounts.get(ct) ?? 0}</span>
-          </button>
-        ))}
+          <X />
+          Clear
+        </Button>
+      ) : null}
+      <div className="ml-auto flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={onExport} className="gap-1.5">
+          <Download className="size-3.5" />
+          Export
+        </Button>
       </div>
     </div>
   );
