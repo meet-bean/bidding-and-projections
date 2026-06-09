@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias, BatchUploadResult } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -26,10 +26,12 @@ import {
   removeGroup,
   createRegistry,
   addServiceItem,
+  removeServiceItem,
   mergeServiceItems,
   separateAlias,
   editServiceItemName,
   lockVersion,
+  classifyImport,
 } from '@repo/projections';
 import {
   SEED_BIDS,
@@ -562,6 +564,9 @@ interface StratagraphState {
   mergeRegistryItems: (targetId: string, alias: ServiceAlias) => void;
   separateRegistryAlias: (itemId: string, aliasRaw: string) => void;
   editRegistryItemName: (itemId: string, newName: string) => void;
+  setServiceItemUom: (itemId: string, uom: string) => void;
+  removeRegistryItem: (itemId: string) => void;
+  applyReconciliation: (decisions: Array<{ line: ImportLine; action: 'match'; targetId: string } | { line: ImportLine; action: 'new' }>) => void;
 
   /** Wipe all projection projects, metrics, and service registry for the current tenant. */
   clearProjectionData: () => void;
@@ -1320,6 +1325,30 @@ export const useStore = create<StratagraphState>((set, get) => ({
     set((s) => ({ serviceRegistry: separateAlias(s.serviceRegistry, itemId, aliasRaw) })),
   editRegistryItemName: (itemId, newName) =>
     set((s) => ({ serviceRegistry: editServiceItemName(s.serviceRegistry, itemId, newName) })),
+  setServiceItemUom: (itemId, uom) =>
+    set((s) => ({
+      serviceRegistry: {
+        ...s.serviceRegistry,
+        items: s.serviceRegistry.items.map((i) => (i.id === itemId ? { ...i, unitOfMeasure: uom } : i)),
+      },
+    })),
+  removeRegistryItem: (itemId) =>
+    set((s) => ({ serviceRegistry: removeServiceItem(s.serviceRegistry, itemId) })),
+  applyReconciliation: (decisions) =>
+    set((s) => {
+      let reg = s.serviceRegistry;
+      for (const d of decisions) {
+        const L = d.line;
+        const src = { projectId: L.projectId!, lineKey: L.lineKey, phaseCode: L.phaseCode, qty: L.qty, cost: L.cost, unitCost: L.unitCost, upm: L.upm, date: L.date };
+        if (d.action === 'match') {
+          const target = reg.items.find((i) => i.id === d.targetId);
+          if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: src.projectId, source: src });
+        } else {
+          reg = addServiceItem(reg, { canonicalName: L.name, unitOfMeasure: L.unitOfMeasure, costType: L.costType, sourceProjectId: src.projectId, source: src });
+        }
+      }
+      return { serviceRegistry: reg };
+    }),
 
   clearProjectionData: () => {
     const tid = get().tenantId;

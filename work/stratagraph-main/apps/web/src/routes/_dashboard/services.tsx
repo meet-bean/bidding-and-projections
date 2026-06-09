@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Pencil, GitBranch, Trash2 } from 'lucide-react';
 import { useStore } from '~/lib/store';
@@ -19,6 +19,7 @@ import {
 } from '~/components/data-list-shell';
 import { toCatalogRows, type ServiceCatalogRow } from '~/lib/service-catalog-rows';
 import { COST_TYPES, COST_TYPE_COLOR } from '~/lib/cost-types';
+import { ServiceDetailDialog } from '~/components/service-detail-dialog';
 
 export const Route = createFileRoute('/_dashboard/services')({
   component: ServicesPage,
@@ -62,6 +63,7 @@ interface ServiceRow {
 function SuperiorServices() {
   const items = useStore((s) => s.serviceRegistry.items);
   const clearProjectionData = useStore((s) => s.clearProjectionData);
+  const [detailRow, setDetailRow] = useState<ServiceCatalogRow | null>(null);
 
   const rows = useMemo(() => toCatalogRows(items), [items]);
 
@@ -241,27 +243,31 @@ function SuperiorServices() {
   );
 
   return (
-    <DataListShell
-      data={rows}
-      columns={columns}
-      searchPlaceholder="Search line items..."
-      searchableKeys={['name']}
-      filters={[
-        {
-          id: 'costType',
-          label: 'Cost type',
-          options: COST_TYPES.map((c) => ({ value: c, label: c })),
-        },
-        {
-          id: 'uom',
-          label: 'UoM',
-          options: uomOptions,
-        },
-      ]}
-      actions={headerActions}
-      emptyMessage="No line items yet. Upload a projection to populate the catalog."
-      defaultPageSize={50}
-    />
+    <>
+      <DataListShell
+        data={rows}
+        columns={columns}
+        searchPlaceholder="Search line items..."
+        searchableKeys={['name']}
+        filters={[
+          {
+            id: 'costType',
+            label: 'Cost type',
+            options: COST_TYPES.map((c) => ({ value: c, label: c })),
+          },
+          {
+            id: 'uom',
+            label: 'UoM',
+            options: uomOptions,
+          },
+        ]}
+        actions={headerActions}
+        emptyMessage="No line items yet. Upload a projection to populate the catalog."
+        defaultPageSize={50}
+        onRowClick={setDetailRow}
+      />
+      <ServiceDetailDialog row={detailRow} onClose={() => setDetailRow(null)} />
+    </>
   );
 }
 
