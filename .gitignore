@@ -4,3 +4,5 @@ work/__MACOSX
 .DS_Store
 *.zip
 .claude/worktrees
+.superpowers/
+Screenshots/
