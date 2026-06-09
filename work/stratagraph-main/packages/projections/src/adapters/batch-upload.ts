@@ -2,6 +2,7 @@
 
 import { num, str, parseSheet } from './vista';
 import type { ProjectionItem, FinancialSummary } from '../types';
+import type { MetricsCatalog } from '../metrics/types';
 import type { BatchCycle, BatchUploadResult } from './types';
 
 const COST_TAB_RE = /^Cost\s+(\d{2})-(\d{2})\s*$/i;
@@ -87,7 +88,7 @@ function parseSummaryTab(ws: unknown, XLSX: typeof import('xlsx')): FinancialSum
   return { months, originalBid };
 }
 
-export async function parseBatchUpload(files: File[]): Promise<BatchUploadResult> {
+export async function parseBatchUpload(files: File[], catalog?: MetricsCatalog): Promise<BatchUploadResult> {
   const XLSX = await import('xlsx');
   const cycles: BatchCycle[] = [];
   let financials: FinancialSummary | null = null;
@@ -116,7 +117,7 @@ export async function parseBatchUpload(files: File[]): Promise<BatchUploadResult
             defval: null,
             blankrows: false,
           }) as unknown[][];
-          const { items, notes } = parseSheet(rows, 3);
+          const { items, notes } = parseSheet(rows, 3, catalog);
           if (items.length === 0) continue;
 
           cycles.push({
@@ -142,7 +143,7 @@ export async function parseBatchUpload(files: File[]): Promise<BatchUploadResult
           defval: null,
           blankrows: false,
         }) as unknown[][];
-        const { items } = parseSheet(rows, 1);
+        const { items } = parseSheet(rows, 1, catalog);
 
         if (items.length === 0) {
           errors.push({

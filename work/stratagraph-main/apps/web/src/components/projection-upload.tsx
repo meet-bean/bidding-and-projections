@@ -51,7 +51,7 @@ export function ProjectionUpload({
     try {
       // Try the batch parser first — it handles both PM worksheets (multi-tab)
       // and Vista dumps, with date detection from tab/file names.
-      const result = await parseBatchUpload(arr);
+      const result = await parseBatchUpload(arr, catalog);
 
       if (result.cycles.length > 0) {
         // Auto-register any new column headers as metrics

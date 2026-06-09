@@ -2,6 +2,8 @@
 
 import { makeLineKey, blankSlice } from '../engine';
 import type { ProjectionItem } from '../types';
+import type { MetricsCatalog } from '../metrics/types';
+import { classifyMetric } from '../metrics/resolver';
 import type { ProjectionAdapter } from './types';
 
 // --- Parsing helpers (ported from parseVista.js) ---
@@ -132,6 +134,7 @@ function fSliceFromRow(row: unknown[], cols: ColumnMap) {
 export function parseSheet(
   rows: unknown[][],
   fallbackHeaderRow = 1,
+  catalog?: MetricsCatalog,
 ): { items: ProjectionItem[]; cols: ColumnMap; notes: Record<string, string> } {
   let headerRowIdx = rows.findIndex(
     (r) => r && r.some((c) => String(c ?? '').trim().toLowerCase() === 'phase'),
@@ -144,6 +147,21 @@ export function parseSheet(
   if (cols.phase < 0 || cols.ctum < 0) {
     return { items: [], cols, notes: {} };
   }
+
+  // Build a case-sensitive header→index map for extended metric look-ups.
+  const headerIndex: Record<string, number> = {};
+  headers.forEach((h, idx) => { headerIndex[h] = idx; });
+
+  // Pre-filter catalog metrics that are extended vista-upload fields.
+  // This avoids iterating all metrics on every row when catalog is provided.
+  const extendedVistaMetrics = catalog
+    ? catalog.metrics.filter(
+        (m) =>
+          m.type === 'vista-upload' &&
+          m.vistaField != null &&
+          classifyMetric(m).kind === 'extended',
+      )
+    : [];
 
   const items: ProjectionItem[] = [];
   const notes: Record<string, string> = {};
@@ -176,6 +194,18 @@ export function parseSheet(
       isNew: false,
       stale: false,
     };
+
+    // Populate extended metric values from the catalog.
+    if (extendedVistaMetrics.length > 0) {
+      for (const metric of extendedVistaMetrics) {
+        const colIdx = headerIndex[metric.vistaField!];
+        if (colIdx === undefined) continue; // column not present in this sheet
+        const n = num(r[colIdx]);
+        if (Number.isFinite(n)) {
+          item.values = { ...(item.values ?? {}), [metric.id]: n };
+        }
+      }
+    }
 
     items.push(item);
 
