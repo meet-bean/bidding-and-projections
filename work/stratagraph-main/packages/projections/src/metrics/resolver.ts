@@ -1,3 +1,5 @@
+import type { Metric } from './types';
+
 /** Matches SLICE.field reference tokens, e.g. F.cost, CTD.qty, LMF.cost. */
 const REF_TOKEN = /[A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9]*/g;
 
@@ -26,4 +28,34 @@ export function evalFormula(
   } catch {
     return 0;
   }
+}
+
+/** Group id → TimeSlice key. OE is stored under the `Est` slice. */
+export const SLICE_BY_GROUP: Record<string, 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'> = {
+  CTP: 'CTP', CTD: 'CTD', CTC: 'CTC', F: 'F', OE: 'Est',
+};
+
+const NUMERIC_SLICE_FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
+const IDENTITY_FIELDS = ['service', 'costType', 'description', 'unitOfMeasure'] as const;
+
+export type MetricClass =
+  | { kind: 'standard'; slice: 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'; field: 'qty' | 'hours' | 'upm' | 'mpu' | 'uc' | 'cost' }
+  | { kind: 'extended' }
+  | { kind: 'identity' };
+
+/**
+ * Decide how a metric's value is stored:
+ * - `identity`: row-defining text field, not a value column.
+ * - `standard`: maps onto an existing TimeSlice cell (read item[slice][field]).
+ * - `extended`: lives in item.values[metric.id].
+ */
+export function classifyMetric(metric: Metric): MetricClass {
+  if ((IDENTITY_FIELDS as readonly string[]).includes(metric.field)) {
+    return { kind: 'identity' };
+  }
+  const slice = metric.group ? SLICE_BY_GROUP[metric.group] : undefined;
+  if (slice && (NUMERIC_SLICE_FIELDS as readonly string[]).includes(metric.field)) {
+    return { kind: 'standard', slice, field: metric.field as 'qty' | 'hours' | 'upm' | 'mpu' | 'uc' | 'cost' };
+  }
+  return { kind: 'extended' };
 }
