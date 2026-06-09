@@ -7,6 +7,9 @@ import {
   mergeServiceItems,
   separateAlias,
   normalizeKey,
+  rateRange,
+  avgUpm,
+  primaryPhase,
 } from '../registry';
 import type { ServiceSource } from '../types';
 
@@ -209,5 +212,32 @@ describe('separateAlias', () => {
     expect(reg.items).toHaveLength(2);
     expect(reg.items[0]!.aliases).toHaveLength(0);
     expect(reg.items[1]!.canonicalName).toBe('Conc. Formwork');
+  });
+});
+
+describe('derived selectors', () => {
+  const item = {
+    id: 'i1', canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
+    aliases: [], createdAt: '', projectIds: ['p1', 'p2', 'p3'],
+    sources: [
+      { projectId: 'p1', lineKey: 'a', phaseCode: 'B-300', qty: 10, cost: 100, unitCost: 6.79, upm: 16.7, date: '' },
+      { projectId: 'p2', lineKey: 'b', phaseCode: 'B-310', qty: 10, cost: 120, unitCost: 7.62, upm: 15.2, date: '' },
+      { projectId: 'p3', lineKey: 'c', phaseCode: 'B-300', qty: 10, cost: 110, unitCost: 0,    upm: null, date: '' },
+    ],
+  };
+  it('rateRange ignores zero unit costs', () => {
+    expect(rateRange(item)).toEqual({ lo: 6.79, avg: (6.79 + 7.62) / 2, hi: 7.62 });
+  });
+  it('avgUpm averages non-null only', () => {
+    expect(avgUpm(item)).toBeCloseTo((16.7 + 15.2) / 2);
+  });
+  it('primaryPhase returns most frequent + varies flag', () => {
+    expect(primaryPhase(item)).toEqual({ code: 'B-300', varies: true });
+  });
+  it('handles empty sources', () => {
+    const empty = { ...item, sources: [] };
+    expect(rateRange(empty)).toBeNull();
+    expect(avgUpm(empty)).toBeNull();
+    expect(primaryPhase(empty)).toEqual({ code: null, varies: false });
   });
 });

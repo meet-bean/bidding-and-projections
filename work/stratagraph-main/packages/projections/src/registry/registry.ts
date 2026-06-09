@@ -214,3 +214,26 @@ export function removeServiceItem(
     items: registry.items.filter((i) => i.id !== itemId),
   };
 }
+
+export function rateRange(item: ServiceItem): { lo: number; avg: number; hi: number } | null {
+  const costs = item.sources.map((s) => s.unitCost).filter((c) => c > 0);
+  if (costs.length === 0) return null;
+  const sum = costs.reduce((a, b) => a + b, 0);
+  return { lo: Math.min(...costs), avg: sum / costs.length, hi: Math.max(...costs) };
+}
+
+export function avgUpm(item: ServiceItem): number | null {
+  const upms = item.sources.map((s) => s.upm).filter((u): u is number => u != null);
+  if (upms.length === 0) return null;
+  return upms.reduce((a, b) => a + b, 0) / upms.length;
+}
+
+export function primaryPhase(item: ServiceItem): { code: string | null; varies: boolean } {
+  const codes = item.sources.map((s) => s.phaseCode).filter(Boolean) as string[];
+  if (codes.length === 0) return { code: null, varies: false };
+  const counts = new Map<string, number>();
+  for (const c of codes) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let best = codes[0]!;
+  for (const [c, n] of counts) if (n > (counts.get(best) ?? 0)) best = c;
+  return { code: best, varies: counts.size > 1 };
+}
