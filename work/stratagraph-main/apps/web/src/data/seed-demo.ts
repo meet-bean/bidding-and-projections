@@ -587,19 +587,25 @@ export const DEMO_INVOICES: Invoice[] = [
 
 export function buildDemoRegistry(tenantId: string) {
   let reg = createRegistry(tenantId);
-  const seen = new Set<string>();
   for (const proj of DEMO_PROJECTION_PROJECTS) {
     const latest = proj.versions[proj.versions.length - 1];
     if (!latest) continue;
     for (const item of latest.items) {
-      const key = `${item.label}|${item.unitOfMeasure}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
       reg = addServiceItem(reg, {
         canonicalName: item.label,
         unitOfMeasure: item.unitOfMeasure,
         costType: item.keyParts[1] || '',
         sourceProjectId: proj.id,
+        source: {
+          projectId: proj.id,
+          lineKey: item.lineKey,
+          phaseCode: item.keyParts[0] ?? '',
+          qty: item.F.qty,
+          cost: item.F.cost,
+          unitCost: item.F.uc,
+          upm: item.F.upm || null,
+          date: latest.createdAt,
+        },
       });
     }
   }
