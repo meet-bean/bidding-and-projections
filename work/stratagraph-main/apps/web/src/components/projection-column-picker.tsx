@@ -175,7 +175,7 @@ export function ColumnPicker({
                   </span>
                 </button>
                 {/* Field pills — short labels keep each group on one line */}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-nowrap gap-1 overflow-x-auto">
                   {groupCols.map((c) => {
                     const on = vis[c.id] ?? true;
                     return (
@@ -184,10 +184,10 @@ export function ColumnPicker({
                         onClick={() => onToggle(c.id)}
                         aria-pressed={on}
                         className={cn(
-                          'rounded-md border px-2 py-1 text-xs whitespace-nowrap transition-colors',
+                          'rounded-md px-2 py-1 text-xs whitespace-nowrap transition-colors',
                           on
-                            ? 'border-primary bg-primary/10 font-medium text-primary'
-                            : 'border-border bg-muted/30 text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                            ? 'bg-primary/10 font-medium text-primary'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                         )}
                       >
                         {shortLabel(c.name, g.id)}
