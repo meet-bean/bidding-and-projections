@@ -58,9 +58,6 @@ const helper = createColumnHelper<ProjectionItem>();
 const EDITABLE_CELL_CLASS = 'bg-[#eef6f2] text-[#2c6450]';
 const EDITABLE_HEADER_CLASS = 'bg-[#e3f0ea]';
 
-// Catalog metric ids that keep bespoke renderers (rings, signed colors, risk).
-const SPECIAL_METRIC_IDS = new Set(['qty-pct', 'cost-pct', 'risk', 'chg-prev', 'chg-orig', 'left-spend']);
-
 /** Default right-aligned formatting for a plain (non-special) metric value. */
 function renderMetricCell(col: MetricColumn, value: number) {
   if (value === 0) return <span className="text-muted-foreground">—</span>;
