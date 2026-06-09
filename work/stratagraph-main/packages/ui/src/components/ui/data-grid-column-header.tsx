@@ -296,7 +296,7 @@ function DataGridColumnHeader<TData, TValue>({
   }
 
   if (column.getCanSort() || (props.tableLayout?.columnsResizable && column.getCanResize())) {
-    return <div className="flex h-full items-center">{headerButton()}</div>;
+    return <div className={cn('flex h-full w-full items-center', className)}>{headerButton()}</div>;
   }
 
   return headerLabel();
