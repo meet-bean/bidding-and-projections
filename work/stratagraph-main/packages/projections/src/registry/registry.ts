@@ -2,6 +2,7 @@ import type {
   ServiceItem,
   ServiceAlias,
   ServiceRegistry,
+  ServiceSource,
   FuzzyMatch,
 } from './types';
 
@@ -50,6 +51,7 @@ export function addServiceItem(
     unitOfMeasure: string;
     costType: string;
     sourceProjectId: string;
+    source?: ServiceSource;
   }
 ): ServiceRegistry {
   const normName = normalizeKey(input.canonicalName);
@@ -58,17 +60,44 @@ export function addServiceItem(
     (item) => normalizeKey(item.canonicalName) === normName && normalizeKey(item.costType) === normCost
   );
   if (existing) {
-    if (!existing.projectIds.includes(input.sourceProjectId)) {
-      return {
-        ...registry,
-        items: registry.items.map((item) =>
-          item.id === existing.id
-            ? { ...item, projectIds: [...item.projectIds, input.sourceProjectId] }
-            : item
-        ),
-      };
+    const newProjectIds = existing.projectIds.includes(input.sourceProjectId)
+      ? existing.projectIds
+      : [...existing.projectIds, input.sourceProjectId];
+
+    // Upsert source by (projectId, lineKey): replace if same key, otherwise append.
+    let newSources = existing.sources;
+    if (input.source) {
+      const src = input.source;
+      const idx = existing.sources.findIndex(
+        (s) => s.projectId === src.projectId && s.lineKey === src.lineKey
+      );
+      if (idx === -1) {
+        newSources = [...existing.sources, src];
+      } else if (
+        existing.sources[idx]!.unitCost !== src.unitCost ||
+        existing.sources[idx]!.qty !== src.qty ||
+        existing.sources[idx]!.cost !== src.cost ||
+        existing.sources[idx]!.upm !== src.upm ||
+        existing.sources[idx]!.phaseCode !== src.phaseCode ||
+        existing.sources[idx]!.date !== src.date
+      ) {
+        newSources = existing.sources.map((s, i) => (i === idx ? src : s));
+      }
     }
-    return registry;
+
+    // Nothing changed — return registry unchanged.
+    if (newProjectIds === existing.projectIds && newSources === existing.sources) {
+      return registry;
+    }
+
+    return {
+      ...registry,
+      items: registry.items.map((item) =>
+        item.id === existing.id
+          ? { ...item, projectIds: newProjectIds, sources: newSources }
+          : item
+      ),
+    };
   }
   const newItem: ServiceItem = {
     id: uid(),
@@ -78,6 +107,7 @@ export function addServiceItem(
     aliases: [],
     createdAt: new Date().toISOString(),
     projectIds: [input.sourceProjectId],
+    sources: input.source ? [input.source] : [],
   };
   return { ...registry, items: [...registry.items, newItem] };
 }
@@ -153,6 +183,7 @@ export function separateAlias(
     aliases: [],
     createdAt: new Date().toISOString(),
     projectIds: [alias.sourceProjectId],
+    sources: [],
   };
 
   return {

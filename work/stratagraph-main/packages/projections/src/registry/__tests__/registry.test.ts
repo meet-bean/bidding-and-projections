@@ -8,6 +8,19 @@ import {
   separateAlias,
   normalizeKey,
 } from '../registry';
+import type { ServiceSource } from '../types';
+
+const src = (over: Partial<ServiceSource> = {}): ServiceSource => ({
+  projectId: 'p1',
+  lineKey: 'k1',
+  phaseCode: 'B-300',
+  qty: 10,
+  cost: 100,
+  unitCost: 10,
+  upm: 5,
+  date: '2026-01-01',
+  ...over,
+});
 
 describe('normalizeKey', () => {
   it('uppercases and strips delimiters', () => {
@@ -55,6 +68,46 @@ describe('addServiceItem', () => {
     });
     expect(reg.items).toHaveLength(1);
     expect(reg.items[0]!.projectIds).toEqual(['proj-1', 'proj-2']);
+  });
+
+  it('source re-import idempotency: same source twice → sources.length === 1', () => {
+    let reg = createRegistry('superior');
+    const source = src({ projectId: 'p1', lineKey: 'k1', unitCost: 5 });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation',
+      unitOfMeasure: 'CY',
+      costType: '2Labor',
+      sourceProjectId: 'p1',
+      source,
+    });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation',
+      unitOfMeasure: 'CY',
+      costType: '2Labor',
+      sourceProjectId: 'p1',
+      source,
+    });
+    expect(reg.items[0]!.sources).toHaveLength(1);
+  });
+
+  it('source re-import with changed unitCost: still length 1, new value wins', () => {
+    let reg = createRegistry('superior');
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation',
+      unitOfMeasure: 'CY',
+      costType: '2Labor',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'k1', unitCost: 5 }),
+    });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Excavation',
+      unitOfMeasure: 'CY',
+      costType: '2Labor',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'k1', unitCost: 9.99 }),
+    });
+    expect(reg.items[0]!.sources).toHaveLength(1);
+    expect(reg.items[0]!.sources[0]!.unitCost).toBe(9.99);
   });
 });
 
