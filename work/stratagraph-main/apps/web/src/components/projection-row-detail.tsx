@@ -49,9 +49,9 @@ function DeviationBanner({ item }: { item: ProjectionItem }) {
   if (deviations.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
       {deviations.map((d) => (
-        <div key={d.label} className="text-xs">
+        <div key={d.label} className="text-[13px]">
           <span className="font-medium text-destructive">{d.label}</span>
           <span className="ml-1 text-destructive/80">{formatPercent(d.pct, 0)}</span>
           <span className="ml-1.5 text-muted-foreground">{d.detail}</span>
@@ -65,38 +65,34 @@ const SLICE_NAMES = ['Est', 'CTD', 'CTC', 'F', 'CTP'] as const;
 const SLICE_LABELS: Record<string, string> = { Est: 'Estimate', CTD: 'Cost to Date', CTC: 'Cost to Complete', F: 'Forecast', CTP: 'This Period' };
 const SLICE_TINT_VAR: Record<string, string> = { Est: '--slice-est', CTD: '--slice-ctd', CTC: '--slice-ctc', F: '--slice-f', CTP: '--slice-ctp' };
 
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
 function SliceCard({ slice, label, tintVar, highlight }: { slice: TimeSlice; label: string; tintVar: string; highlight?: boolean }) {
   return (
     <div
-      className={cn('rounded-lg border p-3 space-y-2', highlight && 'ring-1 ring-primary/30')}
-      style={{ backgroundColor: `var(${tintVar})` }}
+      className={cn(
+        'rounded-md border bg-card p-2.5 space-y-2',
+        highlight && 'ring-1 ring-primary/40',
+      )}
     >
-      <div className="text-xs font-semibold uppercase tracking-wide">{label}</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        <div>
-          <span className="text-muted-foreground">Qty</span>
-          <span className="ml-2 tabular-nums">{formatNumber(slice.qty, 1)}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Hours</span>
-          <span className="ml-2 tabular-nums">{formatNumber(slice.hours, 1)}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Cost</span>
-          <span className="ml-2 font-medium tabular-nums">{formatCurrency(slice.cost)}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">UC</span>
-          <span className="ml-2 tabular-nums">${slice.uc.toFixed(2)}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">MH/U</span>
-          <span className="ml-2 tabular-nums">{slice.mpu.toFixed(2)}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">U/MH</span>
-          <span className="ml-2 tabular-nums">{slice.upm.toFixed(2)}</span>
-        </div>
+      <div className="flex items-center gap-1.5">
+        <span className="size-2 shrink-0 rounded-[3px]" style={{ backgroundColor: `var(${tintVar})` }} />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">{label}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
+        <MetricRow label="Qty" value={formatNumber(slice.qty, 1)} />
+        <MetricRow label="Hours" value={formatNumber(slice.hours, 1)} />
+        <MetricRow label="Cost" value={formatCurrency(slice.cost)} />
+        <MetricRow label="UC" value={`$${slice.uc.toFixed(2)}`} />
+        <MetricRow label="MH/U" value={slice.mpu.toFixed(2)} />
+        <MetricRow label="U/MH" value={slice.upm.toFixed(2)} />
       </div>
     </div>
   );
@@ -108,7 +104,13 @@ export function ProjectionRowDetail({ item, project, onUpdateForecast: _onUpdate
   const lts = lensLeftToSpend(project, item.lineKey);
 
   return (
-    <div className="space-y-3 px-4 py-3 bg-muted/20">
+    // Pinned to the grid's visible width (--grid-vw, published by ProjectionTable)
+    // and stuck to the left of the horizontal scroll, so the panel stays fully
+    // in view instead of stretching across the full multi-thousand-px table.
+    <div
+      className="sticky left-0 space-y-3 border-y bg-background px-4 py-3"
+      style={{ width: 'var(--grid-vw, 100%)' }}
+    >
       <DeviationBanner item={item} />
 
       <div className="grid grid-cols-5 gap-2">
@@ -123,7 +125,7 @@ export function ProjectionRowDetail({ item, project, onUpdateForecast: _onUpdate
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-4 rounded-lg border bg-card px-3 py-2 text-xs">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 rounded-md border bg-muted/30 px-3 py-2 text-[13px]">
         {lts && (
           <div>
             <span className="text-muted-foreground">Left to spend:</span>

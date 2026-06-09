@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import {
   createColumnHelper,
   DataGrid,
@@ -16,7 +16,7 @@ import {
   type CellContext,
   cn,
 } from '@repo/ui';
-import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown, ShieldAlert } from 'lucide-react';
+import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown, ShieldAlert, Pencil } from 'lucide-react';
 import { CompletionRing } from './completion-ring';
 import {
   formatCurrency,
@@ -54,9 +54,20 @@ interface ProjectionTableProps {
 
 const helper = createColumnHelper<ProjectionItem>();
 
-// Editable-metric visual cue (Option A — brand sage/teal, NOT blue).
+// Editable-metric visual cue (Option A — brand sage/teal, NOT blue). The whole
+// table sits on a calm neutral field; editable cells are the one element that
+// "pops", so the cell you can actually type into is unambiguous.
 const EDITABLE_CELL_CLASS = 'bg-[#eef6f2] text-[#2c6450]';
 const EDITABLE_HEADER_CLASS = 'bg-[#e3f0ea]';
+
+// One numeric style for every data cell — uniform size + tabular figures so
+// columns line up vertically. (Previously cells mixed text-sm/text-xs.)
+const NUM_CELL = 'text-right text-[13px] tabular-nums';
+
+// Vertical hairline marking the start of a metric group (CTP │ CTD │ CTC │ …).
+// Group identity now lives in these dividers + the header, not a color wash
+// bleeding down every cell.
+const GROUP_DIVIDER = 'border-l border-border';
 
 /** Default right-aligned formatting for a plain (non-special) metric value. */
 function renderMetricCell(col: MetricColumn, value: number) {
@@ -71,11 +82,11 @@ type CellRenderer = (ctx: CellContext<ProjectionItem, unknown>) => React.ReactNo
 // Signed red/green delta cell (Chg From Prev / Chg From Orig). Mirrors the
 // previous bespoke renderer: red when over (>0), green when under (<0).
 function signedDeltaCell(delta: number): React.ReactNode {
-  if (Math.abs(delta) < 0.5) return <div className="text-right text-xs text-muted-foreground">—</div>;
+  if (Math.abs(delta) < 0.5) return <div className={cn(NUM_CELL, 'text-muted-foreground')}>—</div>;
   return (
     <div
       className={cn(
-        'rounded px-1.5 py-0.5 text-right text-xs tabular-nums',
+        NUM_CELL,
         delta > 0 && 'text-destructive',
         delta < 0 && 'text-success',
       )}
@@ -101,13 +112,13 @@ function metricCellRenderer(
       return ({ row }) => {
         const pct = qtyComplete(row.original);
         if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
-        return <CompletionRing pct={pct} size={28} label={`${pct.toFixed(0)}%`} />;
+        return <CompletionRing pct={pct} size={28} labelPosition="center" label={pct.toFixed(0)} />;
       };
     case 'cost-pct':
       return ({ row }) => {
         const pct = dollarComplete(row.original);
         if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
-        return <CompletionRing pct={pct} size={28} label={`${pct.toFixed(0)}%`} />;
+        return <CompletionRing pct={pct} size={28} labelPosition="center" label={pct.toFixed(0)} />;
       };
     case 'risk':
       return ({ row }) => {
@@ -116,13 +127,13 @@ function metricCellRenderer(
         return (
           <div
             className={cn(
-              'flex items-center gap-1 text-xs',
+              'flex items-center justify-end gap-1 text-[13px] tabular-nums',
               rs.level === 'high' && 'text-destructive',
               rs.level === 'medium' && 'text-warning',
               rs.level === 'low' && 'text-muted-foreground',
             )}
           >
-            <ShieldAlert className="size-3" />
+            <ShieldAlert className="size-3 shrink-0" />
             {formatCurrency(rs.exposure)}
           </div>
         );
@@ -134,13 +145,16 @@ function metricCellRenderer(
     case 'left-spend':
       return ({ row }) => {
         const val = lensLeftToSpend(project, row.original.lineKey)?.delta ?? 0;
-        if (Math.abs(val) < 0.5) return <div className="text-right text-xs text-muted-foreground">—</div>;
-        return <div className="text-right text-sm tabular-nums">{formatCurrency(val)}</div>;
+        if (Math.abs(val) < 0.5) return <div className={cn(NUM_CELL, 'text-muted-foreground')}>—</div>;
+        return <div className={NUM_CELL}>{formatCurrency(val)}</div>;
       };
     default:
       if (col.editable) {
+        // The one element that pops off the calm field. The sage wash bleeds to
+        // the full cell (negative margins cancel the dense td padding) so it
+        // reads as an input affordance, not a chip.
         return ({ row, getValue }) => (
-          <div className={cn('rounded', EDITABLE_CELL_CLASS)}>
+          <div className={cn('-mx-2.5 -my-2 px-1 py-0.5', EDITABLE_CELL_CLASS)}>
             <EditableCell
               value={getValue() as number}
               format={col.format === 'currency' ? 'currency' : 'number'}
@@ -149,20 +163,10 @@ function metricCellRenderer(
           </div>
         );
       }
-      // Non-editable: a flat group-color wash that bleeds to the full cell
-      // (negative margins cancel the dense td padding px-2.5 py-2). Reads as a
-      // read-only category band — deliberately NOT a chip, so it can't be
-      // mistaken for the editable box.
+      // Non-editable: plain right-aligned value on the calm field — no per-cell
+      // color. Group identity is carried by the header + the vertical divider.
       return ({ getValue }) => (
-        <div
-          className={cn(
-            'text-right text-sm tabular-nums',
-            col.color && '-mx-2.5 -my-2 px-2.5 py-2',
-          )}
-          style={col.color ? { background: `${col.color}1a` } : undefined}
-        >
-          {renderMetricCell(col, getValue() as number)}
-        </div>
+        <div className={NUM_CELL}>{renderMetricCell(col, getValue() as number)}</div>
       );
   }
 }
@@ -214,7 +218,7 @@ function EditableCell({
     return (
       <input
         ref={inputRef}
-        className="w-full rounded border border-primary/50 bg-background px-1.5 py-0.5 text-right text-sm focus:outline-none"
+        className="w-full rounded border border-primary/50 bg-background px-1.5 py-0.5 text-right text-[13px] tabular-nums focus:outline-none"
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
         onBlur={handleCommit}
@@ -225,7 +229,7 @@ function EditableCell({
 
   return (
     <div
-      className="cursor-text rounded px-1.5 py-0.5 text-right text-sm transition-colors hover:bg-accent/50"
+      className="cursor-text rounded px-1.5 py-0.5 text-right text-[13px] tabular-nums transition-colors hover:bg-black/5"
       onClick={handleFocus}
       role="button"
       tabIndex={0}
@@ -250,6 +254,20 @@ export function ProjectionTable({
   const [searchQuery, setSearchQuery] = useState('');
   const catalog = useStore((s) => s.metricsCatalog);
   const colVis = useColumnVisibility(catalog);
+
+  // Publish the grid's visible width as a CSS var (--grid-vw) that inherits
+  // down to the expanded-row panel, so that panel can pin itself to the
+  // viewport width instead of stretching across the full (very wide) table.
+  const gridWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = gridWrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const sync = () => el.style.setProperty('--grid-vw', `${el.clientWidth}px`);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Get the current items (draft or latest version)
   const currentVersion =
@@ -309,26 +327,31 @@ export function ProjectionTable({
   // below; everything else is a plain right-aligned formatted value (editable
   // metrics render an EditableCell with the green tint).
   const metricColumns = useMemo(() => {
-    return buildMetricColumns(catalog)
-      .filter((col) => colVis.isVisible(col.id))
-      .map((col) =>
-        helper.accessor((row) => resolveMetricValue(row, col.metric, resolveCtx), {
-          id: col.id,
-          header: ({ column }) => (
-            <div className={cn(col.editable && EDITABLE_HEADER_CLASS)}>
-              <DataGridColumnHeader column={column} title={col.editable ? `✎ ${col.name}` : col.name} />
-            </div>
-          ),
-          cell: metricCellRenderer(col, project, onUpdateMetricValue),
-          ...(col.id === 'chg-prev' || col.id === 'chg-orig'
-            ? {
-                sortingFn: (a, b) =>
-                  Math.abs(a.getValue(col.id) as number) - Math.abs(b.getValue(col.id) as number),
-              }
-            : {}),
-          size: col.format === 'currency' ? 110 : 80,
-        }),
-      );
+    const visible = buildMetricColumns(catalog).filter((col) => colVis.isVisible(col.id));
+    return visible.map((col, idx) => {
+      // A divider opens each new metric group. idx === 0 also separates the
+      // first value column from the static Phase/Description/Cost-Type block.
+      const isGroupStart = idx === 0 || visible[idx - 1]!.group !== col.group;
+      const dividerClass = isGroupStart ? GROUP_DIVIDER : undefined;
+      return helper.accessor((row) => resolveMetricValue(row, col.metric, resolveCtx), {
+        id: col.id,
+        header: ({ column }) => (
+          <div className={cn('flex items-center gap-1', col.editable && EDITABLE_HEADER_CLASS)}>
+            {col.editable && <Pencil className="size-3 shrink-0 text-[#2c6450]" />}
+            <DataGridColumnHeader column={column} title={col.name} />
+          </div>
+        ),
+        cell: metricCellRenderer(col, project, onUpdateMetricValue),
+        ...(col.id === 'chg-prev' || col.id === 'chg-orig'
+          ? {
+              sortingFn: (a, b) =>
+                Math.abs(a.getValue(col.id) as number) - Math.abs(b.getValue(col.id) as number),
+            }
+          : {}),
+        size: col.format === 'currency' ? 110 : 80,
+        meta: { headerClassName: dividerClass, cellClassName: dividerClass },
+      });
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalog, colVis.vis, resolveCtx, onUpdateMetricValue, project]);
 
@@ -363,7 +386,7 @@ export function ProjectionTable({
     helper.accessor('label', {
       id: 'description',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Description" />,
-      cell: ({ getValue }) => <span className="text-sm">{getValue()}</span>,
+      cell: ({ getValue }) => <span className="text-[13px]">{getValue()}</span>,
       size: 200,
     }),
     helper.accessor((row) => `${row.keyParts[1] ?? ''} ${row.unitOfMeasure}`.trim(), {
@@ -472,15 +495,19 @@ export function ProjectionTable({
           Var: {formatCurrency(summary.grand.F.cost - summary.grand.Est.cost)}
         </span>
       </div>
-      <DataGrid
-        table={table}
-        recordCount={visibleItems.length}
-        tableLayout={{ width: 'auto', headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
-      >
-        <DataGridContainer className="overflow-x-auto">
-          <DataGridTable />
-        </DataGridContainer>
-      </DataGrid>
+      <div ref={gridWrapRef}>
+        <DataGrid
+          table={table}
+          recordCount={visibleItems.length}
+          tableLayout={{ width: 'auto', headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
+        >
+          {/* Calm neutral field: every read-only cell sits on this wash so the
+              sage editable cells are the only thing that pops. */}
+          <DataGridContainer className="overflow-x-auto bg-muted/30">
+            <DataGridTable />
+          </DataGridContainer>
+        </DataGrid>
+      </div>
       <ProjectionSummaryRows summary={summary} />
     </div>
   );

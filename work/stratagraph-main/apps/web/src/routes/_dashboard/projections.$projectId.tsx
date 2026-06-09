@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '~/lib/store';
 import {
   updateForecast,
@@ -12,7 +12,7 @@ import {
   exportProjectionToVistaXLSX,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult, Metric } from '@repo/projections';
-import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions } from '@repo/ui';
+import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions, useSidebar } from '@repo/ui';
 import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
 import { DebugErrorBoundary, DebugRouteError } from '~/components/debug-error-boundary';
@@ -51,6 +51,16 @@ function ProjectionDetailPage() {
   useEffect(() => {
     if (project) setActiveProjection(projectId);
   }, [projectId, project, setActiveProjection]);
+
+  // The projection table is intrinsically wide (20+ columns). Collapse the nav
+  // to its icon rail on entry to give the table the most horizontal room, and
+  // restore whatever the user had when they leave the page.
+  const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebar();
+  const priorSidebarOpen = useRef(sidebarOpen);
+  useEffect(() => {
+    setSidebarOpen(false);
+    return () => setSidebarOpen(priorSidebarOpen.current);
+  }, [setSidebarOpen]);
 
   // Read-only snapshot project for the table, memoized for a stable reference.
   // Declared *before* the early return below so the hook order stays constant

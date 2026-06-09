@@ -111,7 +111,18 @@ export function AppLayout({
   return (
     <SidebarProvider defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
       {sidebarElement}
-      <SidebarInset>
+      {/*
+       * min-w-0 is load-bearing: SidebarInset ships with `w-full flex-1`, which
+       * (without a zero min-width) refuses to shrink below its content and
+       * settles at the FULL viewport width while still being offset by the
+       * sidebar gap — pushing its right edge past the viewport and giving the
+       * whole page a phantom horizontal scroll equal to the sidebar width. That
+       * page-level overflow is what made the header "widen" and forced a
+       * double-scroll before wide tables' own overflow-x-auto engaged. min-w-0
+       * lets flex-1 size the inset to (viewport − sidebar) so only the table
+       * scrolls horizontally.
+       */}
+      <SidebarInset className="min-w-0">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           {breadcrumbElement || headerActions ? (

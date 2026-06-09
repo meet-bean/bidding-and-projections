@@ -23,6 +23,18 @@ interface ProjectionTrendModalProps {
 // TrendChart — reusable SVG line chart
 // ---------------------------------------------------------------------------
 
+// Compress "September 2025 Projection" → "Sep '25" so x-axis labels don't overlap
+function shortLabel(raw: string): string {
+  const clean = raw.replace(/ projection/i, '').trim();
+  const m = clean.match(/([A-Za-z]+)\s+(\d{4})/);
+  if (m) {
+    const month = m[1] ?? '';
+    const year = m[2] ?? '';
+    return `${month.slice(0, 3)} '${year.slice(2)}`;
+  }
+  return clean;
+}
+
 interface TrendLine {
   values: (number | null)[];
   color: string;
@@ -42,10 +54,10 @@ function TrendChart({
   history,
   lines,
   referenceLine,
-  width = 480,
-  height = 200,
+  width = 560,
+  height = 260,
 }: TrendChartProps) {
-  const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+  const padding = { top: 24, right: 24, bottom: 48, left: 68 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
@@ -102,7 +114,7 @@ function TrendChart({
                 x={-8}
                 y={y + 4}
                 textAnchor="end"
-                fontSize={9}
+                fontSize={13}
                 fill="currentColor"
                 opacity={0.5}
               >
@@ -144,15 +156,13 @@ function TrendChart({
           <text
             key={i}
             x={xScale(i)}
-            y={chartHeight + 15}
+            y={chartHeight + 20}
             textAnchor="middle"
-            fontSize={9}
+            fontSize={13}
             fill="currentColor"
             opacity={0.6}
           >
-            {p.label
-              .replace(' Projection', '')
-              .replace(' projection', '')}
+            {shortLabel(p.label)}
           </text>
         ))}
       </g>
@@ -177,13 +187,13 @@ function MiniChartCard({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{title}</span>
+      <span className="text-sm font-medium text-muted-foreground">{title}</span>
       <TrendChart
         history={history}
         lines={lines}
         referenceLine={referenceLine}
-        width={240}
-        height={120}
+        width={420}
+        height={240}
       />
     </div>
   );
@@ -221,9 +231,9 @@ export function ProjectionTrendModal({
 
   return (
     <Dialog open={lineKey !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle className="text-base">
+          <DialogTitle className="text-xl">
             {item ? `${item.keyParts[0]} · ${item.label}` : 'Trend'}
           </DialogTitle>
         </DialogHeader>
@@ -235,12 +245,12 @@ export function ProjectionTrendModal({
         ) : (
           <div className="space-y-3">
             <Tabs defaultValue="overview">
-              <TabsList variant="line" className="h-8">
-                <TabsTrigger value="overview" className="text-xs px-3 py-1 flex-none">Overview</TabsTrigger>
-                <TabsTrigger value="cost" className="text-xs px-3 py-1 flex-none">Cost</TabsTrigger>
-                <TabsTrigger value="uc" className="text-xs px-3 py-1 flex-none">Unit Cost</TabsTrigger>
-                <TabsTrigger value="mhu" className="text-xs px-3 py-1 flex-none">MH/Unit</TabsTrigger>
-                <TabsTrigger value="umh" className="text-xs px-3 py-1 flex-none">Unit/MH</TabsTrigger>
+              <TabsList variant="line" className="h-10">
+                <TabsTrigger value="overview" className="text-sm px-4 py-1.5 flex-none">Overview</TabsTrigger>
+                <TabsTrigger value="cost" className="text-sm px-4 py-1.5 flex-none">Cost</TabsTrigger>
+                <TabsTrigger value="uc" className="text-sm px-4 py-1.5 flex-none">Unit Cost</TabsTrigger>
+                <TabsTrigger value="mhu" className="text-sm px-4 py-1.5 flex-none">MH/Unit</TabsTrigger>
+                <TabsTrigger value="umh" className="text-sm px-4 py-1.5 flex-none">Unit/MH</TabsTrigger>
               </TabsList>
 
               {/* ── Overview ─────────────────────────────────────────── */}
@@ -299,8 +309,8 @@ export function ProjectionTrendModal({
                     { label: 'Estimate', values: history.map((p) => p.estimate), color: '#f59e0b' },
                   ]}
                   referenceLine={refCost}
-                  width={480}
-                  height={200}
+                  width={720}
+                  height={320}
                 />
               </TabsContent>
 
@@ -314,8 +324,8 @@ export function ProjectionTrendModal({
                     { label: 'estUC', values: history.map((p) => p.estUC), color: '#f59e0b' },
                   ]}
                   referenceLine={refUC}
-                  width={480}
-                  height={200}
+                  width={720}
+                  height={320}
                 />
               </TabsContent>
 
@@ -329,8 +339,8 @@ export function ProjectionTrendModal({
                     { label: 'estMPU', values: history.map((p) => p.estMPU), color: '#f59e0b' },
                   ]}
                   referenceLine={refMPU}
-                  width={480}
-                  height={200}
+                  width={720}
+                  height={320}
                 />
               </TabsContent>
 
@@ -344,8 +354,8 @@ export function ProjectionTrendModal({
                     { label: 'estUPM', values: history.map((p) => p.estUPM), color: '#f59e0b' },
                   ]}
                   referenceLine={refUPM !== undefined && isFinite(refUPM) ? refUPM : undefined}
-                  width={480}
-                  height={200}
+                  width={720}
+                  height={320}
                 />
               </TabsContent>
             </Tabs>
