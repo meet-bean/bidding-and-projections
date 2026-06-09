@@ -237,3 +237,35 @@ export function primaryPhase(item: ServiceItem): { code: string | null; varies: 
   for (const [c, n] of counts) if (n > (counts.get(best) ?? 0)) best = c;
   return { code: best, varies: counts.size > 1 };
 }
+
+export interface ImportLine {
+  name: string;
+  unitOfMeasure: string;
+  costType: string;
+  lineKey: string;
+  phaseCode: string;
+  qty: number;
+  cost: number;
+  unitCost: number;
+  upm: number | null;
+  date: string;
+  projectId?: string;
+}
+
+export interface ClassifiedLine {
+  line: ImportLine;
+  bucket: 'auto' | 'review' | 'new';
+  suggestion: ServiceItem | null;
+  confidence: number;
+}
+
+export function classifyImport(registry: ServiceRegistry, lines: ImportLine[]): ClassifiedLine[] {
+  return lines.map((line) => {
+    const matches = findFuzzyMatches(registry, line.name, line.unitOfMeasure, line.costType)
+      .sort((a, b) => b.confidence - a.confidence);
+    const best = matches[0];
+    if (!best) return { line, bucket: 'new' as const, suggestion: null, confidence: 0 };
+    const bucket = best.confidence >= 1 ? ('auto' as const) : ('review' as const);
+    return { line, bucket, suggestion: best.existingItem, confidence: best.confidence };
+  });
+}

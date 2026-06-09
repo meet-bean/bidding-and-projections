@@ -10,6 +10,7 @@ import {
   rateRange,
   avgUpm,
   primaryPhase,
+  classifyImport,
 } from '../registry';
 import type { ServiceSource } from '../types';
 
@@ -239,5 +240,29 @@ describe('derived selectors', () => {
     expect(rateRange(empty)).toBeNull();
     expect(avgUpm(empty)).toBeNull();
     expect(primaryPhase(empty)).toEqual({ code: null, varies: false });
+  });
+});
+
+describe('classifyImport', () => {
+  let reg = createRegistry('superior');
+  reg = addServiceItem(reg, { canonicalName: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor', sourceProjectId: 'p1' });
+  const line = (over: Record<string, unknown> = {}) => ({
+    name: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor',
+    lineKey: 'k', phaseCode: 'B-300', qty: 1, cost: 1, unitCost: 1, upm: null, date: '',
+    ...over,
+  });
+  it('exact match → auto', () => {
+    const res = classifyImport(reg, [line()]);
+    expect(res[0]!.bucket).toBe('auto');
+    expect(res[0]!.suggestion?.id).toBe(reg.items[0]!.id);
+  });
+  it('UoM differs → review', () => {
+    expect(classifyImport(reg, [line({ unitOfMeasure: 'LF' })])[0]!.bucket).toBe('review');
+  });
+  it('fuzzy name → review', () => {
+    expect(classifyImport(reg, [line({ name: 'Roadway Excavation' })])[0]!.bucket).toBe('review');
+  });
+  it('no match → new', () => {
+    expect(classifyImport(reg, [line({ name: 'Bridge Post-Tensioning', costType: '5SubCont' })])[0]!.bucket).toBe('new');
   });
 });
