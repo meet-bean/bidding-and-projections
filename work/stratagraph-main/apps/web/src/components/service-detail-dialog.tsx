@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,13 +27,11 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
   const [nameValue, setNameValue] = useState(row?.name ?? '');
   const [uomValue, setUomValue] = useState(row?.uom ?? '');
 
-  // Sync local state when row changes
-  const prevId = useRef<string | null>(null);
-  if (row && row.id !== prevId.current) {
-    prevId.current = row.id;
-    setNameValue(row.name);
-    setUomValue(row.uom);
-  }
+  // Sync local state when the selected row changes
+  useEffect(() => {
+    setNameValue(row?.name ?? '');
+    setUomValue(row?.uom ?? '');
+  }, [row?.id]);
 
   if (!row) return null;
 

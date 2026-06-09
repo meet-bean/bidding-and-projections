@@ -10,7 +10,7 @@ import {
 import { useStore } from '~/lib/store';
 import { classifyImport } from '@repo/projections';
 import type { ImportLine, ClassifiedLine } from '@repo/projections';
-import { COST_TYPE_COLOR } from '~/lib/cost-types';
+import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
 
 interface ServiceReconcileDialogProps {
   projectId: string | null;
@@ -64,7 +64,8 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
     return map;
   }, [classified]);
 
-  const [decisions, setDecisions] = useState<Record<string, Decision>>(defaultDecisions);
+  const [overrides, setOverrides] = useState<Record<string, Decision>>({});
+  const decisions = useMemo(() => ({ ...defaultDecisions, ...overrides }), [defaultDecisions, overrides]);
 
   const auto = classified.filter((c) => c.bucket === 'auto');
   const review = classified.filter((c) => c.bucket === 'review');
@@ -73,7 +74,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
   const [autoExpanded, setAutoExpanded] = useState(false);
 
   function setDecision(lineKey: string, decision: Decision) {
-    setDecisions((prev) => ({ ...prev, [lineKey]: decision }));
+    setOverrides((prev) => ({ ...prev, [lineKey]: decision }));
   }
 
   function handleApply() {
@@ -206,7 +207,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                         {c.suggestion && (
                           <p className="text-xs text-muted-foreground mt-1 ml-7">
                             Suggested: <span className="font-medium">{c.suggestion.canonicalName}</span>
-                            {' '}· {c.suggestion.costType}
+                            {' '}· {costTypeLabel(c.suggestion.costType)}
                             {' '}·{' '}
                             <span className={c.confidence >= 0.8 ? 'text-amber-600' : 'text-muted-foreground'}>
                               {Math.round(c.confidence * 100)}% match
@@ -269,13 +270,14 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
 }
 
 function CostTypeBadge({ costType }: { costType: string }) {
-  const color = COST_TYPE_COLOR[costType as keyof typeof COST_TYPE_COLOR] ?? '#bba199';
+  const label = costTypeLabel(costType);
+  const color = COST_TYPE_COLOR[label] ?? '#bba199';
   return (
     <span
       className="inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white"
       style={{ background: color }}
     >
-      {costType}
+      {label}
     </span>
   );
 }

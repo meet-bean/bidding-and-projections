@@ -1339,12 +1339,14 @@ export const useStore = create<StratagraphState>((set, get) => ({
       let reg = s.serviceRegistry;
       for (const d of decisions) {
         const L = d.line;
-        const src = { projectId: L.projectId!, lineKey: L.lineKey, phaseCode: L.phaseCode, qty: L.qty, cost: L.cost, unitCost: L.unitCost, upm: L.upm, date: L.date };
+        const pid = L.projectId;
+        if (!pid) continue;
+        const src = { projectId: pid, lineKey: L.lineKey, phaseCode: L.phaseCode, qty: L.qty, cost: L.cost, unitCost: L.unitCost, upm: L.upm, date: L.date };
         if (d.action === 'match') {
           const target = reg.items.find((i) => i.id === d.targetId);
-          if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: src.projectId, source: src });
+          if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: pid, source: src });
         } else {
-          reg = addServiceItem(reg, { canonicalName: L.name, unitOfMeasure: L.unitOfMeasure, costType: L.costType, sourceProjectId: src.projectId, source: src });
+          reg = addServiceItem(reg, { canonicalName: L.name, unitOfMeasure: L.unitOfMeasure, costType: L.costType, sourceProjectId: pid, source: src });
         }
       }
       return { serviceRegistry: reg };
