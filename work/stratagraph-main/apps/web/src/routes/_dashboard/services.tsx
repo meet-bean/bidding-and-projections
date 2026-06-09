@@ -18,6 +18,7 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { toCatalogRows, type ServiceCatalogRow } from '~/lib/service-catalog-rows';
+import { ctdMetrics, formatMetric } from '~/lib/service-catalog-aggregate';
 import { COST_TYPES, COST_TYPE_COLOR } from '~/lib/cost-types';
 import { ServiceDetailDialog } from '~/components/service-detail-dialog';
 import { ServiceReconcileDialog } from '~/components/service-reconcile-dialog';
@@ -63,12 +64,13 @@ interface ServiceRow {
 
 function SuperiorServices() {
   const items = useStore((s) => s.serviceRegistry.items);
+  const catalog = useStore((s) => s.metricsCatalog);
   const clearProjectionData = useStore((s) => s.clearProjectionData);
   const projectionProjects = useStore((s) => s.projectionProjects);
   const [detailRow, setDetailRow] = useState<ServiceCatalogRow | null>(null);
   const [reconcileProjectId, setReconcileProjectId] = useState<string | null>(null);
 
-  const rows = useMemo(() => toCatalogRows(items), [items]);
+  const rows = useMemo(() => toCatalogRows(items, catalog), [items, catalog]);
 
   const uomOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -83,6 +85,8 @@ function SuperiorServices() {
   }, [rows]);
 
   const columnHelper = createColumnHelper<ServiceCatalogRow>();
+
+  const ctdCols = useMemo(() => ctdMetrics(catalog), [catalog]);
 
   const columns = useMemo(
     () => [
@@ -155,74 +159,23 @@ function SuperiorServices() {
         },
         size: 110,
       }),
-      columnHelper.accessor((r) => r.rate?.avg ?? 0, {
-        id: 'rate',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            column={column}
-            title="Unit cost (lo–avg–hi)"
-            className="justify-end"
-          />
-        ),
-        cell: (info) => {
-          const rate = info.row.original.rate;
-          if (!rate) {
-            return (
-              <div className="text-right text-muted-foreground">—</div>
-            );
-          }
-          const fmt = (n: number) =>
-            '$' + n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-          return (
-            <div className="text-right text-sm tabular-nums">
-              <span className="text-muted-foreground text-xs">{fmt(rate.lo)} – </span>
-              <b>{fmt(rate.avg)}</b>
-              <span className="text-muted-foreground text-xs"> – {fmt(rate.hi)}</span>
-            </div>
-          );
-        },
-        size: 200,
-      }),
-      columnHelper.accessor((r) => r.avgUpm ?? 0, {
-        id: 'upm',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            column={column}
-            title="Avg UPM"
-            className="justify-end"
-          />
-        ),
-        cell: (info) => {
-          const upm = info.row.original.avgUpm;
-          return (
+      ...ctdCols.map((m) =>
+        columnHelper.accessor((r) => r.ctd[m.id] ?? 0, {
+          id: m.id,
+          header: ({ column }) => (
+            <DataGridColumnHeader column={column} title={m.name} className="justify-end" />
+          ),
+          cell: (info) => (
             <div className="text-right tabular-nums text-sm">
-              {upm == null ? (
-                <span className="text-muted-foreground">—</span>
-              ) : (
-                upm.toFixed(1)
-              )}
+              {formatMetric(m, info.getValue())}
             </div>
-          );
-        },
-        size: 100,
-      }),
-      columnHelper.accessor('sourceCount', {
-        id: 'sourceCount',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            column={column}
-            title="Source lines"
-            className="justify-end"
-          />
-        ),
-        cell: (info) => (
-          <div className="text-right tabular-nums text-sm">{info.getValue()}</div>
-        ),
-        size: 110,
-      }),
+          ),
+          size: 120,
+        })
+      ),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columnHelper]
+    [columnHelper, ctdCols]
   );
 
   const headerActions = (

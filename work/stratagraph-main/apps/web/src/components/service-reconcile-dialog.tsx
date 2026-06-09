@@ -37,10 +37,9 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
       costType: item.keyParts[1] ?? '',
       lineKey: item.lineKey,
       phaseCode: item.keyParts[0] ?? '',
-      qty: item.F.qty,
-      cost: item.F.cost,
-      unitCost: item.F.uc,
-      upm: item.F.upm || null,
+      qty: item.CTD.qty,
+      hours: item.CTD.hours,
+      cost: item.CTD.cost,
       date: latest.createdAt,
       projectId: project.id,
     }));
@@ -171,7 +170,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                                   <span className="font-mono mr-1">{c.line.phaseCode}</span>
                                 )}
                                 {c.line.unitOfMeasure} &middot;{' '}
-                                ${c.line.unitCost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                                CTD cost ${c.line.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                               </p>
                             </div>
                           </div>
@@ -238,7 +237,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                           <p className="text-sm truncate">{c.line.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {c.line.unitOfMeasure} &middot;{' '}
-                            ${c.line.unitCost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                            CTD cost ${c.line.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                           </p>
                         </div>
                       </div>

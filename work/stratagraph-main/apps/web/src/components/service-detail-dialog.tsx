@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { useStore } from '~/lib/store';
 import type { ServiceCatalogRow } from '~/lib/service-catalog-rows';
 import { COST_TYPE_COLOR } from '~/lib/cost-types';
+import { ctdMetrics, resolveCtd, aggregateCtd, formatMetric } from '~/lib/service-catalog-aggregate';
 
 interface ServiceDetailDialogProps {
   row: ServiceCatalogRow | null;
@@ -19,10 +20,13 @@ interface ServiceDetailDialogProps {
 
 export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) {
   const projectionProjects = useStore((s) => s.projectionProjects);
+  const catalog = useStore((s) => s.metricsCatalog);
   const editRegistryItemName = useStore((s) => s.editRegistryItemName);
   const setServiceItemUom = useStore((s) => s.setServiceItemUom);
   const separateRegistryAlias = useStore((s) => s.separateRegistryAlias);
   const removeRegistryItem = useStore((s) => s.removeRegistryItem);
+
+  const ctdCols = useMemo(() => ctdMetrics(catalog), [catalog]);
 
   const [nameValue, setNameValue] = useState(row?.name ?? '');
   const [uomValue, setUomValue] = useState(row?.uom ?? '');
@@ -107,10 +111,10 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
           </div>
         </div>
 
-        {/* Sources table */}
+        {/* CTD breakdown table */}
         <div className="mt-2">
           <p className="text-xs font-medium text-muted-foreground mb-2">
-            Sources ({row.item.sources.length})
+            CTD breakdown ({row.item.sources.length} source{row.item.sources.length === 1 ? '' : 's'})
           </p>
           {row.item.sources.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No source lines.</p>
@@ -119,21 +123,23 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Phase</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Project</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Unit cost</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">UPM</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Phase</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Project</th>
+                    {ctdCols.map((m) => (
+                      <th key={m.id} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
+                        {m.name}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {row.item.sources.map((src, i) => {
                     const project = projectionProjects.find((p) => p.id === src.projectId);
                     const projectName = project?.name ?? src.projectId;
-                    const dateDisplay = src.date ? src.date.slice(0, 10) : '—';
+                    const vals = resolveCtd(catalog, { qty: src.qty, hours: src.hours, cost: src.cost });
                     return (
                       <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 whitespace-nowrap">
                           {src.phaseCode ? (
                             <Badge variant="outline" className="font-mono text-[10px]">
                               {src.phaseCode}
@@ -142,17 +148,30 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
                             <span className="text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{projectName}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          ${src.unitCost.toLocaleString('en-US', { maximumFractionDigits: 2 })}/{row.uom}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {src.upm == null ? '—' : src.upm.toFixed(1)}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">{dateDisplay}</td>
+                        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{projectName}</td>
+                        {ctdCols.map((m) => (
+                          <td key={m.id} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                            {formatMetric(m, vals[m.id] ?? 0)}
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}
+                  {/* Totals row */}
+                  {(() => {
+                    const totals = aggregateCtd(catalog, row.item.sources);
+                    return (
+                      <tr className="border-t-2 bg-muted/30 font-semibold">
+                        <td className="px-3 py-2 text-xs text-muted-foreground">All projects</td>
+                        <td className="px-3 py-2"></td>
+                        {ctdCols.map((m) => (
+                          <td key={m.id} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                            {formatMetric(m, totals[m.id] ?? 0)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>

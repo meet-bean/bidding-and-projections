@@ -74,10 +74,9 @@ export function addServiceItem(
       if (idx === -1) {
         newSources = [...existing.sources, src];
       } else if (
-        existing.sources[idx]!.unitCost !== src.unitCost ||
         existing.sources[idx]!.qty !== src.qty ||
+        existing.sources[idx]!.hours !== src.hours ||
         existing.sources[idx]!.cost !== src.cost ||
-        existing.sources[idx]!.upm !== src.upm ||
         existing.sources[idx]!.phaseCode !== src.phaseCode ||
         existing.sources[idx]!.date !== src.date
       ) {
@@ -215,19 +214,6 @@ export function removeServiceItem(
   };
 }
 
-export function rateRange(item: ServiceItem): { lo: number; avg: number; hi: number } | null {
-  const costs = item.sources.map((s) => s.unitCost).filter((c) => c > 0);
-  if (costs.length === 0) return null;
-  const sum = costs.reduce((a, b) => a + b, 0);
-  return { lo: Math.min(...costs), avg: sum / costs.length, hi: Math.max(...costs) };
-}
-
-export function avgUpm(item: ServiceItem): number | null {
-  const upms = item.sources.map((s) => s.upm).filter((u): u is number => u != null);
-  if (upms.length === 0) return null;
-  return upms.reduce((a, b) => a + b, 0) / upms.length;
-}
-
 export function primaryPhase(item: ServiceItem): { code: string | null; varies: boolean } {
   const codes = item.sources.map((s) => s.phaseCode).filter(Boolean) as string[];
   if (codes.length === 0) return { code: null, varies: false };
@@ -245,9 +231,8 @@ export interface ImportLine {
   lineKey: string;
   phaseCode: string;
   qty: number;
+  hours: number;
   cost: number;
-  unitCost: number;
-  upm: number | null;
   date: string;
   projectId?: string;
 }

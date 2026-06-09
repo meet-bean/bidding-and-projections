@@ -9,11 +9,10 @@ export interface ServiceSource {
   projectId: string;
   lineKey: string;
   phaseCode: string;
-  qty: number;
-  cost: number;
-  unitCost: number;
-  upm: number | null;
   date: string;
+  qty: number;
+  hours: number;
+  cost: number;
 }
 
 export interface ServiceItem {

@@ -1,6 +1,7 @@
-import type { ServiceItem } from '@repo/projections';
-import { rateRange, avgUpm, primaryPhase } from '@repo/projections';
+import type { MetricsCatalog, ServiceItem } from '@repo/projections';
+import { primaryPhase } from '@repo/projections';
 import { costTypeLabel, type CostType } from './cost-types';
+import { aggregateCtd } from './service-catalog-aggregate';
 
 export interface ServiceCatalogRow {
   id: string;
@@ -10,13 +11,12 @@ export interface ServiceCatalogRow {
   projectCount: number;
   phaseCode: string | null;
   phaseVaries: boolean;
-  rate: { lo: number; avg: number; hi: number } | null;
-  avgUpm: number | null;
   sourceCount: number;
+  ctd: Record<string, number>;
   item: ServiceItem;
 }
 
-export function toCatalogRows(items: ServiceItem[]): ServiceCatalogRow[] {
+export function toCatalogRows(items: ServiceItem[], catalog: MetricsCatalog): ServiceCatalogRow[] {
   return items.map((item) => {
     const phase = primaryPhase(item);
     return {
@@ -27,9 +27,8 @@ export function toCatalogRows(items: ServiceItem[]): ServiceCatalogRow[] {
       projectCount: item.projectIds.length,
       phaseCode: phase.code,
       phaseVaries: phase.varies,
-      rate: rateRange(item),
-      avgUpm: avgUpm(item),
       sourceCount: item.sources.length,
+      ctd: aggregateCtd(catalog, item.sources),
       item,
     };
   });

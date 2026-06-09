@@ -600,10 +600,9 @@ export function buildDemoRegistry(tenantId: string) {
           projectId: proj.id,
           lineKey: item.lineKey,
           phaseCode: item.keyParts[0] ?? '',
-          qty: item.F.qty,
-          cost: item.F.cost,
-          unitCost: item.F.uc,
-          upm: item.F.upm || null,
+          qty: item.CTD.qty,
+          hours: item.CTD.hours,
+          cost: item.CTD.cost,
           date: latest.createdAt,
         },
       });

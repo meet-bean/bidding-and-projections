@@ -7,8 +7,6 @@ import {
   mergeServiceItems,
   separateAlias,
   normalizeKey,
-  rateRange,
-  avgUpm,
   primaryPhase,
   classifyImport,
 } from '../registry';
@@ -19,9 +17,8 @@ const src = (over: Partial<ServiceSource> = {}): ServiceSource => ({
   lineKey: 'k1',
   phaseCode: 'B-300',
   qty: 10,
+  hours: 1,
   cost: 100,
-  unitCost: 10,
-  upm: 5,
   date: '2026-01-01',
   ...over,
 });
@@ -76,7 +73,7 @@ describe('addServiceItem', () => {
 
   it('source re-import idempotency: same source twice → sources.length === 1', () => {
     let reg = createRegistry('superior');
-    const source = src({ projectId: 'p1', lineKey: 'k1', unitCost: 5 });
+    const source = src({ projectId: 'p1', lineKey: 'k1', cost: 500 });
     reg = addServiceItem(reg, {
       canonicalName: 'Excavation',
       unitOfMeasure: 'CY',
@@ -94,24 +91,24 @@ describe('addServiceItem', () => {
     expect(reg.items[0]!.sources).toHaveLength(1);
   });
 
-  it('source re-import with changed unitCost: still length 1, new value wins', () => {
+  it('source re-import with changed cost: still length 1, new value wins', () => {
     let reg = createRegistry('superior');
     reg = addServiceItem(reg, {
       canonicalName: 'Excavation',
       unitOfMeasure: 'CY',
       costType: '2Labor',
       sourceProjectId: 'p1',
-      source: src({ projectId: 'p1', lineKey: 'k1', unitCost: 5 }),
+      source: src({ projectId: 'p1', lineKey: 'k1', cost: 500 }),
     });
     reg = addServiceItem(reg, {
       canonicalName: 'Excavation',
       unitOfMeasure: 'CY',
       costType: '2Labor',
       sourceProjectId: 'p1',
-      source: src({ projectId: 'p1', lineKey: 'k1', unitCost: 9.99 }),
+      source: src({ projectId: 'p1', lineKey: 'k1', cost: 999 }),
     });
     expect(reg.items[0]!.sources).toHaveLength(1);
-    expect(reg.items[0]!.sources[0]!.unitCost).toBe(9.99);
+    expect(reg.items[0]!.sources[0]!.cost).toBe(999);
   });
 });
 
@@ -221,24 +218,16 @@ describe('derived selectors', () => {
     id: 'i1', canonicalName: 'Excavation', unitOfMeasure: 'CY', costType: '2Labor',
     aliases: [], createdAt: '', projectIds: ['p1', 'p2', 'p3'],
     sources: [
-      { projectId: 'p1', lineKey: 'a', phaseCode: 'B-300', qty: 10, cost: 100, unitCost: 6.79, upm: 16.7, date: '' },
-      { projectId: 'p2', lineKey: 'b', phaseCode: 'B-310', qty: 10, cost: 120, unitCost: 7.62, upm: 15.2, date: '' },
-      { projectId: 'p3', lineKey: 'c', phaseCode: 'B-300', qty: 10, cost: 110, unitCost: 0,    upm: null, date: '' },
+      { projectId: 'p1', lineKey: 'a', phaseCode: 'B-300', qty: 10, hours: 1, cost: 100, date: '' },
+      { projectId: 'p2', lineKey: 'b', phaseCode: 'B-310', qty: 10, hours: 2, cost: 120, date: '' },
+      { projectId: 'p3', lineKey: 'c', phaseCode: 'B-300', qty: 10, hours: 0, cost: 110, date: '' },
     ],
   };
-  it('rateRange ignores zero unit costs', () => {
-    expect(rateRange(item)).toEqual({ lo: 6.79, avg: (6.79 + 7.62) / 2, hi: 7.62 });
-  });
-  it('avgUpm averages non-null only', () => {
-    expect(avgUpm(item)).toBeCloseTo((16.7 + 15.2) / 2);
-  });
   it('primaryPhase returns most frequent + varies flag', () => {
     expect(primaryPhase(item)).toEqual({ code: 'B-300', varies: true });
   });
   it('handles empty sources', () => {
     const empty = { ...item, sources: [] };
-    expect(rateRange(empty)).toBeNull();
-    expect(avgUpm(empty)).toBeNull();
     expect(primaryPhase(empty)).toEqual({ code: null, varies: false });
   });
 });
@@ -248,7 +237,7 @@ describe('classifyImport', () => {
   reg = addServiceItem(reg, { canonicalName: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor', sourceProjectId: 'p1' });
   const line = (over: Record<string, unknown> = {}) => ({
     name: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor',
-    lineKey: 'k', phaseCode: 'B-300', qty: 1, cost: 1, unitCost: 1, upm: null, date: '',
+    lineKey: 'k', phaseCode: 'B-300', qty: 1, hours: 0, cost: 1, date: '',
     ...over,
   });
   it('exact match → auto', () => {
