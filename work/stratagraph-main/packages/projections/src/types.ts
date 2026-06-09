@@ -40,6 +40,12 @@ export interface ProjectionItem {
   isNew: boolean;
   /** True when this service was in a prior version but missing from the current dump. */
   stale: boolean;
+  /**
+   * Values for catalog metrics that don't map to a standard TimeSlice cell
+   * (extended metrics), AND user-entered overrides for any editable metric.
+   * Keyed by metric id. Read through the resolver, never directly.
+   */
+  values?: Record<string, number>;
 }
 
 export interface ProjectionVersion {
