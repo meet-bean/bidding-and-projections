@@ -8,6 +8,7 @@ export { exportProjectionToCSV } from './export/csv';
 export * from './metrics/types';
 export * from './metrics/catalog';
 export * from './metrics/resolver';
+export * from './metrics/columns';
 export * from './detection/detect';
 export { parseWithMetrics } from './adapters/generic';
 export * from './registry';
