@@ -2,9 +2,21 @@ import { useMemo } from 'react';
 import { Card, CardContent, cn } from '@repo/ui';
 import { formatCurrency } from '@repo/projections';
 import type { ProjectionProject } from '@repo/projections';
-import { buildPnlProject, buildCostBreakdown } from '~/lib/pnl';
+import {
+  buildPnlProject,
+  buildCostBreakdown,
+  buildWaterfall,
+  buildBidVsActualByType,
+  buildCostCompositionSeries,
+} from '~/lib/pnl';
 import type { PnlProject, CostBreakdown } from '~/lib/pnl';
-import { PnlTrendChart } from './pnl-trend-chart';
+import {
+  RevenueCostChart,
+  MarginTrendChart,
+  ProfitWaterfallChart,
+  BidVsActualByTypeChart,
+  CostCompositionChart,
+} from './pnl-charts';
 
 interface PnlProjectDetailProps {
   project: ProjectionProject;
@@ -15,11 +27,17 @@ interface PnlProjectDetailProps {
 export function PnlProjectDetail({ project, pnlOverride, onBack }: PnlProjectDetailProps) {
   const pnl = pnlOverride ?? buildPnlProject(project);
 
-  const costBreakdown: CostBreakdown[] = useMemo(() => {
+  const activeItems = useMemo(() => {
     const activeVersion = project.draft ?? project.versions[project.versions.length - 1];
-    if (!activeVersion) return [];
-    return buildCostBreakdown(activeVersion.items);
+    return activeVersion?.items ?? [];
   }, [project]);
+
+  const costBreakdown: CostBreakdown[] = useMemo(
+    () => buildCostBreakdown(activeItems),
+    [activeItems]
+  );
+  const bidVsActual = useMemo(() => buildBidVsActualByType(activeItems), [activeItems]);
+  const composition = useMemo(() => buildCostCompositionSeries(project), [project]);
 
   if (!pnl) {
     return (
@@ -73,8 +91,24 @@ export function PnlProjectDetail({ project, pnlOverride, onBack }: PnlProjectDet
         )}
       </div>
 
-      {/* Trend chart */}
-      <PnlTrendChart months={pnl.months} />
+      {/* Trend charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RevenueCostChart months={pnl.months} />
+        <MarginTrendChart months={pnl.months} bidGpPct={originalBid?.gpPct ?? null} />
+      </div>
+
+      {/* Profit waterfall + bid-vs-actual by cost type */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ProfitWaterfallChart steps={buildWaterfall(totals.revenue, totals.cost, costBreakdown)} />
+        <BidVsActualByTypeChart data={bidVsActual} />
+      </div>
+
+      {composition.length >= 2 ? (
+        <CostCompositionChart
+          data={composition}
+          subtitle="Cumulative cost-to-date by type across this project's projections"
+        />
+      ) : null}
 
       {/* Two-panel layout */}
       <div className="grid gap-6 lg:grid-cols-2">

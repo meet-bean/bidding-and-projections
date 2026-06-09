@@ -262,3 +262,150 @@ export function buildCostBreakdown(items: ProjectionItem[]): CostBreakdown[] {
     }))
     .sort((a, b) => b.amount - a.amount);
 }
+
+/** Stable display order for the five cost types, used across all charts. */
+export const COST_TYPES = ['Labor', 'Material', 'Equipment', 'Subcontract', 'Other'] as const;
+export type CostType = (typeof COST_TYPES)[number];
+
+function monthLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+/** One month of cost split by type. `month` is a short label; keys are cost types. */
+export interface CostCompositionPoint {
+  month: string;
+  Labor: number;
+  Material: number;
+  Equipment: number;
+  Subcontract: number;
+  Other: number;
+}
+
+function emptyComposition(month: string): CostCompositionPoint {
+  return { month, Labor: 0, Material: 0, Equipment: 0, Subcontract: 0, Other: 0 };
+}
+
+/**
+ * Cumulative cost-to-date by cost type at each saved version (snapshot).
+ * Each version is a monthly projection; CTD.cost is cost incurred to that point.
+ * Returns one point per version, in chronological order.
+ */
+export function buildCostCompositionSeries(project: ProjectionProject): CostCompositionPoint[] {
+  const versions = [...project.versions].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (versions.length === 0) return [];
+
+  return versions.map((v) => {
+    const point = emptyComposition(monthLabel(v.createdAt));
+    for (const item of v.items) {
+      const type = costTypeLabel(item.keyParts[1] ?? '') as CostType;
+      point[type] += item.CTD.cost;
+    }
+    return point;
+  });
+}
+
+/** Portfolio-wide cost composition: sum each project's CTD-by-type, keyed by month. */
+export function buildPortfolioCostComposition(projects: ProjectionProject[]): CostCompositionPoint[] {
+  const byMonth = new Map<string, CostCompositionPoint>();
+  // Map each short label back to a sortable YYYY-MM key (first one wins).
+  const sortKey = new Map<string, string>();
+
+  for (const project of projects) {
+    for (const v of project.versions) {
+      const label = monthLabel(v.createdAt);
+      if (!sortKey.has(label)) sortKey.set(label, v.createdAt.slice(0, 7));
+      const point = byMonth.get(label) ?? emptyComposition(label);
+      for (const item of v.items) {
+        const type = costTypeLabel(item.keyParts[1] ?? '') as CostType;
+        point[type] += item.CTD.cost;
+      }
+      byMonth.set(label, point);
+    }
+  }
+
+  return Array.from(byMonth.values()).sort(
+    (a, b) => (sortKey.get(a.month) ?? '').localeCompare(sortKey.get(b.month) ?? '')
+  );
+}
+
+/** Bid (Est) vs current forecast (F) cost, grouped by cost type. */
+export interface BidVsActualByType {
+  type: CostType;
+  bid: number;
+  actual: number;
+}
+
+export function buildBidVsActualByType(items: ProjectionItem[]): BidVsActualByType[] {
+  if (items.length === 0) return [];
+  const bid = new Map<string, number>();
+  const actual = new Map<string, number>();
+  for (const item of items) {
+    const type = costTypeLabel(item.keyParts[1] ?? '');
+    bid.set(type, (bid.get(type) ?? 0) + item.Est.cost);
+    actual.set(type, (actual.get(type) ?? 0) + item.F.cost);
+  }
+  return COST_TYPES.filter((t) => (bid.get(t) ?? 0) > 0 || (actual.get(t) ?? 0) > 0).map((type) => ({
+    type,
+    bid: bid.get(type) ?? 0,
+    actual: actual.get(type) ?? 0,
+  }));
+}
+
+/**
+ * Waterfall steps from revenue down through each cost type to profit.
+ * `base` is the invisible offset for a floating bar; `span` is its height.
+ */
+export interface WaterfallStep {
+  name: string;
+  /** Signed contribution: revenue positive, costs negative, profit is the result. */
+  amount: number;
+  base: number;
+  span: number;
+  kind: 'total' | 'cost';
+}
+
+/**
+ * Revenue → costs → profit, reconciled to the P&L.
+ *
+ * `revenue` and `totalCost` are the financial-summary headline figures (the
+ * same numbers in the KPI cards), so the waterfall always ends on the real
+ * profit. `breakdown` only supplies the *proportions* used to split totalCost
+ * by type — its raw line-item amounts live on a different scale and would not
+ * reconcile to the summary. If no breakdown is available, cost shows as one bar.
+ */
+export function buildWaterfall(
+  revenue: number,
+  totalCost: number,
+  breakdown: CostBreakdown[]
+): WaterfallStep[] {
+  const steps: WaterfallStep[] = [];
+  steps.push({ name: 'Revenue', amount: revenue, base: 0, span: revenue, kind: 'total' });
+
+  const breakdownTotal = breakdown.reduce((s, c) => s + c.amount, 0);
+  const slices =
+    breakdownTotal > 0
+      ? breakdown.map((c) => ({ type: c.type, amount: (c.amount / breakdownTotal) * totalCost }))
+      : [{ type: 'Cost', amount: totalCost }];
+
+  let running = revenue;
+  for (const slice of slices) {
+    const start = running - slice.amount;
+    steps.push({
+      name: slice.type,
+      amount: -slice.amount,
+      base: Math.min(start, running),
+      span: Math.abs(slice.amount),
+      kind: 'cost',
+    });
+    running = start;
+  }
+
+  steps.push({
+    name: 'Profit',
+    amount: running,
+    base: Math.min(0, running),
+    span: Math.abs(running),
+    kind: 'total',
+  });
+  return steps;
+}

@@ -3,9 +3,9 @@ import { Card, CardContent, cn } from '@repo/ui';
 import { formatCurrency } from '@repo/projections';
 import type { ProjectionProject } from '@repo/projections';
 import type { Invoice, Job, Bid, ServiceCatalogItem, Customer } from '~/lib/types';
-import { buildPnlPortfolio, buildStratagraphPnl, getPnlAlerts } from '~/lib/pnl';
+import { buildPnlPortfolio, buildStratagraphPnl, getPnlAlerts, buildPortfolioCostComposition } from '~/lib/pnl';
 import type { PnlPortfolio } from '~/lib/pnl';
-import { PnlTrendChart } from './pnl-trend-chart';
+import { RevenueCostChart, MarginTrendChart, BidVsActualGpChart, CostCompositionChart } from './pnl-charts';
 
 interface PnlPortfolioViewProps {
   projectionProjects: ProjectionProject[];
@@ -78,6 +78,11 @@ export function PnlPortfolioView({
   const { totals, originalBid } = portfolio;
   const gpDelta = originalBid ? totals.gpPct - originalBid.gpPct : null;
 
+  const costComposition = useMemo(
+    () => (tenantId === 'superior' ? buildPortfolioCostComposition(projectionProjects) : []),
+    [tenantId, projectionProjects]
+  );
+
   return (
     <div className="space-y-6">
       {/* KPI cards */}
@@ -102,8 +107,15 @@ export function PnlPortfolioView({
         />
       </div>
 
-      {/* Trend chart */}
-      <PnlTrendChart months={portfolio.months} />
+      {/* Charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RevenueCostChart months={portfolio.months} />
+        <MarginTrendChart months={portfolio.months} bidGpPct={originalBid?.gpPct ?? null} />
+      </div>
+
+      {originalBid ? <BidVsActualGpChart projects={portfolio.projects} /> : null}
+
+      {costComposition.length >= 2 ? <CostCompositionChart data={costComposition} /> : null}
 
       {/* Project table */}
       <div className="overflow-x-auto rounded-lg border">
