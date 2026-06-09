@@ -54,6 +54,13 @@ export function classifyMetric(metric: Metric): MetricClass {
   if ((IDENTITY_FIELDS as readonly string[]).includes(metric.field)) {
     return { kind: 'identity' };
   }
+  // Formula metrics must be evaluated via their formula, never read straight
+  // from a TimeSlice cell — even when their group/field happens to map to one.
+  // (e.g. `calc-hrs` is group F / field hours but means a computed value, not
+  // F.hours.) Treat them as extended so resolveMetricValue takes the formula path.
+  if (metric.type === 'formula' && metric.formula) {
+    return { kind: 'extended' };
+  }
   const slice = metric.group ? SLICE_BY_GROUP[metric.group] : undefined;
   if (slice && (NUMERIC_SLICE_FIELDS as readonly string[]).includes(metric.field)) {
     return { kind: 'standard', slice, field: metric.field as 'qty' | 'hours' | 'upm' | 'mpu' | 'uc' | 'cost' };

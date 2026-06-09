@@ -50,6 +50,9 @@ const catalog: MetricsCatalog = {
     { id: 'ctd-cost', name: 'CTD Cost', aliases: [], group: 'CTD', field: 'cost', type: 'vista-upload', formula: null, formulaRefs: [] },
     { id: 'left-spend', name: 'Left To Spend', aliases: [], group: 'PRJ', field: 'cost', type: 'formula', formula: 'F.cost - CTD.cost', formulaRefs: ['f-cost', 'ctd-cost'] },
     { id: 'lmf', name: 'New Projection', aliases: [], group: 'PRJ', field: 'cost', type: 'formula', formula: 'F.cost', formulaRefs: ['f-cost'], editable: true },
+    // A formula metric whose group/field DO map to a TimeSlice cell (F.hours).
+    // It must still be evaluated via its formula, not read from item.F.hours.
+    { id: 'calc-hrs', name: 'Calc Hrs', aliases: [], group: 'F', field: 'hours', type: 'formula', formula: 'F.qty * 2', formulaRefs: ['f-qty'] },
   ],
 };
 const ctx = (over: Partial<ResolveCtx> = {}): ResolveCtx => ({ catalog, prevItems: [], ...over });
@@ -77,6 +80,11 @@ describe('resolveMetricValue', () => {
   it('reads an editable standard override from values', () => {
     const it2 = item({ values: { 'f-qty': 372 } });
     expect(resolveMetricValue(it2, byId('f-qty'), ctx())).toBe(372);
+  });
+
+  it('evaluates a formula metric even when its group/field map to a TimeSlice cell', () => {
+    // item.F.hours is 0; the formula F.qty * 2 = 372. Reading the cell would give 0.
+    expect(resolveMetricValue(item({}), byId('calc-hrs'), ctx())).toBe(372);
   });
 });
 
