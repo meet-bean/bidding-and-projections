@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { Badge, Button } from '@repo/ui';
-import { Pencil, GitBranch, Trash2, FunctionSquare } from 'lucide-react';
+import { Pencil, GitBranch, Trash2 } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import {
   BILLING_UNIT_LABELS,
@@ -17,6 +17,8 @@ import {
   createColumnHelper,
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
+import { toCatalogRows, type ServiceCatalogRow } from '~/lib/service-catalog-rows';
+import { COST_TYPES, COST_TYPE_COLOR } from '~/lib/cost-types';
 
 export const Route = createFileRoute('/_dashboard/services')({
   component: ServicesPage,
@@ -55,68 +57,256 @@ interface ServiceRow {
   registryItemId: string | null;
 }
 
+// ── Superior Construction: line-item catalog ─────────────────────────────────
+
+function SuperiorServices() {
+  const items = useStore((s) => s.serviceRegistry.items);
+  const clearProjectionData = useStore((s) => s.clearProjectionData);
+
+  const rows = useMemo(() => toCatalogRows(items), [items]);
+
+  const uomOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    for (const r of rows) {
+      if (!seen.has(r.uom)) {
+        seen.add(r.uom);
+        opts.push({ value: r.uom, label: r.uom });
+      }
+    }
+    return opts;
+  }, [rows]);
+
+  const columnHelper = createColumnHelper<ServiceCatalogRow>();
+
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor('name', {
+        id: 'name',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Phase & line item" />
+        ),
+        cell: (info) => {
+          const row = info.row.original;
+          return (
+            <div className="flex items-center gap-2">
+              {row.phaseCode && (
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  {row.phaseCode}
+                </Badge>
+              )}
+              <span className="text-sm font-medium">{info.getValue()}</span>
+              {row.phaseVaries && (
+                <span className="text-[10px] italic text-muted-foreground">
+                  + varies
+                </span>
+              )}
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor('costType', {
+        id: 'costType',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Cost type" />
+        ),
+        cell: (info) => {
+          const value = info.getValue();
+          return (
+            <span
+              className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
+              style={{ background: COST_TYPE_COLOR[value] }}
+            >
+              {value}
+            </span>
+          );
+        },
+        size: 130,
+      }),
+      columnHelper.accessor('uom', {
+        id: 'uom',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="UoM" />
+        ),
+        cell: (info) => (
+          <Badge variant="secondary" className="text-[10px] font-normal">
+            {info.getValue()}
+          </Badge>
+        ),
+        size: 90,
+      }),
+      columnHelper.accessor('projectCount', {
+        id: 'projectCount',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Used in" />
+        ),
+        cell: (info) => {
+          const value = info.getValue();
+          return (
+            <span className="text-sm">
+              {value} project{value === 1 ? '' : 's'}
+            </span>
+          );
+        },
+        size: 110,
+      }),
+      columnHelper.accessor((r) => r.rate?.avg ?? 0, {
+        id: 'rate',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            column={column}
+            title="Unit cost (lo–avg–hi)"
+            className="justify-end"
+          />
+        ),
+        cell: (info) => {
+          const rate = info.row.original.rate;
+          if (!rate) {
+            return (
+              <div className="text-right text-muted-foreground">—</div>
+            );
+          }
+          const fmt = (n: number) =>
+            '$' + n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+          return (
+            <div className="text-right text-sm tabular-nums">
+              <span className="text-muted-foreground text-xs">{fmt(rate.lo)} – </span>
+              <b>{fmt(rate.avg)}</b>
+              <span className="text-muted-foreground text-xs"> – {fmt(rate.hi)}</span>
+            </div>
+          );
+        },
+        size: 200,
+      }),
+      columnHelper.accessor((r) => r.avgUpm ?? 0, {
+        id: 'upm',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            column={column}
+            title="Avg UPM"
+            className="justify-end"
+          />
+        ),
+        cell: (info) => {
+          const upm = info.row.original.avgUpm;
+          return (
+            <div className="text-right tabular-nums text-sm">
+              {upm == null ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                upm.toFixed(1)
+              )}
+            </div>
+          );
+        },
+        size: 100,
+      }),
+      columnHelper.accessor('sourceCount', {
+        id: 'sourceCount',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            column={column}
+            title="Source lines"
+            className="justify-end"
+          />
+        ),
+        cell: (info) => (
+          <div className="text-right tabular-nums text-sm">{info.getValue()}</div>
+        ),
+        size: 110,
+      }),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnHelper]
+  );
+
+  const headerActions = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+      onClick={() => {
+        if (
+          confirm(
+            'Delete all projection data, services, and metrics? This cannot be undone.',
+          )
+        ) {
+          clearProjectionData();
+        }
+      }}
+    >
+      <Trash2 className="size-4 mr-1.5" />
+      Clear All Data
+    </Button>
+  );
+
+  return (
+    <DataListShell
+      data={rows}
+      columns={columns}
+      searchPlaceholder="Search line items..."
+      searchableKeys={['name']}
+      filters={[
+        {
+          id: 'costType',
+          label: 'Cost type',
+          options: COST_TYPES.map((c) => ({ value: c, label: c })),
+        },
+        {
+          id: 'uom',
+          label: 'UoM',
+          options: uomOptions,
+        },
+      ]}
+      actions={headerActions}
+      emptyMessage="No line items yet. Upload a projection to populate the catalog."
+      defaultPageSize={50}
+    />
+  );
+}
+
+// ── Stratagraph: service rate-card ────────────────────────────────────────────
+
 function ServicesPage() {
   const catalog = useStore((s) => s.serviceCatalog);
   const tenantId = useStore((s) => s.tenantId);
   const registry = useStore((s) => s.serviceRegistry);
-  const metricsCatalog = useStore((s) => s.metricsCatalog);
   const jobs = useStore((s) => s.jobs);
   const editName = useStore((s) => s.editRegistryItemName);
   const separate = useStore((s) => s.separateRegistryAlias);
   const tenant = useStore((s) => s.getTenantConfig());
-  const clearProjectionData = useStore((s) => s.clearProjectionData);
   const projectLabel = tenant.features.operations ? 'Jobs' : 'Projects';
   const isSuperior = tenantId === 'superior';
 
-  const metrics = metricsCatalog.metrics;
-
   const rows: ServiceRow[] = useMemo(() => {
-    if (!isSuperior) {
-      const jobCountByService = new Map<string, number>();
-      for (const job of jobs) {
-        const seen = new Set<string>();
-        for (const run of job.serviceRuns) {
-          const item = catalog.find((c) => c.dailyCode === run.code);
-          if (item && !seen.has(item.id)) {
-            seen.add(item.id);
-            jobCountByService.set(item.id, (jobCountByService.get(item.id) ?? 0) + 1);
-          }
+    const jobCountByService = new Map<string, number>();
+    for (const job of jobs) {
+      const seen = new Set<string>();
+      for (const run of job.serviceRuns) {
+        const item = catalog.find((c) => c.dailyCode === run.code);
+        if (item && !seen.has(item.id)) {
+          seen.add(item.id);
+          jobCountByService.set(item.id, (jobCountByService.get(item.id) ?? 0) + 1);
         }
       }
-
-      return catalog.map((item) => ({
-        id: item.id,
-        name: item.name,
-        categoryLabel: CATEGORY_LABELS[item.category],
-        code: item.dailyCode ?? '',
-        unitLabel: BILLING_UNIT_LABELS[item.billingUnit],
-        rate: item.defaultRate,
-        rateNote: item.rateNote,
-        aliasCount: 0,
-        aliases: [],
-        projectCount: jobCountByService.get(item.id) ?? 0,
-        category: item.category,
-        billingUnit: item.billingUnit,
-        registryItemId: null,
-      }));
     }
 
-    return registry.items.map((item) => ({
+    return catalog.map((item) => ({
       id: item.id,
-      name: item.canonicalName,
-      categoryLabel: item.costType || '—',
-      code: '',
-      unitLabel: item.unitOfMeasure || '—',
-      rate: null,
-      rateNote: null,
-      aliasCount: item.aliases.length,
-      aliases: item.aliases,
-      projectCount: item.projectIds.length,
-      category: 'logging' as ServiceCategory,
-      billingUnit: 'per_other' as BillingUnit,
-      registryItemId: item.id,
+      name: item.name,
+      categoryLabel: CATEGORY_LABELS[item.category],
+      code: item.dailyCode ?? '',
+      unitLabel: BILLING_UNIT_LABELS[item.billingUnit],
+      rate: item.defaultRate,
+      rateNote: item.rateNote,
+      aliasCount: 0,
+      aliases: [],
+      projectCount: jobCountByService.get(item.id) ?? 0,
+      category: item.category,
+      billingUnit: item.billingUnit,
+      registryItemId: null,
     }));
-  }, [isSuperior, catalog, registry.items, jobs]);
+  }, [catalog, jobs]);
 
   const columnHelper = createColumnHelper<ServiceRow>();
   const columns = useMemo(() => {
@@ -247,110 +437,38 @@ function ServicesPage() {
     );
 
     return cols;
-  }, [columnHelper, projectLabel, editName, separate, isSuperior]);
+  }, [columnHelper, projectLabel, editName, separate]);
 
-  const headerActions = isSuperior ? (
-    <Button
-      variant="outline"
-      size="sm"
-      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-      onClick={() => {
-        if (confirm('Delete all projection data, services, and metrics? This cannot be undone.')) {
-          clearProjectionData();
-        }
-      }}
-    >
-      <Trash2 className="size-4 mr-1.5" />
-      Clear All Data
-    </Button>
-  ) : undefined;
+  if (isSuperior) {
+    return <SuperiorServices />;
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Metrics / Columns & Formulas — Superior only */}
-      {isSuperior && metrics.length > 0 && (
-        <div className="rounded-lg border">
-          <div className="flex items-center gap-2 border-b px-4 py-3">
-            <FunctionSquare className="size-4 text-muted-foreground" />
-            <h3 className="text-sm font-medium">Columns &amp; Formulas</h3>
-            <span className="text-xs text-muted-foreground">({metrics.length})</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="text-left px-4 py-2 font-medium">Column</th>
-                  <th className="text-left px-4 py-2 font-medium">Group</th>
-                  <th className="text-left px-4 py-2 font-medium">Field</th>
-                  <th className="text-left px-4 py-2 font-medium">Kind</th>
-                  <th className="text-left px-4 py-2 font-medium">Formula</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.map((m) => (
-                  <tr key={m.id} className="border-b last:border-b-0 hover:bg-muted/40 transition-colors">
-                    <td className="px-4 py-2 font-medium">{m.name}</td>
-                    <td className="px-4 py-2">
-                      {m.group ? (
-                        <Badge variant="secondary" className="text-[10px]">{m.group}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <Badge variant="outline" className="text-[10px] font-mono">{m.field}</Badge>
-                    </td>
-                    <td className="px-4 py-2">
-                      {m.type === 'formula' ? (
-                        <Badge variant="secondary" className="text-[10px] bg-warning/10 text-warning border-warning/30">formula</Badge>
-                      ) : m.type === 'carry-over' ? (
-                        <Badge variant="secondary" className="text-[10px]">carry-over</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">vista upload</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {m.formula ? (
-                        <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{m.formula}</code>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <DataListShell
-        data={rows}
-        columns={columns}
-        searchPlaceholder="Search services..."
-        searchableKeys={['name', 'categoryLabel', 'code']}
-        filters={!isSuperior ? [
-          {
-            id: 'category',
-            label: 'Service type',
-            options: CATEGORY_ORDER.map((c) => ({
-              value: c,
-              label: CATEGORY_LABELS[c],
-            })),
-          },
-          {
-            id: 'billingUnit',
-            label: 'Billing unit',
-            options: BILLING_UNIT_ORDER.map((u) => ({
-              value: u,
-              label: BILLING_UNIT_LABELS[u],
-            })),
-          },
-        ] : []}
-        actions={headerActions}
-        emptyMessage="No services yet."
-        defaultPageSize={50}
-      />
-    </div>
+    <DataListShell
+      data={rows}
+      columns={columns}
+      searchPlaceholder="Search services..."
+      searchableKeys={['name', 'categoryLabel', 'code']}
+      filters={[
+        {
+          id: 'category',
+          label: 'Service type',
+          options: CATEGORY_ORDER.map((c) => ({
+            value: c,
+            label: CATEGORY_LABELS[c],
+          })),
+        },
+        {
+          id: 'billingUnit',
+          label: 'Billing unit',
+          options: BILLING_UNIT_ORDER.map((u) => ({
+            value: u,
+            label: BILLING_UNIT_LABELS[u],
+          })),
+        },
+      ]}
+      emptyMessage="No services yet."
+      defaultPageSize={50}
+    />
   );
 }
