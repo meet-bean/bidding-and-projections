@@ -1,5 +1,7 @@
 import type { ProjectionProject, ProjectionItem, FinancialSummaryMonth } from '@repo/projections';
 import type { Invoice, Job, Bid, ServiceCatalogItem, Customer } from './types';
+import { COST_TYPES, costTypeLabel, type CostType } from './cost-types';
+export { COST_TYPES, type CostType } from './cost-types';
 
 export interface PnlProject {
   id: string;
@@ -228,22 +230,6 @@ export function getPnlAlerts(project: PnlProject): PnlAlert[] {
   return alerts;
 }
 
-const COST_TYPE_LABELS: Record<string, string> = {
-  '2Labor': 'Labor',
-  '3Material': 'Material',
-  '4Rental': 'Equipment',
-  '5SubCont': 'Subcontract',
-  '6OtherJC': 'Other',
-  '8Parts': 'Material',
-  '9Owned': 'Equipment',
-  '10Health': 'Labor',
-  '11Fuel': 'Equipment',
-};
-
-function costTypeLabel(raw: string): string {
-  return COST_TYPE_LABELS[raw] ?? 'Other';
-}
-
 export function buildCostBreakdown(items: ProjectionItem[]): CostBreakdown[] {
   if (items.length === 0) return [];
 
@@ -262,10 +248,6 @@ export function buildCostBreakdown(items: ProjectionItem[]): CostBreakdown[] {
     }))
     .sort((a, b) => b.amount - a.amount);
 }
-
-/** Stable display order for the five cost types, used across all charts. */
-export const COST_TYPES = ['Labor', 'Material', 'Equipment', 'Subcontract', 'Other'] as const;
-export type CostType = (typeof COST_TYPES)[number];
 
 function monthLabel(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
