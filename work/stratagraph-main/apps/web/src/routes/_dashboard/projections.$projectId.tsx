@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '~/lib/store';
 import {
   updateForecast,
+  updateMetricValue,
   addComment,
   deleteComment,
   resolveAlert,
@@ -10,7 +11,7 @@ import {
   ingestBatch,
   exportProjectionToVistaXLSX,
 } from '@repo/projections';
-import type { ProjectionAlert, BatchUploadResult } from '@repo/projections';
+import type { ProjectionAlert, BatchUploadResult, Metric } from '@repo/projections';
 import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions } from '@repo/ui';
 import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
@@ -76,6 +77,9 @@ function ProjectionDetailPage() {
   ) => {
     updateActiveProjection((p) => updateForecast(p, lineKey, patch));
   };
+
+  const handleUpdateMetricValue = (lineKey: string, metric: Metric, value: number) =>
+    updateActiveProjection((p) => updateMetricValue(p, lineKey, metric, value));
 
   const handleOpenTrend = (lineKey: string) => {
     setTrendLineKey(lineKey);
@@ -208,6 +212,7 @@ function ProjectionDetailPage() {
       <ProjectionTable
         project={tableProject!}
         onUpdateForecast={handleUpdateForecast}
+        onUpdateMetricValue={handleUpdateMetricValue}
         onOpenTrend={handleOpenTrend}
         onOpenComments={handleOpenComments}
         onExport={handleExport}
