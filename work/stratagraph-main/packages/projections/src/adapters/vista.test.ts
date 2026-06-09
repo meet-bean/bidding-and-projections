@@ -114,6 +114,19 @@ describe('parseSheet', () => {
     const { items } = parseSheet(rows, 0);
     expect(items).toHaveLength(1);
   });
+
+  // Real Vista PM-worksheet exports have NO "F Cost" header — the forecast
+  // dollars live under "Current Projection / Forecast". Without a fallback,
+  // F.cost parses as 0 and every forecast-derived column collapses.
+  it('reads forecast cost from "Current Projection / Forecast" when no "F Cost" column exists', () => {
+    const rows = makeRows(
+      ['Phase', 'Cost Type/UM', 'F Qty', 'Current Projection / Forecast'],
+      [{ Phase: 'B-100', 'Cost Type/UM': '2Labor MOS', 'F Qty': 186, 'Current Projection / Forecast': 562804.22 }],
+    );
+    const { items } = parseSheet(rows, 0);
+    expect(items).toHaveLength(1);
+    expect(items[0]!.F.cost).toBeCloseTo(562804.22);
+  });
 });
 
 // ── parseSheet() — extended metric population (Task 7) ────────────────────────

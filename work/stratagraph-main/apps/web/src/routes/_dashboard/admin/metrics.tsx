@@ -22,9 +22,11 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { Combobox } from '~/components/combobox';
+import { DebugRouteError } from '~/components/debug-error-boundary';
 
 export const Route = createFileRoute('/_dashboard/admin/metrics')({
   component: MetricsPage,
+  errorComponent: DebugRouteError,
 });
 
 const FIELD_OPTIONS = [

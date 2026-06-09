@@ -105,7 +105,11 @@ function resolveColumns(headers: string[]): ColumnMap {
     F_upm: idxOf('F U/M'),
     F_mpu: idxOf('F M/U'),
     F_uc: idxOf('F UC'),
-    F_cost: idxOf('F Cost'),
+    // Real Vista PM-worksheet exports have no "F Cost" column — the forecast
+    // dollars are reported under "Current Projection / Forecast". Fall back to
+    // it (and a spacing variant) so F.cost populates from real uploads, not
+    // just the seed/demo sheets that use the literal "F Cost" header.
+    F_cost: firstOf(idxOf, 'F Cost', 'Current Projection / Forecast', 'Current Projection/Forecast'),
     Est_start: firstOf(idxOf, 'Est Qty', 'OE Qty'),
     estVar: idxOf('EstVar'),
     comp: firstOf(idxOf, 'Comp', '$ % Complete'),

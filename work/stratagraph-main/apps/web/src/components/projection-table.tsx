@@ -149,10 +149,17 @@ function metricCellRenderer(
           </div>
         );
       }
+      // Non-editable: a flat group-color wash that bleeds to the full cell
+      // (negative margins cancel the dense td padding px-2.5 py-2). Reads as a
+      // read-only category band — deliberately NOT a chip, so it can't be
+      // mistaken for the editable box.
       return ({ getValue }) => (
         <div
-          className={cn('text-right text-sm tabular-nums', col.color && 'px-1.5')}
-          style={col.color ? { background: `${col.color}22` } : undefined}
+          className={cn(
+            'text-right text-sm tabular-nums',
+            col.color && '-mx-2.5 -my-2 px-2.5 py-2',
+          )}
+          style={col.color ? { background: `${col.color}1a` } : undefined}
         >
           {renderMetricCell(col, getValue() as number)}
         </div>

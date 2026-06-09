@@ -12,7 +12,7 @@ import {
   Input,
 } from '@repo/ui';
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react';
-import { parseBatchUpload, detectColumns, parseWithMetrics, uid } from '@repo/projections';
+import { parseBatchUpload, detectColumns, parseWithMetrics } from '@repo/projections';
 import type { BatchUploadResult } from '@repo/projections';
 import { useStore } from '~/lib/store';
 import * as XLSX from 'xlsx';
@@ -39,8 +39,6 @@ export function ProjectionUpload({
   const [reviewCycles, setReviewCycles] = useState<BatchUploadResult['cycles']>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const catalog = useStore((s) => s.metricsCatalog);
-  const addMetric = useStore((s) => s.addMetricToStore);
-  const updateMetric = useStore((s) => s.updateMetricInStore);
 
   const handleFiles = async (newFiles: FileList | null) => {
     if (!newFiles || newFiles.length === 0) return;
@@ -54,8 +52,11 @@ export function ProjectionUpload({
       const result = await parseBatchUpload(arr, catalog);
 
       if (result.cycles.length > 0) {
-        // Auto-register any new column headers as metrics
-        autoRegisterColumns(arr);
+        // NOTE: uploads never create columns. The projections table layout is
+        // the Metrics catalog (which mirrors the forecast document); the only
+        // values we pull from any file are metrics whose Type is `vista-upload`
+        // (mapped via their vistaField inside parseSheet / resolveColumns).
+        // To add a column, add a metric on the Metrics page — not via upload.
         setPreview(result);
         setReviewCycles(result.cycles);
         setLoading(false);
@@ -74,75 +75,6 @@ export function ProjectionUpload({
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const autoRegisterColumns = async (fileList: File[]) => {
-    try {
-      const file = fileList[0];
-      if (!file) return;
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer);
-
-      const COST_TAB_RE = /^Cost\s+\d{2}-\d{2}\s*$/i;
-      const costTabs = workbook.SheetNames.filter((n) => COST_TAB_RE.test(n));
-      const dataSheetName = costTabs.length > 0 ? costTabs[0]! : workbook.SheetNames[0]!;
-      const sheet = workbook.Sheets[dataSheetName]!;
-
-      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-        header: 1, defval: null, blankrows: false,
-      }) as unknown as unknown[][];
-
-      const HEADER_MARKERS = ['phase', 'costtype', 'cost type', 'ctp qty', 'ctd qty', 'f qty', 'f cost'];
-      let headerRow = rawRows.findIndex((r) =>
-        r && r.some((c) => {
-          const val = String(c ?? '').trim().toLowerCase();
-          return HEADER_MARKERS.some((m) => val === m || val.includes(m));
-        }),
-      );
-      if (headerRow === -1) return;
-
-      const headers = (rawRows[headerRow] ?? []).map((c) => String(c ?? '').trim()).filter(Boolean);
-      const sampleRows: Record<string, unknown>[] = [];
-      for (let i = headerRow + 1; i < Math.min(headerRow + 21, rawRows.length); i++) {
-        const raw = rawRows[i];
-        if (!raw) continue;
-        const obj: Record<string, unknown> = {};
-        for (let c = 0; c < headers.length; c++) obj[headers[c]!] = raw[c] ?? null;
-        sampleRows.push(obj);
-      }
-
-      const detection = detectColumns(headers, sampleRows, catalog);
-
-      for (const r of detection.results) {
-        if (r.matched && r.metricId) {
-          // Add alias if the header doesn't match the metric name
-          const metric = catalog.metrics.find((m) => m.id === r.metricId);
-          if (metric) {
-            const headerNorm = r.columnHeader.toLowerCase().trim();
-            const nameNorm = metric.name.toLowerCase().trim();
-            const alreadyKnown = nameNorm === headerNorm ||
-              metric.aliases.some((a) => a.toLowerCase().trim() === headerNorm);
-            if (!alreadyKnown) {
-              updateMetric(metric.id, { aliases: [...metric.aliases, r.columnHeader] });
-            }
-          }
-        } else if (!r.matched) {
-          // Auto-register new column as a metric
-          addMetric({
-            id: `col-${uid()}`,
-            name: r.columnHeader,
-            aliases: [],
-            group: r.group,
-            field: r.type === 'formula' ? 'uc' : 'qty',
-            type: r.type,
-            formula: r.formulaGuess?.expression ?? null,
-            formulaRefs: r.formulaGuess?.refs ?? [],
-          });
-        }
-      }
-    } catch {
-      // Non-critical — if auto-registration fails, the data still imports fine
     }
   };
 
@@ -182,22 +114,9 @@ export function ProjectionUpload({
 
     const detection = detectColumns(headerCells, jsonRows.slice(0, 20), catalog);
 
-    // Auto-register new columns
-    for (const r of detection.results) {
-      if (!r.matched) {
-        addMetric({
-          id: `col-${uid()}`,
-          name: r.columnHeader,
-          aliases: [],
-          group: r.group,
-          field: r.type === 'formula' ? 'uc' : 'qty',
-          type: r.type,
-          formula: r.formulaGuess?.expression ?? null,
-          formulaRefs: r.formulaGuess?.refs ?? [],
-        });
-      }
-    }
-
+    // Uploads never create columns: unmatched headers are ignored, and only
+    // values for existing catalog metrics are pulled in. New columns are added
+    // by the user on the Metrics page, never auto-registered from a file.
     const fieldMap: Record<string, { group: string | null; field: string }> = {};
     for (const col of detection.results) {
       if (col.metricId && !col.skipped) {

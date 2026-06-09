@@ -10,10 +10,12 @@ import {
 } from '~/components/data-list-shell';
 import { ProjectionDashboard } from '~/components/projection-dashboard';
 import { ProjectionUpload } from '~/components/projection-upload';
+import { DebugRouteError } from '~/components/debug-error-boundary';
 import type { BatchUploadResult } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/')({
   component: ProjectionsIndexPage,
+  errorComponent: DebugRouteError,
 });
 
 interface ProjectionRow {

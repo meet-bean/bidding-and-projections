@@ -15,6 +15,7 @@ import type { ProjectionAlert, BatchUploadResult, Metric } from '@repo/projectio
 import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions } from '@repo/ui';
 import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
+import { DebugErrorBoundary, DebugRouteError } from '~/components/debug-error-boundary';
 import { ProjectionComments } from '~/components/projection-comments';
 import { ProjectionTrendModal } from '~/components/projection-trend-modal';
 import { ProjectionAlertsPanel } from '~/components/projection-alerts-panel';
@@ -25,6 +26,7 @@ import { computeAlerts } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/$projectId')({
   component: ProjectionDetailPage,
+  errorComponent: DebugRouteError,
 });
 
 function ProjectionDetailPage() {
@@ -209,14 +211,16 @@ function ProjectionDetailPage() {
         </div>
       )}
 
-      <ProjectionTable
-        project={tableProject!}
-        onUpdateForecast={handleUpdateForecast}
-        onUpdateMetricValue={handleUpdateMetricValue}
-        onOpenTrend={handleOpenTrend}
-        onOpenComments={handleOpenComments}
-        onExport={handleExport}
-      />
+      <DebugErrorBoundary label="ProjectionTable">
+        <ProjectionTable
+          project={tableProject!}
+          onUpdateForecast={handleUpdateForecast}
+          onUpdateMetricValue={handleUpdateMetricValue}
+          onOpenTrend={handleOpenTrend}
+          onOpenComments={handleOpenComments}
+          onExport={handleExport}
+        />
+      </DebugErrorBoundary>
 
       {tenantId === 'superior' && (
         <section className="space-y-3">
