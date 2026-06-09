@@ -24,6 +24,8 @@ export interface Metric {
   fallback?: MetricFallback;
   vistaField?: string;
   editable?: boolean;
+  /** Display format. Defaults are derived from `field` when omitted. */
+  format?: 'currency' | 'number' | 'percent';
 }
 
 export interface MetricsCatalog {

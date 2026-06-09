@@ -3,7 +3,7 @@
 import { Button, SearchInput } from '@repo/ui';
 import { Download } from 'lucide-react';
 import { ColumnPicker, type ColumnVisibility } from './projection-column-picker';
-import type { ProjectionItem, AlertsResult } from '@repo/projections';
+import type { ProjectionItem, AlertsResult, MetricsCatalog } from '@repo/projections';
 import { COST_TYPES, VARIANCE_THRESHOLD_PCT } from '@repo/projections';
 
 export type FilterId = 'all' | 'variance' | 'high-risk' | 'new' | 'stale' | 'with-notes';
@@ -18,9 +18,9 @@ interface ProjectionToolbarProps {
   onCostTypeChange: (ct: string | null) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  catalog: MetricsCatalog;
   columnVis: ColumnVisibility;
   onToggleColumn: (key: string) => void;
-  onToggleSlice: (slice: string) => void;
   onResetColumns: () => void;
   activeColumnCount: number;
   onExport: () => void;
@@ -109,9 +109,9 @@ export function ProjectionToolbar({
   onCostTypeChange,
   searchQuery,
   onSearchChange,
+  catalog,
   columnVis,
   onToggleColumn,
-  onToggleSlice,
   onResetColumns,
   activeColumnCount,
   onExport,
@@ -150,9 +150,9 @@ export function ProjectionToolbar({
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ColumnPicker
+            catalog={catalog}
             vis={columnVis}
             onToggle={onToggleColumn}
-            onToggleSlice={onToggleSlice}
             onReset={onResetColumns}
             activeCount={activeColumnCount}
           />

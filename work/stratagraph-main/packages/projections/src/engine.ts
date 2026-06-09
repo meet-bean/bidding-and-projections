@@ -16,6 +16,8 @@ import type {
   SummaryResult,
   FinancialSummary,
 } from './types';
+import { classifyMetric } from './metrics/resolver';
+import type { Metric } from './metrics/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -404,6 +406,62 @@ export function updateForecast(
       : 0;
 
   return updateDraftItem(p, key, { F: derivedF, CTC, comp, calcHrs, wsRisk });
+}
+
+/**
+ * Write a user-entered value for an editable metric. Standard editable fields
+ * (qty/hours/cost on the F slice) route through updateForecast so dependent
+ * derived fields recompute; everything else stores an override in item.values
+ * that the resolver prefers over the computed value.
+ */
+export function updateMetricValue(
+  project: ProjectionProject,
+  key: string,
+  metric: Metric,
+  value: number,
+): ProjectionProject {
+  const cls = classifyMetric(metric);
+  if (
+    cls.kind === 'standard' &&
+    cls.slice === 'F' &&
+    (cls.field === 'qty' || cls.field === 'hours' || cls.field === 'cost')
+  ) {
+    return updateForecast(project, key, { [cls.field]: value });
+  }
+
+  let p = project;
+  if (!p.draft) p = startDraft(p);
+  if (!p.draft) return p;
+  const item = findItem(p.draft.items, key);
+  if (!item) return p;
+  const values = { ...(item.values ?? {}), [metric.id]: value };
+  return updateDraftItem(p, key, { values });
+}
+
+/** Remove an override so the column reverts to its computed/upload value. */
+export function clearMetricOverride(
+  project: ProjectionProject,
+  key: string,
+  metricId: string,
+): ProjectionProject {
+  let p = project;
+  if (!p.draft) p = startDraft(p);
+  if (!p.draft) return p;
+  const item = findItem(p.draft.items, key);
+  if (!item?.values || !(metricId in item.values)) return p;
+  const values = { ...item.values };
+  delete values[metricId];
+  // Use a direct spread (not deepMerge) so the values map is fully replaced,
+  // not merged — deepMerge would leave deleted keys in place.
+  return {
+    ...p,
+    draft: {
+      ...p.draft,
+      items: p.draft.items.map((it) =>
+        it.lineKey === key ? { ...it, values } : it,
+      ),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -3,52 +3,59 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button, Popover, PopoverContent, PopoverTrigger, Badge } from '@repo/ui';
 import { Columns3 } from 'lucide-react';
-
-const SLICES = ['CTP', 'CTD', 'CTC', 'F', 'Est'] as const;
-const STD_FIELDS = ['qty', 'hours', 'upm', 'mpu', 'uc', 'cost'] as const;
-const F_FIELDS = ['qty', 'hours', 'calcHrs', 'upm', 'mpu', 'uc'] as const;
-const META_FIELDS = ['prevForecast'] as const;
-
-const FIELD_LABELS: Record<string, string> = {
-  qty: 'Qty', hours: 'Hours', calcHrs: 'Calc Hrs', upm: 'U/MH', mpu: 'MH/U', uc: 'UC', cost: 'Cost',
-  prevForecast: 'Last Month FC',
-};
+import type { MetricsCatalog } from '@repo/projections';
+import { buildMetricColumns } from '@repo/projections';
 
 export type ColumnVisibility = Record<string, boolean>;
 
-const STORAGE_KEY = 'sc-visible-columns';
+const STORAGE_KEY = 'sc-visible-columns-v2'; // v2 = metric-id keys (old slice-field keys ignored)
 
-const DEFAULTS: ColumnVisibility = {
-  'CTD-cost': true, 'CTD-hours': true, 'F-qty': true, 'F-hours': true, 'F-uc': true,
-  'Est-cost': true, 'meta-prevForecast': true,
-};
+// Default-visible metric ids (replicates the prior default layout).
+const DEFAULT_VISIBLE = new Set([
+  'ctd-cost', 'ctd-hrs', 'f-qty', 'f-hrs', 'f-uc', 'oe-cost', 'lmf',
+]);
 
-function loadVisibility(): ColumnVisibility {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : { ...DEFAULTS };
-  } catch {
-    return { ...DEFAULTS };
-  }
+function defaultsFor(catalog: MetricsCatalog): ColumnVisibility {
+  const vis: ColumnVisibility = {};
+  for (const c of buildMetricColumns(catalog)) vis[c.id] = DEFAULT_VISIBLE.has(c.id);
+  return vis;
 }
 
-function fieldsForSlice(slice: string): readonly string[] {
-  return slice === 'F' ? F_FIELDS : STD_FIELDS;
-}
-
-export function useColumnVisibility() {
-  // Start from DEFAULTS so the first client render matches the server-rendered
+export function useColumnVisibility(catalog: MetricsCatalog) {
+  // Start from defaults so the first client render matches the server-rendered
   // HTML (localStorage is unavailable during SSR). The persisted layout is
   // loaded after mount, avoiding a hydration mismatch.
-  const [vis, setVis] = useState<ColumnVisibility>(() => ({ ...DEFAULTS }));
+  const [vis, setVis] = useState<ColumnVisibility>(() => defaultsFor(catalog));
   const hydrated = useRef(false);
 
   useEffect(() => {
-    setVis(loadVisibility());
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const base = defaultsFor(catalog);
+      setVis(stored ? { ...base, ...JSON.parse(stored) } : base);
+    } catch {
+      setVis(defaultsFor(catalog));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // New metrics not yet in `vis` default to VISIBLE.
   useEffect(() => {
-    // Skip the initial DEFAULTS render so we don't clobber the stored layout
+    setVis((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const c of buildMetricColumns(catalog)) {
+        if (!(c.id in next)) {
+          next[c.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [catalog]);
+
+  useEffect(() => {
+    // Skip the initial defaults render so we don't clobber the stored layout
     // before it has been loaded above.
     if (!hydrated.current) {
       hydrated.current = true;
@@ -57,47 +64,38 @@ export function useColumnVisibility() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(vis));
   }, [vis]);
 
-  const toggle = (key: string) =>
-    setVis((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  const toggleSlice = (slice: string) => {
-    setVis((prev) => {
-      const fields = fieldsForSlice(slice);
-      const sliceKeys = fields.map((f) => `${slice}-${f}`);
-      const allOn = sliceKeys.every((k) => prev[k]);
-      const next = { ...prev };
-      for (const k of sliceKeys) next[k] = !allOn;
-      return next;
-    });
-  };
-
-  const reset = () => setVis({ ...DEFAULTS });
-
-  const isVisible = (slice: string, field: string) => vis[`${slice}-${field}`] ?? false;
+  const toggle = (id: string) => setVis((p) => ({ ...p, [id]: !p[id] }));
+  const isVisible = (id: string) => vis[id] ?? true;
+  const reset = () => setVis(defaultsFor(catalog));
   const activeCount = Object.values(vis).filter(Boolean).length;
 
-  return { vis, toggle, toggleSlice, reset, isVisible, activeCount };
+  return { vis, toggle, isVisible, reset, activeCount };
 }
 
-interface ColumnPickerProps {
+export function ColumnPicker({
+  catalog,
+  vis,
+  onToggle,
+  onReset,
+  activeCount,
+}: {
+  catalog: MetricsCatalog;
   vis: ColumnVisibility;
-  onToggle: (key: string) => void;
-  onToggleSlice: (slice: string) => void;
+  onToggle: (id: string) => void;
   onReset: () => void;
   activeCount: number;
-}
-
-export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCount }: ColumnPickerProps) {
+}) {
+  const cols = buildMetricColumns(catalog);
+  const groups = [...catalog.groups, { id: '__null', name: 'Analytics', color: '#e5e5e5' }];
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button size="sm" variant="outline" className="gap-1.5">
-          <Columns3 className="size-3.5" />
-          Columns
+          <Columns3 className="size-3.5" /> Columns
           <Badge variant="secondary" className="ml-1 px-1.5 text-xs">{activeCount}</Badge>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-3">
+      <PopoverContent align="end" className="w-80 p-3 max-h-[70vh] overflow-auto">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium">Visible Columns</span>
           <Button size="sm" variant="ghost" onClick={onReset} className="text-xs h-7">
@@ -105,30 +103,25 @@ export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCoun
           </Button>
         </div>
         <div className="space-y-3">
-          {SLICES.map((slice) => {
-            const fields = fieldsForSlice(slice);
-            const sliceKeys = fields.map((f) => `${slice}-${f}`);
-            const allOn = sliceKeys.every((k) => vis[k]);
+          {groups.map((g) => {
+            const groupCols = cols.filter((c) => (c.group ?? '__null') === g.id);
+            if (groupCols.length === 0) return null;
             return (
-              <div key={slice} className="space-y-1">
-                <button
-                  className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
-                  onClick={() => onToggleSlice(slice)}
-                >
-                  <div className={`size-3 rounded-sm border ${allOn ? 'bg-primary border-primary' : 'border-muted-foreground/50'}`} />
-                  {slice === 'Est' ? 'Original (OE)' : slice}
-                </button>
+              <div key={g.id} className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="size-3 rounded-sm" style={{ background: g.color }} />
+                  {g.name}
+                </div>
                 <div className="ml-5 flex flex-wrap gap-1.5">
-                  {fields.map((field) => {
-                    const key = `${slice}-${field}`;
-                    const on = vis[key] ?? false;
+                  {groupCols.map((c) => {
+                    const on = vis[c.id] ?? true;
                     return (
                       <button
-                        key={key}
+                        key={c.id}
+                        onClick={() => onToggle(c.id)}
                         className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${on ? 'border-primary bg-primary/10 text-primary' : 'border-transparent bg-muted text-muted-foreground hover:text-foreground'}`}
-                        onClick={() => onToggle(key)}
                       >
-                        {FIELD_LABELS[field]}
+                        {c.name}
                       </button>
                     );
                   })}
@@ -136,27 +129,6 @@ export function ColumnPicker({ vis, onToggle, onToggleSlice, onReset, activeCoun
               </div>
             );
           })}
-          {/* Meta columns */}
-          <div className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Other
-            </span>
-            <div className="ml-5 flex flex-wrap gap-1.5">
-              {META_FIELDS.map((field) => {
-                const key = `meta-${field}`;
-                const on = vis[key] ?? false;
-                return (
-                  <button
-                    key={key}
-                    className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${on ? 'border-primary bg-primary/10 text-primary' : 'border-transparent bg-muted text-muted-foreground hover:text-foreground'}`}
-                    onClick={() => onToggle(key)}
-                  >
-                    {FIELD_LABELS[field]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </PopoverContent>
     </Popover>
