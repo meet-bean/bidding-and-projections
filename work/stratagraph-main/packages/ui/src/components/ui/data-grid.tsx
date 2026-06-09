@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, type ComponentProps, type ReactNode, useContext } from 'react';
+import { createContext, type ComponentProps, type CSSProperties, type ReactNode, useContext } from 'react';
 import { cn } from '@/lib/utils';
 import type { ColumnFiltersState, RowData, SortingState, Table } from '@tanstack/react-table';
 import { Spinner } from './spinner.js';
@@ -11,6 +11,10 @@ declare module '@tanstack/react-table' {
     headerTitle?: string;
     headerClassName?: string;
     cellClassName?: string;
+    /** Inline style applied to the cell's <td> element (fills edge-to-edge). */
+    cellStyle?: CSSProperties;
+    /** Inline style applied to the header's <th> element (fills edge-to-edge). */
+    headerStyle?: CSSProperties;
     skeleton?: ReactNode;
     expandedContent?: (row: TData) => ReactNode;
   }

@@ -133,6 +133,7 @@ function DataGridTableHeadRowCell<TData>({
           width: `${header.getSize()}px`,
         }),
         ...(props.tableLayout?.columnsPinnable && column.getCanPin() && getPinningStyles(column)),
+        ...(header.column.columnDef.meta?.headerStyle ?? null),
         ...(dndStyle ? dndStyle : null),
       }}
       data-pinned={isPinned || undefined}
@@ -342,6 +343,7 @@ function DataGridTableBodyRowCell<TData>({
       {...(props.tableLayout?.columnsDraggable && !isPinned ? { cell } : {})}
       style={{
         ...(props.tableLayout?.columnsPinnable && column.getCanPin() && getPinningStyles(column)),
+        ...(cell.column.columnDef.meta?.cellStyle ?? null),
         ...(dndStyle ? dndStyle : null),
       }}
       data-pinned={isPinned || undefined}

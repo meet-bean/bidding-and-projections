@@ -95,3 +95,39 @@ export function CompletionRing({
     </div>
   );
 }
+
+interface CompletionBarProps {
+  pct: number;
+  /** Track width in px. */
+  width?: number;
+  className?: string;
+}
+
+/**
+ * Inline "% complete" for dense data tables: a tabular percentage next to a thin
+ * rounded progress bar. Reads as a column at a glance and — unlike a donut —
+ * expresses overrun: at >100% the fill maxes out and turns red (over plan).
+ * Fill is brand sage (primary) up to plan; destructive once over.
+ */
+export function CompletionBar({ pct, width = 56, className }: CompletionBarProps) {
+  const clamped = Math.min(Math.max(pct, 0), 100);
+  const over = pct > 100;
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      <span
+        className={cn(
+          'w-9 text-right text-[13px] tabular-nums',
+          over ? 'font-medium text-destructive' : 'text-foreground',
+        )}
+      >
+        {pct.toFixed(0)}%
+      </span>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted" style={{ width }}>
+        <div
+          className={cn('h-full rounded-full', over ? 'bg-destructive' : 'bg-primary')}
+          style={{ width: `${over ? 100 : clamped}%` }}
+        />
+      </div>
+    </div>
+  );
+}

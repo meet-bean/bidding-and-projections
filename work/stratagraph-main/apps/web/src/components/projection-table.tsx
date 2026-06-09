@@ -17,7 +17,7 @@ import {
   cn,
 } from '@repo/ui';
 import { TrendingUp, MessageSquare, AlertTriangle, ChevronRight, ChevronDown, ShieldAlert, Pencil } from 'lucide-react';
-import { CompletionRing } from './completion-ring';
+import { CompletionBar } from './completion-ring';
 import {
   formatCurrency,
   formatNumber,
@@ -65,9 +65,26 @@ const EDITABLE_HEADER_CLASS = 'bg-[#e3f0ea]';
 const NUM_CELL = 'text-right text-[13px] tabular-nums';
 
 // Vertical hairline marking the start of a metric group (CTP │ CTD │ CTC │ …).
-// Group identity now lives in these dividers + the header, not a color wash
-// bleeding down every cell.
 const GROUP_DIVIDER = 'border-l border-border';
+
+// Per-group color wash. Each metric group (CTP/CTD/CTC/F/…) gets ONE continuous,
+// very faint band filling every cell + header edge-to-edge — so the eye groups
+// the 3 columns (MH / U/MH / Cost) under a single soft vertical band, not a grid
+// of tinted boxes. The color is the group's own `color` from the catalog (the
+// same value the column picker swatches use), rendered at very low opacity so
+// the whole area reads as ambient shading, not chips.
+const GROUP_BAND_CELL_ALPHA = 0.07;
+const GROUP_BAND_HEADER_ALPHA = 0.14;
+
+/** Convert a #rrggbb hex to an rgba() string at the given alpha. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 /** Default right-aligned formatting for a plain (non-special) metric value. */
 function renderMetricCell(col: MetricColumn, value: number) {
@@ -111,14 +128,22 @@ function metricCellRenderer(
     case 'qty-pct':
       return ({ row }) => {
         const pct = qtyComplete(row.original);
-        if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
-        return <CompletionRing pct={pct} size={28} labelPosition="center" label={pct.toFixed(0)} />;
+        if (pct == null) return <div className="flex justify-center text-xs text-muted-foreground">—</div>;
+        return (
+          <div className="flex justify-center">
+            <CompletionBar pct={pct} />
+          </div>
+        );
       };
     case 'cost-pct':
       return ({ row }) => {
         const pct = dollarComplete(row.original);
-        if (pct == null) return <span className="text-xs text-muted-foreground">—</span>;
-        return <CompletionRing pct={pct} size={28} labelPosition="center" label={pct.toFixed(0)} />;
+        if (pct == null) return <div className="flex justify-center text-xs text-muted-foreground">—</div>;
+        return (
+          <div className="flex justify-center">
+            <CompletionBar pct={pct} />
+          </div>
+        );
       };
     case 'risk':
       return ({ row }) => {
@@ -333,6 +358,15 @@ export function ProjectionTable({
       // first value column from the static Phase/Description/Cost-Type block.
       const isGroupStart = idx === 0 || visible[idx - 1]!.group !== col.group;
       const dividerClass = isGroupStart ? GROUP_DIVIDER : undefined;
+      // One continuous faint band per group — same catalog color as the picker
+      // swatch, on the full <td>/<th> so adjacent cells/rows bleed into a single
+      // soft vertical band rather than per-cell boxes.
+      const cellStyle = col.color
+        ? { backgroundColor: hexToRgba(col.color, GROUP_BAND_CELL_ALPHA) }
+        : undefined;
+      const headerStyle = col.color
+        ? { backgroundColor: hexToRgba(col.color, GROUP_BAND_HEADER_ALPHA) }
+        : undefined;
       return helper.accessor((row) => resolveMetricValue(row, col.metric, resolveCtx), {
         id: col.id,
         header: ({ column }) => (
@@ -349,7 +383,7 @@ export function ProjectionTable({
             }
           : {}),
         size: col.format === 'currency' ? 110 : 80,
-        meta: { headerClassName: dividerClass, cellClassName: dividerClass },
+        meta: { headerClassName: dividerClass, cellClassName: dividerClass, cellStyle, headerStyle },
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -502,8 +536,9 @@ export function ProjectionTable({
           tableLayout={{ width: 'auto', headerSticky: true, dense: true, rowBorder: true, headerBorder: true, headerBackground: true }}
         >
           {/* Calm neutral field: every read-only cell sits on this wash so the
-              sage editable cells are the only thing that pops. */}
-          <DataGridContainer className="overflow-x-auto bg-muted/30">
+              sage editable cells are the only thing that pops. Rows never wrap —
+              cells stay single-line and the grid scrolls horizontally instead. */}
+          <DataGridContainer className="overflow-x-auto bg-muted/30 [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
             <DataGridTable />
           </DataGridContainer>
         </DataGrid>
