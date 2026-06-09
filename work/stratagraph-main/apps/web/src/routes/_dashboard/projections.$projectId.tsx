@@ -21,7 +21,7 @@ import { ProjectionTrendModal } from '~/components/projection-trend-modal';
 import { ProjectionAlertsPanel } from '~/components/projection-alerts-panel';
 import { ProjectionUpload } from '~/components/projection-upload';
 import { ProjectionVersionHistory } from '~/components/projection-version-history';
-import { MonthlyEntryForm } from '~/components/monthly-entry-form';
+// import { MonthlyEntryForm } from '~/components/monthly-entry-form'; // Monthly Entry hidden per request
 import { computeAlerts } from '@repo/projections';
 
 export const Route = createFileRoute('/_dashboard/projections/$projectId')({
@@ -232,12 +232,14 @@ function ProjectionDetailPage() {
         />
       </DebugErrorBoundary>
 
+      {/* Monthly Entry hidden per request — restore by re-enabling this block.
       {tenantId === 'superior' && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">Monthly Entry</h2>
           <MonthlyEntryForm projectId={projectId} />
         </section>
       )}
+      */}
 
       {/* Comments sheet */}
       <ProjectionComments

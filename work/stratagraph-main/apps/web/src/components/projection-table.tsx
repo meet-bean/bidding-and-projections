@@ -390,7 +390,7 @@ export function ProjectionTable({
   }, [catalog, colVis.vis, resolveCtx, onUpdateMetricValue, project]);
 
   const columns = useMemo(() => [
-    // ── Static: Phase → Description → Cost Type/UM ──
+    // ── Static: Phase → Description → Cost Type → UoM ──
     helper.accessor((row) => row.keyParts[0] ?? '', {
       id: 'phase',
       header: ({ column }) => <DataGridColumnHeader column={column} title="Phase" />,
@@ -423,18 +423,17 @@ export function ProjectionTable({
       cell: ({ getValue }) => <span className="text-[13px]">{getValue()}</span>,
       size: 200,
     }),
-    helper.accessor((row) => `${row.keyParts[1] ?? ''} ${row.unitOfMeasure}`.trim(), {
-      id: 'costTypeUM',
-      header: ({ column }) => <DataGridColumnHeader column={column} title="Cost Type/UM" />,
-      cell: ({ row }) => (
-        <span className="text-xs">
-          {row.original.keyParts[1] ?? ''}
-          {row.original.unitOfMeasure ? (
-            <span className="text-muted-foreground"> {row.original.unitOfMeasure}</span>
-          ) : null}
-        </span>
-      ),
-      size: 120,
+    helper.accessor((row) => row.keyParts[1] ?? '', {
+      id: 'costType',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="Cost Type" />,
+      cell: ({ getValue }) => <span className="text-xs">{getValue()}</span>,
+      size: 90,
+    }),
+    helper.accessor((row) => row.unitOfMeasure ?? '', {
+      id: 'uom',
+      header: ({ column }) => <DataGridColumnHeader column={column} title="UoM" />,
+      cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue()}</span>,
+      size: 70,
     }),
     // ── Catalog-driven value columns (CTP/CTD/CTC/F/Est + analytics) ──
     ...metricColumns,
