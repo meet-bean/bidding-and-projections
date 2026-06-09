@@ -43,6 +43,7 @@ export * from './components/data-table';
 export {
   createColumnHelper,
   type ColumnDef,
+  type CellContext,
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
