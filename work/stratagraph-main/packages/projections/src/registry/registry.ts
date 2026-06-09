@@ -60,25 +60,42 @@ export function addServiceItem(
     (item) => normalizeKey(item.canonicalName) === normName && normalizeKey(item.costType) === normCost
   );
   if (existing) {
-    const projectIds = existing.projectIds.includes(input.sourceProjectId)
+    const newProjectIds = existing.projectIds.includes(input.sourceProjectId)
       ? existing.projectIds
       : [...existing.projectIds, input.sourceProjectId];
-    let sources = existing.sources;
+
+    // Upsert source by (projectId, lineKey): replace if same key, otherwise append.
+    let newSources = existing.sources;
     if (input.source) {
+      const src = input.source;
       const idx = existing.sources.findIndex(
-        (s) => s.projectId === input.source!.projectId && s.lineKey === input.source!.lineKey
+        (s) => s.projectId === src.projectId && s.lineKey === src.lineKey
       );
       if (idx === -1) {
-        sources = [...existing.sources, input.source];
-      } else if (existing.sources[idx] !== input.source) {
-        sources = existing.sources.map((s, i) => (i === idx ? input.source! : s));
+        newSources = [...existing.sources, src];
+      } else if (
+        existing.sources[idx]!.unitCost !== src.unitCost ||
+        existing.sources[idx]!.qty !== src.qty ||
+        existing.sources[idx]!.cost !== src.cost ||
+        existing.sources[idx]!.upm !== src.upm ||
+        existing.sources[idx]!.phaseCode !== src.phaseCode ||
+        existing.sources[idx]!.date !== src.date
+      ) {
+        newSources = existing.sources.map((s, i) => (i === idx ? src : s));
       }
     }
-    if (projectIds === existing.projectIds && sources === existing.sources) return registry;
+
+    // Nothing changed — return registry unchanged.
+    if (newProjectIds === existing.projectIds && newSources === existing.sources) {
+      return registry;
+    }
+
     return {
       ...registry,
       items: registry.items.map((item) =>
-        item.id === existing.id ? { ...item, projectIds, sources } : item
+        item.id === existing.id
+          ? { ...item, projectIds: newProjectIds, sources: newSources }
+          : item
       ),
     };
   }
@@ -196,4 +213,59 @@ export function removeServiceItem(
     ...registry,
     items: registry.items.filter((i) => i.id !== itemId),
   };
+}
+
+export function rateRange(item: ServiceItem): { lo: number; avg: number; hi: number } | null {
+  const costs = item.sources.map((s) => s.unitCost).filter((c) => c > 0);
+  if (costs.length === 0) return null;
+  const sum = costs.reduce((a, b) => a + b, 0);
+  return { lo: Math.min(...costs), avg: sum / costs.length, hi: Math.max(...costs) };
+}
+
+export function avgUpm(item: ServiceItem): number | null {
+  const upms = item.sources.map((s) => s.upm).filter((u): u is number => u != null);
+  if (upms.length === 0) return null;
+  return upms.reduce((a, b) => a + b, 0) / upms.length;
+}
+
+export function primaryPhase(item: ServiceItem): { code: string | null; varies: boolean } {
+  const codes = item.sources.map((s) => s.phaseCode).filter(Boolean) as string[];
+  if (codes.length === 0) return { code: null, varies: false };
+  const counts = new Map<string, number>();
+  for (const c of codes) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let best = codes[0]!;
+  for (const [c, n] of counts) if (n > (counts.get(best) ?? 0)) best = c;
+  return { code: best, varies: counts.size > 1 };
+}
+
+export interface ImportLine {
+  name: string;
+  unitOfMeasure: string;
+  costType: string;
+  lineKey: string;
+  phaseCode: string;
+  qty: number;
+  cost: number;
+  unitCost: number;
+  upm: number | null;
+  date: string;
+  projectId?: string;
+}
+
+export interface ClassifiedLine {
+  line: ImportLine;
+  bucket: 'auto' | 'review' | 'new';
+  suggestion: ServiceItem | null;
+  confidence: number;
+}
+
+export function classifyImport(registry: ServiceRegistry, lines: ImportLine[]): ClassifiedLine[] {
+  return lines.map((line) => {
+    const matches = findFuzzyMatches(registry, line.name, line.unitOfMeasure, line.costType)
+      .sort((a, b) => b.confidence - a.confidence);
+    const best = matches[0];
+    if (!best) return { line, bucket: 'new' as const, suggestion: null, confidence: 0 };
+    const bucket = best.confidence >= 1 ? ('auto' as const) : ('review' as const);
+    return { line, bucket, suggestion: best.existingItem, confidence: best.confidence };
+  });
 }
