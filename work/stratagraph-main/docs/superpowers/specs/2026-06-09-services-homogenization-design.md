@@ -2,61 +2,64 @@
 
 **Date:** 2026-06-09
 **Status:** Approved design, pre-implementation
-**Scope:** Align the two tenants' Services onto one data model + render both through one shared screen.
+**Goal:** Stratagraph and Superior should be the **same feature** — one shared `Service` database, shared column names, one screen. Not two lookalikes, nothing jerry-rigged.
+**Scope now:** the **Services screen** + the shared data model (Pass A). Repointing the operations chain is Pass B (immediate follow-up). Broader "same app everywhere" is a future principle, not this spec.
 
 ## Problem
 
-There are two unrelated "Services" today:
-- **Stratagraph** (operations) — a sell-side **rate card** (`ServiceCatalogItem`): name, category, dailyCode, billingUnit, `defaultRate` (a price), aliases.
-- **Superior** (projections) — a cost-side **line-item catalog** (registry `ServiceItem` + CTD aggregation): canonicalName, costType, phaseCode, unitOfMeasure, aliases, sources, aggregated CTD actuals.
+Two unrelated "Services" today, each in its own store:
+- **Stratagraph** (operations) — a sell-side **rate card** (`ServiceCatalogItem` in `serviceCatalog`): name, category, dailyCode, billingUnit, `defaultRate` (a price), aliases. Bids/jobs/tickets/invoices reference it heavily.
+- **Superior** (projections) — a cost-side **line-item catalog** (registry `ServiceItem` in `serviceRegistry`): canonicalName, costType, phaseCode, unitOfMeasure, aliases, sources, aggregated CTD actuals.
 
-They share an identity skeleton but their columns are named differently and one money field (Stratagraph's price) sits in the same conceptual slot as another (Superior's cost). The goal: **one canonical `Service` both tenants use, rendered by one screen**, so we build once for both.
+They share an identity skeleton but use different names and different stores. The goal: **one canonical `Service` record in one store**, both tenants read/write it, one screen renders it.
 
-## The canonical `Service`
+## The canonical `Service` (the stored record)
 
-Identity fields map 1:1 (just renamed to a shared vocabulary). The money fields are all **$/unit** so they're comparable across one row.
+This is the actual stored model both tenants use — not a view adapter. Identity fields are shared (1:1, renamed to one vocabulary). Money fields are all **$/unit** so they compare across a row. It is a superset: it also carries the billing fields operations need (so Pass B is mostly renames) and the cost provenance Superior needs.
 
 ```ts
 export interface Service {
   id: string;
+  tenantId: 'stratagraph' | 'superior';
   // ── Identity (shared) ──
-  name: string;          // Stratagraph name ↔ Superior canonicalName
-  type: string;          // Stratagraph category ↔ Superior costType (label)
-  code: string | null;   // Stratagraph dailyCode ↔ Superior phase code (primary; "varies")
-  unit: string;          // Stratagraph billingUnit ("day") ↔ Superior unitOfMeasure ("CY")
+  name: string;          // was Stratagraph name / Superior canonicalName
+  type: string;          // was category / costType
+  code: string | null;   // was dailyCode / phase code
+  unit: string;          // was billingUnit ("day") / unitOfMeasure ("CY")
   aliases: ServiceAlias[];
-  usedIn: number;        // Stratagraph job count ↔ Superior projectIds.length
   // ── Money: all $/unit ──
-  recommendedRate: number | null; // Stratagraph defaultRate; Superior null (for now)
-  originalUC: number | null;       // OE.cost / OE.qty (Superior); Stratagraph null
-  actualUC: number | null;         // CTD.cost / CTD.qty (Superior); Stratagraph null
-  forecastUC: number | null;       // F.cost / F.qty (Superior); Stratagraph null
-  // ── Provenance (Superior only; powers the detail modal) ──
-  sources: ServiceSource[];
-  raw: { tenant: 'stratagraph' | 'superior'; item: ServiceCatalogItem | ServiceItem };
+  recommendedRate: number | null; // was Stratagraph defaultRate; Superior null (for now)
+  rateNote: string | null;         // "Cost + 25%" / "TBD" (Stratagraph)
+  // ── Cost provenance (Superior; powers Original/Actual/Forecast UC + modal) ──
+  sources: ServiceSource[];        // [] for Stratagraph
+  // originalUC / actualUC / forecastUC are DERIVED from sources via the metrics
+  //   resolver (not stored) — OE.cost/OE.qty, CTD.cost/CTD.qty, F.cost/F.qty
+  // ── Operational fields (kept so Pass B repoint is mechanical) ──
+  billingUnit?: BillingUnit;       // Stratagraph billing cadence
+  // (dailyCode lives in `code`; rate in `recommendedRate`)
 }
 ```
 
-Each tenant fills what it has; blanks (`null`) render as "—". This is the "aligned database" — one shape, two producers.
+Identity (name/type/code/unit/aliases) + `usedIn` (derived: `sources` projects or job count) + the four $/unit money columns (Recommended Rate, Original UC, Actual UC, Forecast UC) are the shared columns. Each tenant fills what it has; blanks render "—".
 
-## Adapters (one per tenant)
+## One shared store (replaces the two)
 
-A new module `apps/web/src/lib/service-model.ts` exposes `toServices(...)` that produces `Service[]` from whichever tenant's backing data is active. Backing stores stay tenant-specific (Superior's registry is Vista-derived; Stratagraph's rate card is hand-maintained) — they're unified at the **view-model** layer, not the persistence layer (full persistence merge is out of scope).
+`store.ts` gets a single `services: Service[]` collection (and its actions), replacing the separate `serviceRegistry` (Superior) and — for the Services screen — `serviceCatalog` (Stratagraph). Seeding populates it per tenant:
+- **Superior:** migrate the registry build (`buildDemoRegistry` + reconcile) to emit `Service` records (identity from the line item; `sources` carrying OE/CTD/F bases; `recommendedRate=null`).
+- **Stratagraph:** seed the rate card into `Service` records (identity from the catalog item; `recommendedRate=defaultRate`, `rateNote`, `billingUnit`; `sources=[]`).
 
-**Superior adapter** (`serviceItem → Service`):
-- identity from the registry item (name=canonicalName, type=costTypeLabel(costType), code=primaryPhase, unit=unitOfMeasure, aliases, usedIn=projectIds.length).
-- `recommendedRate = null`.
-- `originalUC / actualUC / forecastUC` = aggregate the OE / CTD / F groups across the item's sources and read each group's `uc` metric, via the existing metrics resolver (synthetic-item trick in `service-catalog-aggregate.ts`, generalized from CTD-only to any slice).
-- `sources` carried through for the modal.
+The merge/split/rename/reconcile engine already in `packages/projections/src/registry` operates on this model (it's essentially today's `ServiceItem` renamed to `Service` and extended).
 
-**Stratagraph adapter** (`serviceCatalogItem → Service`):
-- identity (name, type=CATEGORY_LABELS[category], code=dailyCode, unit=BILLING_UNIT_LABELS[billingUnit] or the bare unit, aliases=[], usedIn=job count as today).
-- `recommendedRate = defaultRate` (keep `rateNote` available via `raw` for the "—"/"Cost+X%" display).
-- cost UCs = `null`; `sources = []`.
+## Phasing (user chose Option 2)
+
+- **Pass A — THIS plan:** build the `Service` model + single `services` store; seed both tenants into it; point the **Services screen + detail modal** at it. **Operations (bids/jobs/tickets/invoices) still read the old `serviceCatalog`** — a deliberate, temporary two-store window.
+- **Pass B — immediate follow-up (separate plan):** repoint the ~18 operations references (heaviest: `bid-editor`, `bids.$bidId`, `jobs.$jobId`, `job-day-card`, `invoice-builder`) to the unified `Service`; delete `serviceCatalog`/`ServiceCatalogItem`. Mechanical because `Service` already carries the billing fields they read.
+
+During the window, Stratagraph's services exist in both the new `services` store (screen) and the old `serviceCatalog` (operations); both are seeded from the same source and there's no rate editing in Pass A, so they don't drift.
 
 ## Data-model change: capture OE & F per source (Superior)
 
-To populate `originalUC` and `forecastUC` (not just CTD), `ServiceSource` (`packages/projections/src/registry/types.ts`) extends from CTD-only to carry the three slices' bases:
+To derive `originalUC` and `forecastUC` (not just CTD), `ServiceSource` (`registry/types.ts`) carries all three slices' bases:
 
 ```ts
 export interface ServiceSource {
@@ -66,54 +69,47 @@ export interface ServiceSource {
   f:   { qty: number; cost: number };   // Forecast
 }
 ```
-(Replaces today's flat `qty/hours/cost` which were CTD-only.) Producers updated: `buildDemoRegistry` (read `item.CTD/Est/F`), `applyReconciliation`, and `ImportLine`. The aggregation lib generalizes `aggregateCtd` → `aggregateGroup(catalog, groupId, sources)` that sums a group's summable bases and resolves its metrics on the sums (same resolver trick), so OE/CTD/F UCs all come out catalog-driven.
+(Replaces today's CTD-only flat `qty/hours/cost`.) Producers updated: `buildDemoRegistry`, `applyReconciliation`, `ImportLine`. The aggregation lib generalizes `aggregateCtd` → `aggregateGroup(catalog, groupId, sources)` (sum a group's summable bases, resolve its metrics on the sums via the synthetic-item resolver trick) — so OE/CTD/F UCs are all catalog-driven.
 
-## Shared screen
+## Shared screen + modal
 
-One component `apps/web/src/components/services-table.tsx` renders `Service[]` for **both** tenants, replacing:
-- the Superior branch (`SuperiorServices` in `services.tsx`), and
-- the Stratagraph rate-card table branch in `services.tsx`.
+`apps/web/src/components/services-table.tsx` renders `Service[]` for **both** tenants — replacing the Superior `SuperiorServices` branch AND the Stratagraph rate-card table in `services.tsx`. `services.tsx` becomes a thin wrapper reading `store.services`.
 
-Columns: **Name, Type, Code, Unit, Used in** (identity) + **Recommended Rate, Original UC, Actual UC, Forecast UC** (money, right-aligned $/unit, "—" when null). Toolbar: search (name), Type filter (tenant-specific option set), Unit filter, plus the existing Import & reconcile (Superior) / Clear-all actions gated by tenant. Built on `DataListShell` + the right-aligned header fix already shipped.
+Columns (shared names): **Name, Type, Code, Unit, Used in** + **Recommended Rate, Original UC, Actual UC, Forecast UC** ($/unit, right-aligned, "—" when null). Toolbar: search, Type filter + Unit filter (tenant-specific option sets, same columns), Import & reconcile (Superior). Built on `DataListShell` + the shipped header-alignment fix.
 
-`services.tsx` becomes a thin wrapper: `const services = toServices(tenant, store…)` → `<ServicesTable services={services} tenant={tenant} />`.
-
-## Detail modal
-
-`service-detail-dialog.tsx` adapts on `service.raw.tenant`:
-- **Superior:** the existing per-source CTD breakdown + totals, extended to show OE/CTD/F UC columns. Editable name/UoM, merge/split, remove.
-- **Stratagraph:** no `sources`, so a compact view: identity + Recommended Rate (+ rateNote), and the existing rename/alias actions where applicable. No cost breakdown.
+`service-detail-dialog.tsx` adapts on `service.tenantId`: Superior shows the per-source OE/CTD/F UC breakdown + totals (sums add up), rename/UoM/merge/split/remove; Stratagraph shows identity + Recommended Rate (+ rateNote), no source breakdown.
 
 ## Non-goals (deferred)
 
-- **Editing Recommended Rate** (set/seed a rate per service) — schema carries the field, but no edit UI yet.
-- **Merging the persistence layer** (one stored table for both tenants) — unified at the view-model layer only.
-- Cross-tenant margin views (price − cost) — enabled by the schema, not built here.
+- **Editing Recommended Rate** (set/seed a rate per service) — schema carries it; no edit UI yet.
+- **Pass B** (operations repoint + deleting the old store) — separate immediate plan.
+- Cross-tenant margin (price − cost) views — enabled by the schema, not built here.
 
-## Components & files
+## Components & files (Pass A)
 
-**New**
-- `apps/web/src/lib/service-model.ts` — `Service` type + `toServices` (both adapters).
-- `apps/web/src/components/services-table.tsx` — the shared table.
+**Rename/extend (the model becomes shared)**
+- `packages/projections/src/registry/types.ts` — `ServiceItem` → `Service` (+ `tenantId`, `recommendedRate`, `rateNote`, `billingUnit?`); `ServiceSource` carries ctd/oe/f.
+- `packages/projections/src/registry/registry.ts` — operate on `Service`; source upsert for the new shape; (tests updated).
+- `apps/web/src/lib/service-catalog-aggregate.ts` — generalize to `aggregateGroup`; OE/CTD/F UC helpers.
 
 **Modified**
-- `packages/projections/src/registry/types.ts` — `ServiceSource` carries ctd/oe/f bases.
-- `packages/projections/src/registry/registry.ts` — source upsert field-compare for the new shape; (tests updated).
-- `apps/web/src/lib/service-catalog-aggregate.ts` — generalize to `aggregateGroup(catalog, groupId, sources)`; expose OE/CTD/F UC helpers.
-- `apps/web/src/data/seed-demo.ts`, `apps/web/src/lib/store.ts` (`applyReconciliation`), `apps/web/src/components/service-reconcile-dialog.tsx` — capture OE/CTD/F bases.
-- `apps/web/src/routes/_dashboard/services.tsx` — thin wrapper around `ServicesTable` for both tenants (delete the two divergent branches).
-- `apps/web/src/components/service-detail-dialog.tsx` — tenant-adaptive.
-- `apps/web/src/lib/service-catalog-rows.ts` — folded into / replaced by `service-model.ts`.
+- `apps/web/src/lib/store.ts` — single `services` store + actions; seed both tenants into it (Superior via the registry build, Stratagraph from the rate card).
+- `apps/web/src/data/seed-demo.ts` — emit `Service` records w/ OE/CTD/F sources.
+- `apps/web/src/routes/_dashboard/services.tsx` — thin wrapper → `<ServicesTable>` for both tenants.
+- `apps/web/src/components/service-detail-dialog.tsx` — tenant-adaptive; OE/CTD/F UC breakdown.
+- `apps/web/src/components/service-reconcile-dialog.tsx` — capture OE/CTD/F bases.
+- `apps/web/src/lib/service-catalog-rows.ts` — folded into the screen / `Service` mapping.
 
-**Reused**
-- Metrics resolver (`resolveMetricValue`, OE/CTD/F groups), `DataListShell`, cost-type tokens, `Dialog`.
+**Untouched in Pass A** (handled in Pass B)
+- `serviceCatalog`/`ServiceCatalogItem` and all operations references (bids/jobs/tickets/invoices) keep working as-is.
 
 ## Testing
 
-- `aggregateGroup` over OE/CTD/F: summables sum; UCs recompute on sums (extend existing aggregate tests).
-- Both adapters: `ServiceCatalogItem`/`ServiceItem` → correct `Service` (identity mapping; recommendedRate vs cost UCs filled on the right side; blanks null).
-- Shared table renders both tenants' `Service[]` with the same columns; tenant-specific filters.
+- `aggregateGroup` over OE/CTD/F: summables sum; UCs recompute on sums.
+- Seeding: Stratagraph rate card and Superior registry both produce valid `Service[]` (right fields filled per tenant; blanks null).
+- Shared table renders both tenants with the same columns; tenant-specific filters; detail modal adapts.
+- Operations still pass their existing tests (untouched in Pass A).
 
 ## Open question to confirm in review
 
-- Stratagraph's `unit`: show the bare unit ("day") or the billing label ("per day")? Spec assumes the bare unit to match Superior's UoM style.
+- Stratagraph's `unit`: show the bare unit ("day") or the billing label ("per day")? Spec assumes bare "day" to match Superior's UoM style.
