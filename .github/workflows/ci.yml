@@ -29,14 +29,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: work/stratagraph-main
 
+      # Build first: vite build generates the TanStack Router route tree
+      # (src/routeTree.gen.ts, gitignored), which `tsc --noEmit` needs to
+      # typecheck the route files.
+      - name: Build
+        run: pnpm build
+        working-directory: work/stratagraph-main
+
       - name: Typecheck
         run: pnpm typecheck
         working-directory: work/stratagraph-main
 
       - name: Test
         run: pnpm --filter web test
-        working-directory: work/stratagraph-main
-
-      - name: Build
-        run: pnpm build
         working-directory: work/stratagraph-main
