@@ -8,10 +8,10 @@ import {
   type FilterFieldConfig,
   type CustomRendererProps,
   createColumnHelper,
-  DataGrid,
-  DataGridColumnHeader,
-  DataGridContainer,
-  DataGridTable,
+  MinimalDataGrid,
+  MINIMAL_GRID_HEADER_LABEL,
+  DataGridColumnHeader as BaseDataGridColumnHeader,
+  type DataGridColumnHeaderProps,
   type ColumnDef,
   getCoreRowModel,
   getSortedRowModel,
@@ -21,8 +21,18 @@ import {
   useReactTable,
   type SortingState,
   type ExpandedState,
+  cn,
 } from '@repo/ui';
 import { X } from 'lucide-react';
+
+/**
+ * Platform column header: every list page imports DataGridColumnHeader from
+ * this file, so wrapping it here applies the minimal micro-label treatment
+ * (tiny, semibold, tracked-out, muted) across the whole platform at once.
+ */
+function DataGridColumnHeader<TData, TValue>({ className, ...props }: DataGridColumnHeaderProps<TData, TValue>) {
+  return <BaseDataGridColumnHeader {...props} className={cn(MINIMAL_GRID_HEADER_LABEL, className)} />;
+}
 
 export interface FilterDef {
   /** Key matches a top-level field on the row data. */
@@ -173,7 +183,7 @@ export function DataListShell<TRow extends { id: string }>({
         {hasActiveFilters ? (
           <Button
             variant="ghost"
-            size="sm"
+            size="xs"
             onClick={() => setActiveFilters([])}
             className="text-muted-foreground"
           >
@@ -184,7 +194,9 @@ export function DataListShell<TRow extends { id: string }>({
         <div className="ml-auto flex items-center gap-2">{actions}</div>
       </div>
 
-      <DataGrid
+      {/* Shared minimal shell — same table language as the projections page:
+          borderless, horizontal row lines only, micro headers. */}
+      <MinimalDataGrid
         table={table}
         recordCount={filteredData.length}
         emptyMessage={emptyMessage}
@@ -196,12 +208,7 @@ export function DataListShell<TRow extends { id: string }>({
               : undefined
         }
         onRowDoubleClick={onRowDoubleClick ? (row) => onRowDoubleClick(row) : undefined}
-        tableLayout={{ rowBorder: true, headerBorder: true, headerBackground: true }}
-      >
-        <DataGridContainer>
-          <DataGridTable />
-        </DataGridContainer>
-      </DataGrid>
+      />
 
       {filteredData.length > defaultPageSize ? (
         <div className="text-muted-foreground flex items-center justify-between text-xs">
@@ -212,16 +219,18 @@ export function DataListShell<TRow extends { id: string }>({
           </div>
           <div className="flex gap-1">
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               disabled={!table.getCanPreviousPage()}
               onClick={() => table.previousPage()}
             >
               Previous
             </Button>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               disabled={!table.getCanNextPage()}
               onClick={() => table.nextPage()}
             >

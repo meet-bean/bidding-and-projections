@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState, useCallback } from 'react';
 import {
-  Badge,
   Button,
   Checkbox,
   Dialog,
@@ -532,10 +531,15 @@ function MetricsPage() {
           const v = info.getValue();
           if (!v) return <span className="text-muted-foreground">—</span>;
           const grp = catalog.groups.find((g) => g.id === v);
+          // Quiet group cell: colored dot + plain text (same language as the
+          // projections column picker), not a filled chip.
           return (
-            <Badge variant="outline" style={grp ? { backgroundColor: grp.color, borderColor: grp.color } : undefined}>
+            <span className="inline-flex items-center gap-1.5 text-sm">
+              {grp && (
+                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: grp.color }} />
+              )}
               {grp?.name ?? v}
-            </Badge>
+            </span>
           );
         },
         size: 140,
@@ -559,11 +563,7 @@ function MetricsPage() {
           const aliases = info.getValue();
           if (!aliases.length) return <span className="text-muted-foreground">—</span>;
           return (
-            <div className="flex flex-wrap gap-1">
-              {aliases.map((a) => (
-                <Badge key={a} variant="outline" className="text-[10px] font-normal">{a}</Badge>
-              ))}
-            </div>
+            <span className="text-muted-foreground text-xs">{aliases.join(', ')}</span>
           );
         },
         size: 200,
@@ -618,11 +618,7 @@ function MetricsPage() {
             );
           }
           const t = info.getValue();
-          return (
-            <Badge variant={t === 'formula' ? 'secondary' : t === 'carry-over' ? 'primary' : 'outline'}>
-              {TYPE_LABELS[t]}
-            </Badge>
-          );
+          return <span className="text-muted-foreground text-sm">{TYPE_LABELS[t]}</span>;
         },
         size: 120,
       }),
@@ -668,7 +664,7 @@ function MetricsPage() {
             return (
               <span className="text-xs">
                 <span className="text-muted-foreground">from prev </span>
-                <Badge variant="outline" className="text-[10px]">{source?.name ?? metric.carryOverSource}</Badge>
+                {source?.name ?? metric.carryOverSource}
               </span>
             );
           }
@@ -705,11 +701,7 @@ function MetricsPage() {
             );
           }
           if (!metric.fallback) return <span className="text-muted-foreground">—</span>;
-          return (
-            <Badge variant="outline" className="text-[10px]">
-              {TYPE_LABELS[metric.fallback.type]}
-            </Badge>
-          );
+          return <span className="text-muted-foreground text-xs">{TYPE_LABELS[metric.fallback.type]}</span>;
         },
         size: 120,
       }),
@@ -749,14 +741,15 @@ function MetricsPage() {
 
   return (
     <>
-      <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-        <Info className="size-4 mt-0.5 shrink-0" />
-        <div>
-          <strong>Carry-over metrics</strong> auto-populate from the previous month's data.
-          If a Vista upload has different values, those override the carry-forward.
-          You can configure the source and fallback behavior per metric.
-        </div>
-      </div>
+      {/* Quiet explainer — plain muted text, no boxed callout (house style). */}
+      <p className="text-muted-foreground mb-4 flex items-start gap-1.5 text-sm">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        <span>
+          <span className="text-foreground font-medium">Carry-over metrics</span> auto-populate
+          from the previous month's data. A Vista upload with different values overrides the
+          carry-forward; source and fallback are configurable per metric.
+        </span>
+      </p>
 
       <DataListShell
         data={catalog.metrics}

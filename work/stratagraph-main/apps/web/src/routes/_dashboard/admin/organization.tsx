@@ -8,13 +8,6 @@ import {
   CardTitle,
   Input,
   Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Badge,
 } from '@repo/ui';
 import { useStore } from '~/lib/store';
 import { USER_ROLE_LABELS, type UserRole } from '~/lib/types';
@@ -148,30 +141,25 @@ function OrganizationPage() {
           <CardTitle className="text-base">Roles &amp; Permissions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Screen Access</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ROLE_PERMISSIONS.map((r) => (
-                  <TableRow key={r.role}>
-                    <TableCell>
-                      <Badge variant="outline">{USER_ROLE_LABELS[r.role]}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {r.description}
-                    </TableCell>
-                    <TableCell className="text-sm">{r.screens}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {/* Minimal house table: micro headers, horizontal lines only, no box. */}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="py-2 pr-3 font-semibold">Role</th>
+                <th className="px-3 py-2 font-semibold">Description</th>
+                <th className="px-3 py-2 font-semibold">Screen Access</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROLE_PERMISSIONS.map((r) => (
+                <tr key={r.role} className="border-b last:border-b-0 hover:bg-foreground/[0.03]">
+                  <td className="py-2 pr-3 font-medium">{USER_ROLE_LABELS[r.role]}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{r.description}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{r.screens}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           <p className="text-muted-foreground mt-3 text-xs">
             Role-based access enforcement is coming soon. This table shows the planned
             screen visibility for each role.

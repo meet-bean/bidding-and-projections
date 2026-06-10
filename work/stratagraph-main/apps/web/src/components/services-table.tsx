@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Badge, Button, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
 import { ChevronRight, Info, MoreHorizontal } from 'lucide-react';
 import {
   DataListShell,
@@ -125,20 +125,14 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
         cell: (info) => {
           const t = info.getValue();
           const color = COST_TYPE_COLOR[t as CostType];
-          if (color) {
-            return (
-              <span
-                className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
-                style={{ background: color }}
-              >
-                {t}
-              </span>
-            );
-          }
+          // House language: colored dot + plain text, never a filled chip.
           return (
-            <Badge variant="secondary" className="text-[11px] font-normal capitalize">
+            <span className="inline-flex items-center gap-1.5 text-sm capitalize">
+              {color && (
+                <span className="size-2 shrink-0 rounded-full" style={{ background: color }} />
+              )}
               {t.replace(/_/g, ' ')}
-            </Badge>
+            </span>
           );
         },
         size: 130,
@@ -148,17 +142,14 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
         header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
         cell: (info) =>
           info.row.original.uomVaries ? (
-            <Badge
-              variant="outline"
-              className="border-amber-300 text-[10px] font-normal text-amber-700"
+            <span
+              className="text-xs italic text-warning"
               title="Sources use different units — blended unit cost is not shown"
             >
               mixed
-            </Badge>
+            </span>
           ) : (
-            <Badge variant="secondary" className="text-[10px] font-normal">
-              {info.getValue()}
-            </Badge>
+            <span className="text-muted-foreground text-xs">{info.getValue()}</span>
           ),
         size: 90,
       }),

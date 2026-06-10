@@ -15,13 +15,6 @@ export const Route = createFileRoute('/_dashboard/users')({
   component: UsersPage,
 });
 
-const ROLE_CLASSES: Record<Exclude<UserRole, 'field_crew'>, string> = {
-  executive: 'bg-strat-indigo/15 text-strat-indigo border-strat-indigo/30',
-  sales: 'bg-strat-cyan/15 text-strat-cyan border-strat-cyan/30',
-  operations: 'bg-strat-green/15 text-strat-green border-strat-green/30',
-  project_manager: 'bg-strat-mauve/20 text-strat-mauve border-strat-mauve/40',
-};
-
 interface InternalRow {
   id: string;
   name: string;
@@ -79,8 +72,8 @@ function UsersPage() {
         id: 'role',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Role" />,
         cell: (info) => {
-          const v = info.getValue();
-          return <Badge className={ROLE_CLASSES[v]}>{USER_ROLE_LABELS[v]}</Badge>;
+          // Category, not status — plain text per the house style.
+          return <span className="text-sm">{USER_ROLE_LABELS[info.getValue()]}</span>;
         },
         size: 130,
       }),

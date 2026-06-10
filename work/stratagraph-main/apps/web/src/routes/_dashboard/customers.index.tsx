@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { Badge, Button } from '@repo/ui';
-import { Plus } from 'lucide-react';
+import { Button } from '@repo/ui';
+import { Plus, Check } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import {
   DataListShell,
@@ -86,7 +86,8 @@ function CustomersPage() {
         id: 'invoiceMethod',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Invoice Method" />,
         cell: (info) => (
-          <Badge variant="outline">{info.row.original.invoiceMethodLabel}</Badge>
+          // Category, not status — plain muted text per the house style.
+          <span className="text-muted-foreground text-sm">{info.row.original.invoiceMethodLabel}</span>
         ),
         size: 140,
       }),
@@ -95,9 +96,7 @@ function CustomersPage() {
         header: ({ column }) => <DataGridColumnHeader column={column} title="MSA" />,
         cell: (info) =>
           info.getValue() === 'yes' ? (
-            <Badge className="bg-strat-green text-xs text-white">
-              Yes
-            </Badge>
+            <Check className="text-success size-4" aria-label="Yes" />
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           ),
@@ -108,9 +107,7 @@ function CustomersPage() {
         header: ({ column }) => <DataGridColumnHeader column={column} title="W-9" />,
         cell: (info) =>
           info.getValue() === 'yes' ? (
-            <Badge className="bg-strat-green text-xs text-white">
-              Yes
-            </Badge>
+            <Check className="text-success size-4" aria-label="Yes" />
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           ),
@@ -121,9 +118,7 @@ function CustomersPage() {
         header: ({ column }) => <DataGridColumnHeader column={column} title="ACH" />,
         cell: (info) =>
           info.getValue() === 'yes' ? (
-            <Badge className="bg-strat-green text-xs text-white">
-              Yes
-            </Badge>
+            <Check className="text-success size-4" aria-label="Yes" />
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           ),

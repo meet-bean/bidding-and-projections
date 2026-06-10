@@ -83,8 +83,8 @@ function ServicesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Summary band — total + cost-type breakdown (matches projections totals bar) */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-muted/30 px-4 py-2 text-sm">
+      {/* Summary — plain header metadata, no container (matches projections). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-medium tabular-nums">
           {rows.length} service{rows.length === 1 ? '' : 's'}
         </span>

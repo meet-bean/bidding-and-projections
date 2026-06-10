@@ -22,13 +22,6 @@ const CREW_ROLE_LABELS: Record<CrewRole, string> = {
   supervisor: 'Supervisor',
 };
 
-const CREW_ROLE_CLASSES: Record<CrewRole, string> = {
-  day_logger: 'bg-strat-gold/20 text-strat-gold border-strat-gold/40',
-  night_logger: 'bg-strat-indigo/15 text-strat-indigo border-strat-indigo/30',
-  sample_catcher: 'bg-strat-cyan/15 text-strat-cyan border-strat-cyan/30',
-  supervisor: 'bg-strat-mauve/20 text-strat-mauve border-strat-mauve/40',
-};
-
 interface CrewRow {
   id: string;
   name: string;
@@ -99,7 +92,8 @@ function FieldCrewPage() {
         cell: (info) => {
           const v = info.getValue();
           if (!v) return <span className="text-muted-foreground/40 text-xs">—</span>;
-          return <Badge className={CREW_ROLE_CLASSES[v]}>{CREW_ROLE_LABELS[v]}</Badge>;
+          // Category, not status — plain text per the house style.
+          return <span className="text-sm">{CREW_ROLE_LABELS[v]}</span>;
         },
         size: 150,
       }),
@@ -119,19 +113,13 @@ function FieldCrewPage() {
           if (row.certifications.length === 0) {
             return <span className="text-muted-foreground text-xs">None</span>;
           }
+          const shown = row.certifications.slice(0, 4).join(', ');
+          const extra = row.certifications.length - 4;
           return (
-            <div className="flex flex-wrap gap-1">
-              {row.certifications.slice(0, 4).map((c) => (
-                <Badge key={c} variant="outline" className="text-[10px]">
-                  {c}
-                </Badge>
-              ))}
-              {row.certifications.length > 4 ? (
-                <Badge variant="outline" className="text-[10px]">
-                  +{row.certifications.length - 4}
-                </Badge>
-              ) : null}
-            </div>
+            <span className="text-muted-foreground text-xs" title={row.certifications.join(', ')}>
+              {shown}
+              {extra > 0 ? ` +${extra}` : ''}
+            </span>
           );
         },
       }),
