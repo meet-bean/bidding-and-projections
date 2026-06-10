@@ -3,12 +3,16 @@
 import { useMemo } from 'react';
 import {
   Button,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   SearchInput,
   Filters,
   type Filter,
   type FilterFieldConfig,
 } from '@repo/ui';
-import { X } from 'lucide-react';
+import { TriangleAlert, X } from 'lucide-react';
 import { ColumnPicker, type ColumnVisibility } from './projection-column-picker';
 import type { ProjectionItem, AlertsResult, MetricsCatalog } from '@repo/projections';
 import { COST_TYPES, VARIANCE_THRESHOLD_PCT } from '@repo/projections';
@@ -28,11 +32,14 @@ interface ProjectionToolbarProps {
   onSetColumns: (ids: string[], value: boolean) => void;
   onResetColumns: () => void;
   activeColumnCount: number;
+  /** Variance % at which alerts fire and the Variance filter matches. */
+  thresholdPct: number;
+  onThresholdChange: (pct: number) => void;
 }
 
 /** Status presets — computed predicates, surfaced as a multiselect filter field. */
-const STATUS_DEFS: { id: string; label: string }[] = [
-  { id: 'variance', label: 'Variance ≥5%' },
+const statusDefs = (thresholdPct: number): { id: string; label: string }[] => [
+  { id: 'variance', label: `Variance ≥${thresholdPct}%` },
   { id: 'high-risk', label: 'High Risk' },
   { id: 'new', label: 'New' },
   { id: 'stale', label: 'Stale' },
@@ -61,6 +68,7 @@ export function applyProjectionFilters(
   filters: ProjectionFilter[],
   alerts: AlertsResult,
   commentCounts: Map<string, number>,
+  thresholdPct: number = VARIANCE_THRESHOLD_PCT,
 ): ProjectionItem[] {
   if (filters.length === 0) return items;
 
@@ -75,7 +83,7 @@ export function applyProjectionFilters(
         const pct = it.prevForecast
           ? Math.abs(((it.F.cost - it.prevForecast) / it.prevForecast) * 100)
           : 0;
-        return pct >= VARIANCE_THRESHOLD_PCT;
+        return pct >= thresholdPct;
       }
       case 'high-risk':
         return highRiskKeys.has(it.lineKey);
@@ -102,6 +110,56 @@ export function applyProjectionFilters(
   return result;
 }
 
+/**
+ * Toolbar chip for the variance threshold. One threshold drives both the
+ * variance alerts (icon on the row) and the Status → Variance filter.
+ */
+function VarianceThresholdControl({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (pct: number) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        {/* Same chip anatomy AND size as the Filter / Columns triggers. */}
+        <Button size="xs" variant="ghost" className="gap-0.5">
+          <TriangleAlert className="size-3.5" /> Variance
+          <span className="text-muted-foreground tabular-nums ml-1">≥{value}%</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-3">
+        <div className="space-y-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Variance threshold
+          </span>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={value}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (Number.isFinite(n)) onChange(Math.min(100, Math.max(0, n)));
+              }}
+              className="h-7 w-20 text-sm tabular-nums"
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Forecast changes at or above this % raise an alert and match the
+            Variance filter.
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function ProjectionToolbar({
   items,
   filters,
@@ -114,6 +172,8 @@ export function ProjectionToolbar({
   onSetColumns,
   onResetColumns,
   activeColumnCount,
+  thresholdPct,
+  onThresholdChange,
 }: ProjectionToolbarProps) {
   // Only offer cost types that actually appear in the data.
   const presentCostTypes = useMemo(() => {
@@ -127,7 +187,7 @@ export function ProjectionToolbar({
         key: 'status',
         label: 'Status',
         type: 'multiselect',
-        options: STATUS_DEFS.map((s) => ({ value: s.id, label: s.label })),
+        options: statusDefs(thresholdPct).map((s) => ({ value: s.id, label: s.label })),
         operators: [{ value: 'is_any_of', label: 'is' }],
         defaultOperator: 'is_any_of',
       },
@@ -140,7 +200,7 @@ export function ProjectionToolbar({
         defaultOperator: 'is_any_of',
       },
     ],
-    [presentCostTypes],
+    [presentCostTypes, thresholdPct],
   );
 
   const hasFilters = filters.length > 0;
@@ -170,6 +230,7 @@ export function ProjectionToolbar({
         onReset={onResetColumns}
         activeCount={activeColumnCount}
       />
+      <VarianceThresholdControl value={thresholdPct} onChange={onThresholdChange} />
       {hasFilters ? (
         <Button
           variant="ghost"

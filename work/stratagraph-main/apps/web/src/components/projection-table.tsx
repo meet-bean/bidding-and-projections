@@ -280,6 +280,8 @@ export function ProjectionTable({
   // Row whose detail sheet is open (replaces the old in-table expand row).
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const catalog = useStore((s) => s.metricsCatalog);
+  const varianceThresholdPct = useStore((s) => s.varianceThresholdPct);
+  const setVarianceThresholdPct = useStore((s) => s.setVarianceThresholdPct);
   const colVis = useColumnVisibility(catalog);
 
   // Get the current items (draft or latest version)
@@ -294,7 +296,10 @@ export function ProjectionTable({
   // becomes an infinite re-render loop whenever a non-'all' filter is active
   // (filtered arrays are fresh references each render, unlike the 'all' case
   // which returns the original `items` ref). That loop froze the page.
-  const alertsResult = useMemo(() => computeAlerts(project), [project]);
+  const alertsResult = useMemo(
+    () => computeAlerts(project, varianceThresholdPct),
+    [project, varianceThresholdPct],
+  );
   const alertsByKey = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of alertsResult.open) {
@@ -316,9 +321,9 @@ export function ProjectionTable({
   const visibleItems = useMemo(() => {
     let result = items;
     result = searchItems(result, searchQuery);
-    result = applyProjectionFilters(result, filters, alertsResult, commentCounts);
+    result = applyProjectionFilters(result, filters, alertsResult, commentCounts, varianceThresholdPct);
     return result;
-  }, [items, searchQuery, filters, alertsResult, commentCounts]);
+  }, [items, searchQuery, filters, alertsResult, commentCounts, varianceThresholdPct]);
 
   // Summary rows (cost type grouping + grand totals)
   const summary = useMemo(() => computeSummaryRows(items), [items]);
@@ -492,6 +497,8 @@ export function ProjectionTable({
         onSetColumns={colVis.setVisible}
         onResetColumns={colVis.reset}
         activeColumnCount={colVis.activeCount}
+        thresholdPct={varianceThresholdPct}
+        onThresholdChange={setVarianceThresholdPct}
       />
       {/* Minimal shared shell. Row click opens the detail sheet; rows carry
           group/row so the trend/comment quick actions reveal on hover. */}

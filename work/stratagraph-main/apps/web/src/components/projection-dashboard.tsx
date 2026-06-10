@@ -6,6 +6,7 @@ import { Badge } from '@repo/ui';
 import { formatCurrency, computeAlerts } from '@repo/projections';
 import type { ProjectionProject, ProjectionAlert } from '@repo/projections';
 import { ProjectionFinancialChart } from './projection-financial-chart';
+import { useStore } from '~/lib/store';
 
 interface DashboardProps {
   projects: ProjectionProject[];
@@ -56,6 +57,7 @@ function KpiCard({
 
 export function ProjectionDashboard({ projects }: DashboardProps) {
   const navigate = useNavigate();
+  const varianceThresholdPct = useStore((s) => s.varianceThresholdPct);
 
   const metrics = useMemo(() => {
     let totalForecast = 0;
@@ -81,7 +83,7 @@ export function ProjectionDashboard({ projects }: DashboardProps) {
           totalProfit += lastMonth.profit;
         }
       }
-      const alerts = computeAlerts(p);
+      const alerts = computeAlerts(p, varianceThresholdPct);
       for (const a of alerts.open) {
         if (a.severity === 'high') highAlerts++;
         else if (a.severity === 'medium') mediumAlerts++;
@@ -106,7 +108,7 @@ export function ProjectionDashboard({ projects }: DashboardProps) {
       infoAlerts,
       allAlerts,
     };
-  }, [projects]);
+  }, [projects, varianceThresholdPct]);
 
   const totalAlerts = metrics.highAlerts + metrics.mediumAlerts + metrics.infoAlerts;
 
@@ -215,7 +217,7 @@ export function ProjectionDashboard({ projects }: DashboardProps) {
               const forecast = latest?.items.reduce((s, it) => s + it.F.cost, 0) ?? 0;
               const ctd = latest?.items.reduce((s, it) => s + it.CTD.cost, 0) ?? 0;
               const pct = forecast > 0 ? (ctd / forecast) * 100 : 0;
-              const alerts = computeAlerts(p);
+              const alerts = computeAlerts(p, varianceThresholdPct);
               return (
                 <button
                   key={p.id}

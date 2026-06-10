@@ -792,6 +792,7 @@ type AlertBuilder = (
   project: ProjectionProject,
   item: ProjectionItem,
   cycleId: string,
+  thresholdPct: number,
 ) => ProjectionAlert | null;
 
 const alertIdStr = (cycleId: string, key: string, type: string): string =>
@@ -831,15 +832,15 @@ const alertBuilders: AlertBuilder[] = [
   },
 
   // Forecast vs prev month
-  (project, item, cycleId) => {
+  (project, item, cycleId, thresholdPct) => {
     const v = lensVsPrev(project, item.lineKey);
-    if (!v || Math.abs(v.pct) < VARIANCE_THRESHOLD_PCT) return null;
+    if (!v || Math.abs(v.pct) < thresholdPct) return null;
     const up = v.delta > 0;
     return {
       id: alertIdStr(cycleId, item.lineKey, 'var-prev'),
       key: item.lineKey,
       type: 'var-prev',
-      severity: up && Math.abs(v.pct) >= 15 ? 'high' : 'medium',
+      severity: 'medium',
       title: `Forecast ${up ? 'up' : 'down'} ${Math.abs(v.pct).toFixed(1)}% vs last month`,
       detail: `Δ ${up ? '+' : ''}${fmtUSD(v.delta)} on ${item.keyParts[1] ?? ''}`,
       lens: 'vsPrev',
@@ -847,15 +848,15 @@ const alertBuilders: AlertBuilder[] = [
   },
 
   // Forecast vs original bid
-  (project, item, cycleId) => {
+  (project, item, cycleId, thresholdPct) => {
     const v = lensVsOrig(project, item.lineKey);
-    if (!v || Math.abs(v.pct) < VARIANCE_THRESHOLD_PCT) return null;
+    if (!v || Math.abs(v.pct) < thresholdPct) return null;
     const up = v.delta > 0;
     return {
       id: alertIdStr(cycleId, item.lineKey, 'var-orig'),
       key: item.lineKey,
       type: 'var-orig',
-      severity: up && Math.abs(v.pct) >= 15 ? 'high' : 'medium',
+      severity: 'medium',
       title: `Forecast ${up ? 'over' : 'under'} bid by ${Math.abs(v.pct).toFixed(1)}%`,
       detail: `Δ ${up ? '+' : ''}${fmtUSD(v.delta)} vs original estimate`,
       lens: 'vsOrig',
@@ -952,14 +953,17 @@ const alertBuilders: AlertBuilder[] = [
   },
 ];
 
-export function computeAlerts(project: ProjectionProject): AlertsResult {
+export function computeAlerts(
+  project: ProjectionProject,
+  thresholdPct: number = VARIANCE_THRESHOLD_PCT,
+): AlertsResult {
   const cycle = project.draft ?? project.versions[project.versions.length - 1] ?? null;
   if (!cycle) return { open: [], resolved: [], all: [] };
 
   const live: ProjectionAlert[] = [];
   for (const item of cycle.items) {
     for (const build of alertBuilders) {
-      const a = build(project, item, cycle.id);
+      const a = build(project, item, cycle.id, thresholdPct);
       if (a) live.push(a);
     }
   }

@@ -529,6 +529,9 @@ interface StratagraphState {
   toggleNavItem: (id: string) => void;
 
   // Projections
+  /** Variance % at which alerts fire and the Variance filter matches (user-tunable from the projections toolbar). */
+  varianceThresholdPct: number;
+  setVarianceThresholdPct: (pct: number) => void;
   projectionProjects: ProjectionProject[];
   activeProjectionId: string | null;
   getActiveProjection: () => ProjectionProject | null;
@@ -1187,6 +1190,10 @@ export const useStore = create<StratagraphState>((set, get) => ({
     if (demo !== get().demoMode) get().toggleDemoMode();
     const tenant = resolveClientTenantId();
     if (tenant !== get().tenantId) get().setTenant(tenant);
+    const storedThreshold = Number(localStorage.getItem('varianceThresholdPct'));
+    if (Number.isFinite(storedThreshold) && storedThreshold > 0) {
+      set({ varianceThresholdPct: storedThreshold });
+    }
   },
 
   demoMode: _initialDemoMode,
@@ -1220,6 +1227,12 @@ export const useStore = create<StratagraphState>((set, get) => ({
     hiddenNavItems: { ...s.hiddenNavItems, [id]: !s.hiddenNavItems[id] },
   })),
 
+  varianceThresholdPct: 5,
+  setVarianceThresholdPct: (pct) => {
+    const clamped = Math.min(100, Math.max(0, pct));
+    if (typeof window !== 'undefined') localStorage.setItem('varianceThresholdPct', String(clamped));
+    set({ varianceThresholdPct: clamped });
+  },
   projectionProjects: _initialDemoMode ? [...DEMO_PROJECTION_PROJECTS] : [],
   activeProjectionId: null,
   getActiveProjection: () => {

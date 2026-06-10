@@ -59,6 +59,8 @@ function ProjectionDetailPage() {
   const setActiveProjection = useStore((s) => s.setActiveProjection);
   const tenantId = useStore((s) => s.tenantId);
   const submitForecast = useStore((s) => s.submitForecast);
+  // Declared before the `!project` early return so the hook order stays constant.
+  const varianceThresholdPct = useStore((s) => s.varianceThresholdPct);
 
   // Panel state
   const [trendLineKey, setTrendLineKey] = useState<string | null>(null);
@@ -212,7 +214,7 @@ function ProjectionDetailPage() {
     : currentVersion;
   const isReadOnly = viewingVersionId !== null && viewingVersionId !== currentVersion?.id;
 
-  const { open: openAlerts } = computeAlerts(project);
+  const { open: openAlerts } = computeAlerts(project, varianceThresholdPct);
 
   return (
     <div className="space-y-6">

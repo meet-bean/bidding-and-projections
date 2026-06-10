@@ -5,6 +5,7 @@ import { Button, Badge, Textarea } from '@repo/ui';
 import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { computeAlerts, SEVERITY_TONE, ALERT_TYPE_LABEL } from '@repo/projections';
 import type { ProjectionProject, ProjectionAlert } from '@repo/projections';
+import { useStore } from '~/lib/store';
 
 interface ProjectionAlertsPanelProps {
   project: ProjectionProject;
@@ -23,7 +24,8 @@ export function ProjectionAlertsPanel({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showResolved, setShowResolved] = useState(false);
 
-  const { open, resolved } = computeAlerts(project);
+  const varianceThresholdPct = useStore((s) => s.varianceThresholdPct);
+  const { open, resolved } = computeAlerts(project, varianceThresholdPct);
 
   const toggleExpand = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
