@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Badge, Button } from '@repo/ui';
-import { ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Badge, Button, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
+import { ChevronRight, Info, MoreHorizontal } from 'lucide-react';
 import {
   DataListShell,
   createColumnHelper,
@@ -53,6 +53,35 @@ function varianceCell(pct: number | null) {
     </div>
   );
 }
+
+/** Info affordance explaining how a derived column is computed (hover to read). */
+function InfoTip({ label, info }: { label: string; info: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`How ${label} is calculated`}
+          className="text-muted-foreground/60 hover:text-foreground"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[260px] text-xs leading-relaxed">{info}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+const UC_INFO = {
+  original:
+    'The bid. Estimate cost ÷ estimate quantity, pooled across all projects — quantity-weighted (total cost ÷ total quantity), not an average.',
+  actual:
+    'Cost-to-date ÷ quantity completed so far, pooled across all projects. Runs high early in a job (mobilisation, few units done) and converges toward Forecast.',
+  forecast:
+    'Projected final cost ÷ projected quantity, pooled across all projects — quantity-weighted, not an average.',
+  variance: 'Forecast UC vs Original UC. Positive = projected to cost more than the bid per unit.',
+} as const;
 
 /** Shared Services table — tenant-aware column set. */
 export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions }: ServicesTableProps) {
@@ -155,31 +184,43 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
             columnHelper.accessor((r) => r.originalUC ?? 0, {
               id: 'originalUC',
               header: ({ column }) => (
-                <DataGridColumnHeader column={column} title="Original UC" className="justify-end" />
+                <div className="flex items-center justify-end gap-1">
+                  <DataGridColumnHeader column={column} title="Original UC" className="justify-end" />
+                  <InfoTip label="Original UC" info={UC_INFO.original} />
+                </div>
               ),
               cell: (info) => moneyCell(info.row.original.originalUC),
-              size: 116,
+              size: 124,
             }),
             columnHelper.accessor((r) => r.actualUC ?? 0, {
               id: 'actualUC',
               header: ({ column }) => (
-                <DataGridColumnHeader column={column} title="Actual UC" className="justify-end" />
+                <div className="flex items-center justify-end gap-1">
+                  <DataGridColumnHeader column={column} title="Actual UC" className="justify-end" />
+                  <InfoTip label="Actual UC" info={UC_INFO.actual} />
+                </div>
               ),
               cell: (info) => moneyCell(info.row.original.actualUC),
-              size: 116,
+              size: 124,
             }),
             columnHelper.accessor((r) => r.forecastUC ?? 0, {
               id: 'forecastUC',
               header: ({ column }) => (
-                <DataGridColumnHeader column={column} title="Forecast UC" className="justify-end" />
+                <div className="flex items-center justify-end gap-1">
+                  <DataGridColumnHeader column={column} title="Forecast UC" className="justify-end" />
+                  <InfoTip label="Forecast UC" info={UC_INFO.forecast} />
+                </div>
               ),
               cell: (info) => moneyCell(info.row.original.forecastUC),
-              size: 116,
+              size: 124,
             }),
             columnHelper.accessor((r) => r.variancePct ?? 0, {
               id: 'variancePct',
               header: ({ column }) => (
-                <DataGridColumnHeader column={column} title="Δ vs Bid" className="justify-end" />
+                <div className="flex items-center justify-end gap-1">
+                  <DataGridColumnHeader column={column} title="Δ vs Bid" className="justify-end" />
+                  <InfoTip label="Δ vs Bid" info={UC_INFO.variance} />
+                </div>
               ),
               cell: (info) => varianceCell(info.row.original.variancePct),
               size: 96,

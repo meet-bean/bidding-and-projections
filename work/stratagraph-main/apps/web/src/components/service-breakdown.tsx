@@ -9,8 +9,8 @@ const GROUPS = ['OE', 'CTD', 'F'] as const;
 // fr units replicate the parent table's proportional column scaling exactly, so
 // the per-project numbers land directly under Original / Actual / Forecast UC + Δ.
 // 650 = the parent's name+type+unit+used-in columns combined; the rest mirror
-// the parent's trailing column sizes (116/116/116/96 + 48 actions spacer).
-const GRID = 'grid [grid-template-columns:650fr_116fr_116fr_116fr_96fr_48fr]';
+// the parent's trailing column sizes (124/124/124/96 + 48 actions spacer).
+const GRID = 'grid [grid-template-columns:650fr_124fr_124fr_124fr_96fr_48fr]';
 
 /**
  * Per-project unit-cost breakdown for a Superior service, rendered inline as the
@@ -69,10 +69,15 @@ export function ServiceBreakdown({ service }: { service: Service }) {
           </div>
         );
       })}
-      {sourcesUomVaries(service.sources) && (
+      {sourcesUomVaries(service.sources) ? (
         <p className="border-t border-border/50 py-2 pl-12 pr-4 text-xs text-amber-700">
           Projects use different units of measure, so a blended unit cost isn't shown on the row
           above. Compare the per-project rates here.
+        </p>
+      ) : (
+        <p className="border-t border-border/50 py-2 pl-12 pr-4 text-xs text-muted-foreground">
+          The row above blends these projects by quantity: total cost ÷ total quantity, not an
+          average.
         </p>
       )}
     </div>
