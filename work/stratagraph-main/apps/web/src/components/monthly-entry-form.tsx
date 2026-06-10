@@ -14,7 +14,7 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   );
 
-  const registry = useStore((s) => s.serviceRegistry);
+  const registry = useStore((s) => s.services);
   const getMonthly = useStore((s) => s.getMonthlyQuantity);
   const setMonthly = useStore((s) => s.setMonthlyQuantity);
 
@@ -35,7 +35,7 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <MonthPicker value={yearMonth} onChange={setYearMonth} />
-        <Badge variant="outline">{registry.items.length} services</Badge>
+        <Badge variant="outline">{registry.length} services</Badge>
       </div>
       <div className="rounded-md border">
         <table className="w-full text-sm">
@@ -50,7 +50,7 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
             </tr>
           </thead>
           <tbody>
-            {registry.items.map((item) => {
+            {registry.map((item) => {
               const saved = getMonthly(projectId, item.id, yearMonth);
               const editing = edits[item.id];
               const qtyVal = editing?.qty ?? String(saved.qty || '');
@@ -101,7 +101,7 @@ export function MonthlyEntryForm({ projectId }: MonthlyEntryFormProps) {
             })}
           </tbody>
         </table>
-        {registry.items.length === 0 && (
+        {registry.length === 0 && (
           <div className="py-12 text-center text-muted-foreground">
             No services yet. Upload a projection to populate items.
           </div>

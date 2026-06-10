@@ -63,7 +63,7 @@ interface ServiceRow {
 // ── Superior Construction: line-item catalog ─────────────────────────────────
 
 function SuperiorServices() {
-  const items = useStore((s) => s.serviceRegistry.items);
+  const items = useStore((s) => s.services);
   const catalog = useStore((s) => s.metricsCatalog);
   const clearProjectionData = useStore((s) => s.clearProjectionData);
   const projectionProjects = useStore((s) => s.projectionProjects);
@@ -249,7 +249,6 @@ function SuperiorServices() {
 function ServicesPage() {
   const catalog = useStore((s) => s.serviceCatalog);
   const tenantId = useStore((s) => s.tenantId);
-  const registry = useStore((s) => s.serviceRegistry);
   const jobs = useStore((s) => s.jobs);
   const editName = useStore((s) => s.editRegistryItemName);
   const separate = useStore((s) => s.separateRegistryAlias);

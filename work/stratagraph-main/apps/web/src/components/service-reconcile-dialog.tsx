@@ -23,7 +23,8 @@ type Decision =
 
 export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileDialogProps) {
   const projectionProjects = useStore((s) => s.projectionProjects);
-  const serviceRegistry = useStore((s) => s.serviceRegistry);
+  const services = useStore((s) => s.services);
+  const tenantId = useStore((s) => s.tenantId);
   const applyReconciliation = useStore((s) => s.applyReconciliation);
 
   const project = projectId ? projectionProjects.find((p) => p.id === projectId) : null;
@@ -37,9 +38,9 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
       costType: item.keyParts[1] ?? '',
       lineKey: item.lineKey,
       phaseCode: item.keyParts[0] ?? '',
-      qty: item.CTD.qty,
-      hours: item.CTD.hours,
-      cost: item.CTD.cost,
+      ctd: { qty: item.CTD.qty, hours: item.CTD.hours, cost: item.CTD.cost },
+      oe: { qty: item.Est.qty, cost: item.Est.cost },
+      f: { qty: item.F.qty, cost: item.F.cost },
       date: latest.createdAt,
       projectId: project.id,
     }));
@@ -47,8 +48,8 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
 
   const classified = useMemo<ClassifiedLine[]>(() => {
     if (lines.length === 0) return [];
-    return classifyImport(serviceRegistry, lines);
-  }, [serviceRegistry, lines]);
+    return classifyImport({ tenantId, items: services }, lines);
+  }, [tenantId, services, lines]);
 
   // Build default decisions
   const defaultDecisions = useMemo<Record<string, Decision>>(() => {
@@ -170,7 +171,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                                   <span className="font-mono mr-1">{c.line.phaseCode}</span>
                                 )}
                                 {c.line.unitOfMeasure} &middot;{' '}
-                                CTD cost ${c.line.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                                CTD cost ${c.line.ctd.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                               </p>
                             </div>
                           </div>
@@ -237,7 +238,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                           <p className="text-sm truncate">{c.line.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {c.line.unitOfMeasure} &middot;{' '}
-                            CTD cost ${c.line.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                            CTD cost ${c.line.ctd.cost.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                           </p>
                         </div>
                       </div>

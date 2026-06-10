@@ -242,9 +242,9 @@ export interface ImportLine {
   costType: string;
   lineKey: string;
   phaseCode: string;
-  qty: number;
-  hours: number;
-  cost: number;
+  ctd: { qty: number; hours: number; cost: number };
+  oe: { qty: number; cost: number };
+  f: { qty: number; cost: number };
   date: string;
   projectId?: string;
 }

@@ -238,7 +238,11 @@ describe('classifyImport', () => {
   reg = addServiceItem(reg, { canonicalName: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor', sourceProjectId: 'p1' });
   const line = (over: Record<string, unknown> = {}) => ({
     name: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor',
-    lineKey: 'k', phaseCode: 'B-300', qty: 1, hours: 0, cost: 1, date: '',
+    lineKey: 'k', phaseCode: 'B-300',
+    ctd: { qty: 1, hours: 0, cost: 1 },
+    oe: { qty: 1, cost: 1 },
+    f: { qty: 1, cost: 1 },
+    date: '',
     ...over,
   });
   it('exact match → auto', () => {

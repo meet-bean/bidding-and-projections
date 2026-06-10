@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, Service, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -67,6 +67,7 @@ import {
   DEMO_INVOICES,
   buildDemoRegistry,
 } from '~/data/seed-demo';
+import { buildStratagraphServices } from '~/data/service-seed';
 
 /**
  * Resolve the tenant from client-only sources (URL `?tenant=` param, then
@@ -559,7 +560,7 @@ interface StratagraphState {
   removeGroupFromStore: (groupId: string) => void;
 
   // Service registry (per-tenant)
-  serviceRegistry: ServiceRegistry;
+  services: Service[];
   addRegistryItem: (input: { canonicalName: string; unitOfMeasure: string; costType: string; sourceProjectId: string }) => void;
   mergeRegistryItems: (targetId: string, alias: ServiceAlias) => void;
   separateRegistryAlias: (itemId: string, aliasRaw: string) => void;
@@ -1166,7 +1167,11 @@ export const useStore = create<StratagraphState>((set, get) => ({
       bids: demo ? [...seed.bids, ...DEMO_BIDS] : seed.bids,
       invoices: demo ? [...seed.invoices, ...DEMO_INVOICES] : seed.invoices,
       metricsCatalog: createCatalog(id),
-      serviceRegistry: demo ? buildDemoRegistry(id) : createRegistry(id),
+      services: demo
+        ? buildDemoRegistry(id).items
+        : id === 'stratagraph'
+          ? buildStratagraphServices()
+          : [],
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
@@ -1191,7 +1196,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         projectionProjects: [...s.projectionProjects, ...DEMO_PROJECTION_PROJECTS],
         bids: [...s.bids, ...DEMO_BIDS],
         invoices: [...s.invoices, ...DEMO_INVOICES],
-        serviceRegistry: buildDemoRegistry(tid),
+        services: buildDemoRegistry(tid).items,
       }));
     } else {
       const tid = get().tenantId;
@@ -1201,7 +1206,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         bids: s.bids.filter((b) => !b.id.startsWith('demo-')),
         invoices: s.invoices.filter((i) => !i.id.startsWith('demo-')),
         activeProjectionId: s.activeProjectionId?.startsWith('demo-') ? null : s.activeProjectionId,
-        serviceRegistry: createRegistry(tid),
+        services: tid === 'stratagraph' ? buildStratagraphServices() : [],
       }));
     }
   },
@@ -1316,32 +1321,51 @@ export const useStore = create<StratagraphState>((set, get) => ({
   removeGroupFromStore: (groupId) =>
     set((s) => ({ metricsCatalog: removeGroup(s.metricsCatalog, groupId) })),
 
-  serviceRegistry: _initialDemoMode ? buildDemoRegistry(_initialTenant) : createRegistry(_initialTenant),
+  services: _initialDemoMode
+    ? buildDemoRegistry(_initialTenant).items
+    : _initialTenant === 'stratagraph'
+      ? buildStratagraphServices()
+      : [],
   addRegistryItem: (input) =>
-    set((s) => ({ serviceRegistry: addServiceItem(s.serviceRegistry, input) })),
+    set((s) => ({
+      services: addServiceItem({ tenantId: s.tenantId, items: s.services }, input).items,
+    })),
   mergeRegistryItems: (targetId, alias) =>
-    set((s) => ({ serviceRegistry: mergeServiceItems(s.serviceRegistry, targetId, alias) })),
+    set((s) => ({
+      services: mergeServiceItems({ tenantId: s.tenantId, items: s.services }, targetId, alias).items,
+    })),
   separateRegistryAlias: (itemId, aliasRaw) =>
-    set((s) => ({ serviceRegistry: separateAlias(s.serviceRegistry, itemId, aliasRaw) })),
+    set((s) => ({
+      services: separateAlias({ tenantId: s.tenantId, items: s.services }, itemId, aliasRaw).items,
+    })),
   editRegistryItemName: (itemId, newName) =>
-    set((s) => ({ serviceRegistry: editServiceItemName(s.serviceRegistry, itemId, newName) })),
+    set((s) => ({
+      services: editServiceItemName({ tenantId: s.tenantId, items: s.services }, itemId, newName).items,
+    })),
   setServiceItemUom: (itemId, uom) =>
     set((s) => ({
-      serviceRegistry: {
-        ...s.serviceRegistry,
-        items: s.serviceRegistry.items.map((i) => (i.id === itemId ? { ...i, unitOfMeasure: uom } : i)),
-      },
+      services: s.services.map((i) => (i.id === itemId ? { ...i, unitOfMeasure: uom } : i)),
     })),
   removeRegistryItem: (itemId) =>
-    set((s) => ({ serviceRegistry: removeServiceItem(s.serviceRegistry, itemId) })),
+    set((s) => ({
+      services: removeServiceItem({ tenantId: s.tenantId, items: s.services }, itemId).items,
+    })),
   applyReconciliation: (decisions) =>
     set((s) => {
-      let reg = s.serviceRegistry;
+      let reg: ServiceRegistry = { tenantId: s.tenantId, items: s.services };
       for (const d of decisions) {
         const L = d.line;
         const pid = L.projectId;
         if (!pid) continue;
-        const src = { projectId: pid, lineKey: L.lineKey, phaseCode: L.phaseCode, date: L.date, ctd: { qty: L.qty, hours: L.hours, cost: L.cost }, oe: { qty: L.qty, cost: L.cost }, f: { qty: L.qty, cost: L.cost } };
+        const src = {
+          projectId: pid,
+          lineKey: L.lineKey,
+          phaseCode: L.phaseCode,
+          date: L.date,
+          ctd: L.ctd,
+          oe: L.oe,
+          f: L.f,
+        };
         if (d.action === 'match') {
           const target = reg.items.find((i) => i.id === d.targetId);
           if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: pid, source: src });
@@ -1349,7 +1373,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
           reg = addServiceItem(reg, { canonicalName: L.name, unitOfMeasure: L.unitOfMeasure, costType: L.costType, sourceProjectId: pid, source: src });
         }
       }
-      return { serviceRegistry: reg };
+      return { services: reg.items };
     }),
 
   clearProjectionData: () => {
@@ -1358,7 +1382,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
       projectionProjects: [],
       activeProjectionId: null,
       metricsCatalog: createCatalog(tid),
-      serviceRegistry: createRegistry(tid),
+      services: tid === 'stratagraph' ? buildStratagraphServices() : [],
     });
   },
 
