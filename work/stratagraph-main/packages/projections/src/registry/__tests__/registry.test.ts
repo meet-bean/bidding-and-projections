@@ -10,6 +10,7 @@ import {
   primaryPhase,
   classifyImport,
   computeUploadDelta,
+  applyDecisions,
 } from '../registry';
 import type { ServiceSource } from '../types';
 
@@ -387,6 +388,68 @@ describe('computeUploadDelta', () => {
 
   it('empty project → empty delta', () => {
     expect(computeUploadDelta(project([]) as never)).toEqual([]);
+  });
+});
+
+describe('applyDecisions', () => {
+  const impLine = (over: Record<string, unknown> = {}) => ({
+    name: 'Erosion Cntrl', unitOfMeasure: 'DY', costType: '2Labor',
+    lineKey: 'B-200-|2Labor', phaseCode: 'B-200-',
+    ctd: { qty: 1, hours: 0, cost: 1 },
+    oe: { qty: 1, cost: 1 },
+    f: { qty: 1, cost: 1 },
+    date: '2026-06-01',
+    projectId: 'p2',
+    ...over,
+  });
+
+  function regWithErosion() {
+    let reg = createRegistry('superior');
+    reg = addServiceItem(reg, {
+      canonicalName: 'Erosion Control', unitOfMeasure: 'DY', costType: '2Labor',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'B-200-|2Labor', phaseCode: 'B-200-' }),
+    });
+    return reg;
+  }
+
+  it('match with drifted name: attaches source AND records alias', () => {
+    const reg = regWithErosion();
+    const target = reg.items[0]!;
+    const out = applyDecisions(reg, [{ line: impLine(), action: 'match', targetId: target.id }]);
+    const svc = out.items.find((i) => i.id === target.id)!;
+    expect(svc.sources.some((s) => s.projectId === 'p2')).toBe(true);
+    expect(svc.aliases.map((a) => a.raw)).toContain('Erosion Cntrl');
+  });
+
+  it('match with identical name: no alias recorded', () => {
+    const reg = regWithErosion();
+    const target = reg.items[0]!;
+    const out = applyDecisions(reg, [
+      { line: impLine({ name: 'Erosion Control' }), action: 'match', targetId: target.id },
+    ]);
+    expect(out.items.find((i) => i.id === target.id)!.aliases).toEqual([]);
+  });
+
+  it('duplicate alias is not recorded twice', () => {
+    const reg = regWithErosion();
+    const target = reg.items[0]!;
+    let out = applyDecisions(reg, [{ line: impLine(), action: 'match', targetId: target.id }]);
+    out = applyDecisions(out, [{ line: impLine(), action: 'match', targetId: target.id }]);
+    expect(out.items.find((i) => i.id === target.id)!.aliases).toHaveLength(1);
+  });
+
+  it('new: creates a service with the incoming name', () => {
+    const out = applyDecisions(regWithErosion(), [
+      { line: impLine({ name: 'Wick Drains', costType: '5SubCont' }), action: 'new' },
+    ]);
+    expect(out.items.some((i) => i.canonicalName === 'Wick Drains')).toBe(true);
+  });
+
+  it('line without projectId is skipped', () => {
+    const reg = regWithErosion();
+    const out = applyDecisions(reg, [{ line: impLine({ projectId: undefined }), action: 'new' }]);
+    expect(out.items).toHaveLength(reg.items.length);
   });
 });
 

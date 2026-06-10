@@ -368,3 +368,64 @@ export function computeUploadDelta(project: ProjectionProject): ImportLine[] {
     })
     .map((it) => toImportLine(it, project.id, latest.createdAt));
 }
+
+export type ReconcileDecision =
+  | { line: ImportLine; action: 'match'; targetId: string }
+  | { line: ImportLine; action: 'new' };
+
+/**
+ * Apply reconcile decisions. Matches attach/refresh a source on the target
+ * service; when the incoming name differs from the canonical name, it is
+ * recorded as an alias so future uploads auto-match at tier 1. New lines
+ * create a service with the incoming name as canonical.
+ */
+export function applyDecisions(
+  registry: ServiceRegistry,
+  decisions: ReconcileDecision[]
+): ServiceRegistry {
+  let reg = registry;
+  for (const d of decisions) {
+    const L = d.line;
+    const pid = L.projectId;
+    if (!pid) continue;
+    const source: ServiceSource = {
+      projectId: pid,
+      lineKey: L.lineKey,
+      phaseCode: L.phaseCode,
+      date: L.date,
+      ctd: L.ctd,
+      oe: L.oe,
+      f: L.f,
+    };
+    if (d.action === 'match') {
+      const target = reg.items.find((i) => i.id === d.targetId);
+      if (!target) continue;
+      reg = addServiceItem(reg, {
+        canonicalName: target.canonicalName,
+        unitOfMeasure: target.unitOfMeasure,
+        costType: target.costType,
+        sourceProjectId: pid,
+        source,
+      });
+      const drifted = normalizeKey(L.name) !== normalizeKey(target.canonicalName);
+      const known = target.aliases.some((a) => normalizeKey(a.raw) === normalizeKey(L.name));
+      if (drifted && !known) {
+        reg = mergeServiceItems(reg, target.id, {
+          raw: L.name,
+          normalizedTo: target.canonicalName,
+          sourceProjectId: pid,
+          sourceUploadDate: L.date,
+        });
+      }
+    } else {
+      reg = addServiceItem(reg, {
+        canonicalName: L.name,
+        unitOfMeasure: L.unitOfMeasure,
+        costType: L.costType,
+        sourceProjectId: pid,
+        source,
+      });
+    }
+  }
+  return reg;
+}

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
 import { SERVICE_CATALOG } from '~/data/service-catalog';
-import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, Service, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine } from '@repo/projections';
+import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, Service, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine, ReconcileDecision } from '@repo/projections';
 import {
   createEmptyProject,
   ingestDump,
@@ -32,6 +32,7 @@ import {
   editServiceItemName,
   lockVersion,
   classifyImport,
+  applyDecisions,
 } from '@repo/projections';
 import {
   SEED_BIDS,
@@ -567,7 +568,7 @@ interface StratagraphState {
   editRegistryItemName: (itemId: string, newName: string) => void;
   setServiceItemUom: (itemId: string, uom: string) => void;
   removeRegistryItem: (itemId: string) => void;
-  applyReconciliation: (decisions: Array<{ line: ImportLine; action: 'match'; targetId: string } | { line: ImportLine; action: 'new' }>) => void;
+  applyReconciliation: (decisions: ReconcileDecision[]) => void;
 
   /** Wipe all projection projects, metrics, and service registry for the current tenant. */
   clearProjectionData: () => void;
@@ -1355,30 +1356,9 @@ export const useStore = create<StratagraphState>((set, get) => ({
       services: removeServiceItem({ tenantId: s.tenantId, items: s.services }, itemId).items,
     })),
   applyReconciliation: (decisions) =>
-    set((s) => {
-      let reg: ServiceRegistry = { tenantId: s.tenantId, items: s.services };
-      for (const d of decisions) {
-        const L = d.line;
-        const pid = L.projectId;
-        if (!pid) continue;
-        const src = {
-          projectId: pid,
-          lineKey: L.lineKey,
-          phaseCode: L.phaseCode,
-          date: L.date,
-          ctd: L.ctd,
-          oe: L.oe,
-          f: L.f,
-        };
-        if (d.action === 'match') {
-          const target = reg.items.find((i) => i.id === d.targetId);
-          if (target) reg = addServiceItem(reg, { canonicalName: target.canonicalName, unitOfMeasure: target.unitOfMeasure, costType: target.costType, sourceProjectId: pid, source: src });
-        } else {
-          reg = addServiceItem(reg, { canonicalName: L.name, unitOfMeasure: L.unitOfMeasure, costType: L.costType, sourceProjectId: pid, source: src });
-        }
-      }
-      return { services: reg.items };
-    }),
+    set((s) => ({
+      services: applyDecisions({ tenantId: s.tenantId, items: s.services }, decisions).items,
+    })),
 
   clearProjectionData: () => {
     const tid = get().tenantId;
