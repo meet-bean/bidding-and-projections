@@ -9,12 +9,12 @@ import {
   Button,
 } from '@repo/ui';
 import { useStore } from '~/lib/store';
-import type { ServiceCatalogRow } from '~/lib/service-catalog-rows';
-import { COST_TYPE_COLOR } from '~/lib/cost-types';
-import { ctdMetrics, resolveCtd, aggregateCtd, formatMetric } from '~/lib/service-catalog-aggregate';
+import type { ServiceRow } from '~/lib/service-rows';
+import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
+import { aggregateGroup, groupMetrics, formatMetric } from '~/lib/service-catalog-aggregate';
 
 interface ServiceDetailDialogProps {
-  row: ServiceCatalogRow | null;
+  row: ServiceRow | null;
   onClose: () => void;
 }
 
@@ -26,18 +26,19 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
   const separateRegistryAlias = useStore((s) => s.separateRegistryAlias);
   const removeRegistryItem = useStore((s) => s.removeRegistryItem);
 
-  const ctdCols = useMemo(() => ctdMetrics(catalog), [catalog]);
-
   const [nameValue, setNameValue] = useState(row?.name ?? '');
-  const [uomValue, setUomValue] = useState(row?.uom ?? '');
+  const [uomValue, setUomValue] = useState(row?.service.unitOfMeasure ?? '');
 
   // Sync local state when the selected row changes
   useEffect(() => {
     setNameValue(row?.name ?? '');
-    setUomValue(row?.uom ?? '');
+    setUomValue(row?.service.unitOfMeasure ?? '');
   }, [row?.id]);
 
   if (!row) return null;
+
+  const svc = row.service;
+  const isSuperior = svc.tenantId === 'superior';
 
   function commitName() {
     const trimmed = nameValue.trim();
@@ -48,24 +49,158 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
 
   function commitUom() {
     const trimmed = uomValue.trim();
-    if (trimmed && trimmed !== row!.uom) {
+    if (trimmed && trimmed !== row!.service.unitOfMeasure) {
       setServiceItemUom(row!.id, trimmed);
     }
   }
 
   function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-    }
+    if (e.key === 'Enter') e.currentTarget.blur();
   }
 
   function handleUomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-    }
+    if (e.key === 'Enter') e.currentTarget.blur();
   }
 
-  const badgeColor = COST_TYPE_COLOR[row.costType] ?? '#bba199';
+  // ── Header badge ────────────────────────────────────────────────────────────
+  const headerBadge = isSuperior ? (() => {
+    const label = costTypeLabel(svc.costType);
+    const bg = COST_TYPE_COLOR[label] ?? '#bba199';
+    return (
+      <span
+        className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
+        style={{ background: bg }}
+      >
+        {label}
+      </span>
+    );
+  })() : (
+    <Badge variant="secondary" className="text-[11px]">
+      {svc.costType}
+    </Badge>
+  );
+
+  // ── Superior: per-source UC breakdown ───────────────────────────────────────
+  const SuperiorBreakdown = useMemo(() => {
+    if (!isSuperior) return null;
+
+    const groups = ['OE', 'CTD', 'F'] as const;
+    const groupLabels: Record<string, string> = { OE: 'Original UC', CTD: 'Actual UC', F: 'Forecast UC' };
+
+    function getUC(groupId: string, sources: typeof svc.sources): string {
+      const ucMetric = groupMetrics(catalog, groupId).find((m) => m.field === 'uc');
+      if (!ucMetric) return '—';
+      const vals = aggregateGroup(catalog, groupId, sources);
+      const v = vals[ucMetric.id];
+      if (v == null || !Number.isFinite(v) || v === 0) return '—';
+      return formatMetric(ucMetric, v);
+    }
+
+    return (
+      <div className="mt-2">
+        <p className="text-xs font-medium text-muted-foreground mb-2">
+          OE / CTD / F breakdown ({svc.sources.length} source{svc.sources.length === 1 ? '' : 's'})
+        </p>
+        {svc.sources.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">No source lines.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Phase</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Project</th>
+                  {groups.map((g) => (
+                    <th key={g} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
+                      {groupLabels[g]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {svc.sources.map((src, i) => {
+                  const project = projectionProjects.find((p) => p.id === src.projectId);
+                  const projectName = project?.name ?? src.projectId;
+                  return (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {src.phaseCode ? (
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {src.phaseCode}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{projectName}</td>
+                      {groups.map((g) => (
+                        <td key={g} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                          {getUC(g, [src])}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+                {/* Totals row — aggregated across all sources */}
+                <tr className="border-t-2 bg-muted/30 font-semibold">
+                  <td className="px-3 py-2 text-xs text-muted-foreground">All projects</td>
+                  <td className="px-3 py-2"></td>
+                  {groups.map((g) => (
+                    <td key={g} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                      {getUC(g, svc.sources)}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }, [isSuperior, svc.sources, catalog, projectionProjects]);
+
+  // ── Stratagraph: identity block ──────────────────────────────────────────────
+  const StratagraphIdentity = !isSuperior ? (() => {
+    const rateDisplay = svc.recommendedRate != null
+      ? '$' + svc.recommendedRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : null;
+    return (
+      <div className="mt-2 rounded-md border">
+        <table className="w-full text-sm">
+          <tbody>
+            <tr className="border-b">
+              <td className="px-3 py-2 text-xs font-medium text-muted-foreground w-36 whitespace-nowrap">Type</td>
+              <td className="px-3 py-2">{svc.costType}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">Code</td>
+              <td className="px-3 py-2">
+                {svc.dailyCode ? (
+                  <Badge variant="outline" className="font-mono text-[10px]">{svc.dailyCode}</Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
+            </tr>
+            <tr className="border-b">
+              <td className="px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">Unit</td>
+              <td className="px-3 py-2">{svc.unitOfMeasure || '—'}</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">Recommended Rate</td>
+              <td className="px-3 py-2 tabular-nums">
+                {rateDisplay != null ? (
+                  <span className="font-semibold">{rateDisplay}</span>
+                ) : (
+                  <span className="text-muted-foreground italic text-xs">{svc.rateNote ?? '—'}</span>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  })() : null;
 
   return (
     <Dialog
@@ -78,16 +213,11 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <span>{row.name}</span>
-            <span
-              className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
-              style={{ background: badgeColor }}
-            >
-              {row.costType}
-            </span>
+            {headerBadge}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Editable fields */}
+        {/* Editable fields (both tenants) */}
         <div className="grid grid-cols-2 gap-4 py-2">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground font-medium">Canonical name</label>
@@ -111,81 +241,17 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
           </div>
         </div>
 
-        {/* CTD breakdown table */}
-        <div className="mt-2">
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            CTD breakdown ({row.item.sources.length} source{row.item.sources.length === 1 ? '' : 's'})
-          </p>
-          {row.item.sources.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No source lines.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Phase</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">Project</th>
-                    {ctdCols.map((m) => (
-                      <th key={m.id} className="px-3 py-2 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                        {m.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.item.sources.map((src, i) => {
-                    const project = projectionProjects.find((p) => p.id === src.projectId);
-                    const projectName = project?.name ?? src.projectId;
-                    const vals = resolveCtd(catalog, { qty: src.ctd.qty, hours: src.ctd.hours, cost: src.ctd.cost });
-                    return (
-                      <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {src.phaseCode ? (
-                            <Badge variant="outline" className="font-mono text-[10px]">
-                              {src.phaseCode}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{projectName}</td>
-                        {ctdCols.map((m) => (
-                          <td key={m.id} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                            {formatMetric(m, vals[m.id] ?? 0)}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                  {/* Totals row */}
-                  {(() => {
-                    const totals = aggregateCtd(catalog, row.item.sources);
-                    return (
-                      <tr className="border-t-2 bg-muted/30 font-semibold">
-                        <td className="px-3 py-2 text-xs text-muted-foreground">All projects</td>
-                        <td className="px-3 py-2"></td>
-                        {ctdCols.map((m) => (
-                          <td key={m.id} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                            {formatMetric(m, totals[m.id] ?? 0)}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Tenant-specific section */}
+        {isSuperior ? SuperiorBreakdown : StratagraphIdentity}
 
-        {/* Aliases */}
-        {row.item.aliases.length > 0 && (
+        {/* Aliases (both tenants when present) */}
+        {svc.aliases.length > 0 && (
           <div className="mt-2">
             <p className="text-xs font-medium text-muted-foreground mb-2">
-              Aliases ({row.item.aliases.length})
+              Aliases ({svc.aliases.length})
             </p>
             <div className="flex flex-col gap-1.5">
-              {row.item.aliases.map((alias) => (
+              {svc.aliases.map((alias) => (
                 <div key={alias.raw} className="flex items-center justify-between gap-2 rounded border px-3 py-1.5">
                   <span className="text-sm">{alias.raw}</span>
                   <Button
