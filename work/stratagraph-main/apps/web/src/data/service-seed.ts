@@ -21,6 +21,27 @@ export function buildStratagraphServices(): Service[] {
   }));
 }
 
+// ---------------------------------------------------------------------------
+// KNOWN MIXED-UNIT SERVICES — flagged for a later decision (not yet resolved).
+//
+// The merge below keys on canonicalName + costType and ignores the phase code,
+// so lines that share a description but use different units collapse into one
+// service. Three such cases exist in the real job-25807 data; the table shows
+// them with a "mixed" unit badge and suppresses the blended unit cost (see
+// sourcesUomVaries / ServiceBreakdown). They split into two kinds:
+//
+//   Genuinely different units (parent phase + numbered sub-phase) — arguably
+//   should NOT be one service. Fix candidate: include phaseCode in the merge key.
+//     • Excavation - Roadway / 2Labor   →  B-310- (CY)  +  B-310-000 (BCY)
+//     • Place & Compact Fill / 2Labor   →  B-350- (CY)  +  B-350-000 (CCY)
+//
+//   Same unit, spelled two ways (Vista inconsistency) — a false positive.
+//   Fix candidate: unit normalization (MOS → MO, etc.).
+//     • Equipment Moving / 2Labor       →  G-013-000 (MOS)  +  G013-000- (MO)
+//
+// Decision pending — see memory: project-mixed-unit-root-cause.
+// ---------------------------------------------------------------------------
+
 /** Superior projection projects → Service[] via the registry engine (dedup-merge + OE/CTD/F sources). */
 export function buildSuperiorServices(projects: ProjectionProject[]): Service[] {
   let reg = createRegistry('superior');
