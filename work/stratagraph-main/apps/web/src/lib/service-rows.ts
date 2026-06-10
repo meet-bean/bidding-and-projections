@@ -1,5 +1,5 @@
 import type { MetricsCatalog, Service } from '@repo/projections';
-import { groupUC, primaryPhase, sourcesUomVaries } from '@repo/projections';
+import { groupUC, primaryPhase, recommendedRateFromSources, sourcesUomVaries } from '@repo/projections';
 import { costTypeLabel } from './cost-types';
 
 /** One row of the shared Services screen — same columns for both tenants. */
@@ -50,7 +50,9 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
       unit: s.unitOfMeasure || '—',
       uomVaries,
       usedIn: s.projectIds.length,
-      recommendedRate: s.recommendedRate,
+      // Stored rate wins; Superior services derive one from cost history
+      // (blended OE UC across sources that didn't go red).
+      recommendedRate: s.recommendedRate ?? recommendedRateFromSources(s.sources),
       rateNote: s.rateNote,
       originalUC,
       actualUC,

@@ -43,7 +43,14 @@ function moneyCell(value: number | null, fallback?: string | null) {
 function varianceCell(pct: number | null) {
   if (pct == null) return <div className="text-muted-foreground text-right">—</div>;
   const rounded = Math.round(pct);
-  if (rounded === 0) return <div className="text-muted-foreground text-right text-sm tabular-nums">0%</div>;
+  // Small deltas stay quiet so only real outliers pop.
+  if (Math.abs(rounded) < 5)
+    return (
+      <div className="text-muted-foreground text-right text-sm tabular-nums">
+        {rounded > 0 ? '+' : ''}
+        {rounded}%
+      </div>
+    );
   const over = rounded > 0;
   return (
     <div
@@ -82,6 +89,8 @@ const UC_INFO = {
   forecast:
     'Projected final cost ÷ projected quantity, pooled across all projects — quantity-weighted, not an average.',
   variance: 'Forecast UC vs Original UC. Positive = projected to cost more than the bid per unit.',
+  recommended:
+    'Suggested catalog rate: blended Original UC across only the projects where the estimate held up (forecast ≤ original). “—” when no project qualifies.',
 } as const;
 
 /** Shared Services table — tenant-aware column set. */
@@ -216,6 +225,17 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
               ),
               cell: (info) => varianceCell(info.row.original.variancePct),
               size: 96,
+            }),
+            columnHelper.accessor((r) => r.recommendedRate ?? 0, {
+              id: 'recommendedRate',
+              header: ({ column }) => (
+                <div className="flex items-center justify-end gap-1">
+                  <DataGridColumnHeader column={column} title="Rec. Rate" className="justify-end" />
+                  <InfoTip label="Recommended Rate" info={UC_INFO.recommended} />
+                </div>
+              ),
+              cell: (info) => moneyCell(info.row.original.recommendedRate, info.row.original.rateNote),
+              size: 124,
             }),
           ]
         : [

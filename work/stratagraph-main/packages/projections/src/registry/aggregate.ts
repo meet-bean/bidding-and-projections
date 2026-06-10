@@ -71,6 +71,36 @@ export function sourcesUomVaries(sources: ServiceSource[]): boolean {
 }
 
 /**
+ * Recommended (catalog) rate derived from history: the blended Original UC
+ * (Σ OE cost / Σ OE qty) across only the sources where the original estimate
+ * held up — forecast UC ≤ original UC, i.e. the service "didn't go red" on
+ * that project. A price that historically covered costs is a defensible
+ * recommendation without inventing a margin policy.
+ *
+ * Returns null when units are mixed, when no source qualifies, or when the
+ * result isn't a positive finite number.
+ */
+export function recommendedRateFromSources(sources: ServiceSource[]): number | null {
+  if (sources.length === 0 || sourcesUomVaries(sources)) return null;
+  let qty = 0;
+  let cost = 0;
+  for (const s of sources) {
+    const oeUC = s.oe.qty > 0 ? s.oe.cost / s.oe.qty : null;
+    const fUC = s.f.qty > 0 ? s.f.cost / s.f.qty : null;
+    if (oeUC == null || oeUC <= 0 || fUC == null) continue;
+    if (fUC <= oeUC) {
+      qty += s.oe.qty;
+      cost += s.oe.cost;
+    }
+  }
+  if (qty <= 0 || cost <= 0) return null;
+  // Round to cents — this is a price, not a measurement, and it pre-fills
+  // editable rate inputs that shouldn't show raw float tails.
+  const rate = Math.round((cost / qty) * 100) / 100;
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+/**
  * The UC ($/unit) for a group across sources.
  * Returns null when there is no `uc` metric in the group, or when the value is
  * zero / non-finite (e.g. empty sources → divide-by-zero → 0 → null).

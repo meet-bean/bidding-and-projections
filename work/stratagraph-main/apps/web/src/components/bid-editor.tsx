@@ -394,8 +394,14 @@ function ucCell(value: number | null, uomVaries: boolean) {
 function varianceCell(pct: number | null) {
   if (pct == null) return <span className="text-muted-foreground text-xs">—</span>;
   const rounded = Math.round(pct);
-  if (rounded === 0)
-    return <span className="text-muted-foreground tabular-nums">0%</span>;
+  // Small deltas stay quiet so only real outliers pop.
+  if (Math.abs(rounded) < 5)
+    return (
+      <span className="text-muted-foreground tabular-nums">
+        {rounded > 0 ? '+' : ''}
+        {rounded}%
+      </span>
+    );
   const over = rounded > 0;
   return (
     <span

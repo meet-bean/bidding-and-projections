@@ -1,5 +1,5 @@
 import type { Service, ProjectionProject } from '@repo/projections';
-import { createRegistry, addServiceItem } from '@repo/projections';
+import { createRegistry, addServiceItem, recommendedRateFromSources } from '@repo/projections';
 import type { BillingUnit, DailyCode, ServiceCatalogItem, ServiceCategory } from '~/lib/types';
 import { SERVICE_CATALOG } from './service-catalog';
 
@@ -20,7 +20,10 @@ function catalogFromServices(services: Service[]): ServiceCatalogItem[] {
     id: s.id,
     category: s.costType as ServiceCategory,
     name: s.canonicalName,
-    defaultRate: s.recommendedRate,
+    // Stored rate (Stratagraph rate card) wins; otherwise derive a recommended
+    // rate from cost history (Superior) so the catalog rate is never blank when
+    // the data can justify one.
+    defaultRate: s.recommendedRate ?? recommendedRateFromSources(s.sources),
     rateNote: s.rateNote,
     dailyCode: (s.dailyCode ?? undefined) as DailyCode | undefined,
     billingUnit: (s.billingUnit ?? 'per_day') as BillingUnit,

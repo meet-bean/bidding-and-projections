@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createCatalog } from '../../metrics/catalog';
-import { aggregateGroup, groupUC, sourcesUomVaries } from '../aggregate';
+import { aggregateGroup, groupUC, recommendedRateFromSources, sourcesUomVaries } from '../aggregate';
 import type { ServiceSource } from '../types';
 
 // Helper: source with all-zero bases except what's specified
@@ -93,6 +93,40 @@ describe('aggregateGroup — F', () => {
     expect(v['f-qty']).toBe(400);
     expect(v['f-cost']).toBe(4000);
     expect(v['f-uc']).toBeCloseTo(10); // 4000/400
+  });
+});
+
+describe('recommendedRateFromSources', () => {
+  it('blends OE UC across only the sources where forecast held (f UC ≤ oe UC)', () => {
+    const sources: ServiceSource[] = [
+      // green: oe UC 10, f UC 9 → included
+      src({ oe: { qty: 100, cost: 1000 }, f: { qty: 100, cost: 900 } }, 'p1', 'a'),
+      // red: oe UC 10, f UC 12 → excluded
+      src({ oe: { qty: 100, cost: 1000 }, f: { qty: 100, cost: 1200 } }, 'p2', 'b'),
+      // green: oe UC 20, f UC 20 (held exactly) → included
+      src({ oe: { qty: 100, cost: 2000 }, f: { qty: 100, cost: 2000 } }, 'p3', 'c'),
+    ];
+    // (1000 + 2000) / (100 + 100) = 15 — quantity-weighted, red source ignored
+    expect(recommendedRateFromSources(sources)).toBeCloseTo(15);
+  });
+
+  it('null when every source went red', () => {
+    const sources = [src({ oe: { qty: 100, cost: 1000 }, f: { qty: 100, cost: 1500 } })];
+    expect(recommendedRateFromSources(sources)).toBeNull();
+  });
+
+  it('null for empty sources, zero-qty estimates, or missing forecasts', () => {
+    expect(recommendedRateFromSources([])).toBeNull();
+    expect(recommendedRateFromSources([src({ oe: { qty: 0, cost: 1000 } })])).toBeNull();
+    expect(recommendedRateFromSources([src({ oe: { qty: 100, cost: 1000 } })])).toBeNull();
+  });
+
+  it('null when sources span mixed units', () => {
+    const sources: ServiceSource[] = [
+      { ...src({ oe: { qty: 100, cost: 1000 }, f: { qty: 100, cost: 900 } }), unitOfMeasure: 'CY' },
+      { ...src({ oe: { qty: 50, cost: 600 }, f: { qty: 50, cost: 500 } }, 'p2', 'b'), unitOfMeasure: 'TON' },
+    ];
+    expect(recommendedRateFromSources(sources)).toBeNull();
   });
 });
 
