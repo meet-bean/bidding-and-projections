@@ -10,8 +10,9 @@ import {
   reopenAlert,
   ingestBatch,
   exportProjectionToVistaXLSX,
+  computeUploadDelta,
 } from '@repo/projections';
-import type { ProjectionAlert, BatchUploadResult, Metric } from '@repo/projections';
+import type { ProjectionAlert, BatchUploadResult, Metric, ImportLine, ProjectionProject } from '@repo/projections';
 import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions, useSidebar } from '@repo/ui';
 import { AlertTriangle, Clock, Upload } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
@@ -21,6 +22,7 @@ import { ProjectionTrendModal } from '~/components/projection-trend-modal';
 import { ProjectionAlertsPanel } from '~/components/projection-alerts-panel';
 import { ProjectionUpload } from '~/components/projection-upload';
 import { ProjectionVersionHistory } from '~/components/projection-version-history';
+import { ServiceReconcileDialog } from '~/components/service-reconcile-dialog';
 // import { MonthlyEntryForm } from '~/components/monthly-entry-form'; // Monthly Entry hidden per request
 import { computeAlerts } from '@repo/projections';
 
@@ -46,6 +48,8 @@ function ProjectionDetailPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [reconcile, setReconcile] = useState<{ lines: ImportLine[]; label: string } | null>(null);
+  const [reconcileNotice, setReconcileNotice] = useState<string | null>(null);
 
   // Ensure this project is the active one whenever projectId changes
   useEffect(() => {
@@ -139,8 +143,9 @@ function ProjectionDetailPage() {
   };
 
   const handleBatchImport = (result: BatchUploadResult) => {
-    updateActiveProjection((p) =>
-      ingestBatch(
+    let next: ProjectionProject | null = null;
+    updateActiveProjection((p) => {
+      next = ingestBatch(
         p,
         result.cycles.map((c) => ({
           label: c.label,
@@ -149,8 +154,21 @@ function ProjectionDetailPage() {
           notes: c.notes,
         })),
         result.financials,
-      ),
-    );
+      );
+      return next;
+    });
+    if (!next) return;
+    // New/renamed line items must be reconciled into the services catalog
+    // right after the upload — never silently added (see 2026-06-09 spec).
+    const ingested: ProjectionProject = next;
+    const latest = ingested.versions[ingested.versions.length - 1];
+    const delta = computeUploadDelta(ingested);
+    if (delta.length > 0) {
+      setReconcile({ lines: delta, label: latest?.label ?? '' });
+    } else {
+      setReconcileNotice(`All ${latest?.items.length ?? 0} line items already reconciled.`);
+      window.setTimeout(() => setReconcileNotice(null), 4000);
+    }
   };
 
   const currentVersion =
@@ -278,6 +296,19 @@ function ProjectionDetailPage() {
         onOpenChange={setShowUpload}
         onBatchImport={handleBatchImport}
       />
+
+      {/* Post-upload reconcile (Superior services catalog) */}
+      <ServiceReconcileDialog
+        projectId={reconcile ? project.id : null}
+        lines={reconcile?.lines}
+        title={reconcile ? `New line items — ${reconcile.label}` : undefined}
+        onClose={() => setReconcile(null)}
+      />
+      {reconcileNotice && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-md border bg-background px-3 py-2 text-sm shadow-md">
+          {reconcileNotice}
+        </div>
+      )}
 
       {/* Version history sheet */}
       <ProjectionVersionHistory
