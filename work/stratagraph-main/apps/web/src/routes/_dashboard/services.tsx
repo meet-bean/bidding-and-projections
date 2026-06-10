@@ -12,7 +12,7 @@ import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import { toServiceRows, type ServiceRow } from '~/lib/service-rows';
 import { ServicesTable } from '~/components/services-table';
-import { ServiceDetailDialog } from '~/components/service-detail-dialog';
+import { ServiceDetailDrawer } from '~/components/service-detail-drawer';
 import { ServiceReconcileDialog } from '~/components/service-reconcile-dialog';
 import { COST_TYPE_COLOR, type CostType } from '~/lib/cost-types';
 
@@ -107,10 +107,11 @@ function ServicesPage() {
       <ServicesTable
         rows={rows}
         onRowClick={setDetailRow}
+        onManage={setDetailRow}
         isSuperior={isSuperior}
         actions={headerActions}
       />
-      <ServiceDetailDialog row={detailRow} onClose={() => setDetailRow(null)} />
+      <ServiceDetailDrawer row={detailRow} onClose={() => setDetailRow(null)} />
       {isSuperior && (
         <ServiceReconcileDialog
           projectId={reconcileProjectId}

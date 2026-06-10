@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Badge } from '@repo/ui';
+import { Badge, Button } from '@repo/ui';
+import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import {
   DataListShell,
   createColumnHelper,
@@ -7,10 +8,14 @@ import {
 } from '~/components/data-list-shell';
 import { COST_TYPE_COLOR, type CostType } from '~/lib/cost-types';
 import type { ServiceRow } from '~/lib/service-rows';
+import { ServiceBreakdown } from '~/components/service-breakdown';
 
 interface ServicesTableProps {
   rows: ServiceRow[];
+  /** Stratagraph row click opens the detail drawer. Superior rows expand instead. */
   onRowClick: (row: ServiceRow) => void;
+  /** Superior ⋯ menu → open the management drawer for this service. */
+  onManage: (row: ServiceRow) => void;
   /** Superior shows the OE/CTD/F unit-cost columns; Stratagraph shows the rate card. */
   isSuperior: boolean;
   actions?: React.ReactNode;
@@ -50,16 +55,27 @@ function varianceCell(pct: number | null) {
 }
 
 /** Shared Services table — tenant-aware column set. */
-export function ServicesTable({ rows, onRowClick, isSuperior, actions }: ServicesTableProps) {
+export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions }: ServicesTableProps) {
   const columns = useMemo(
     () => [
       columnHelper.accessor('name', {
         id: 'name',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Name" />,
+        // Superior rows expand inline to their per-project breakdown.
+        meta: isSuperior
+          ? { expandedContent: (r: ServiceRow) => <ServiceBreakdown service={r.service} /> }
+          : undefined,
         cell: (info) => {
           const r = info.row.original;
           return (
-            <div className="flex min-w-0 items-baseline gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              {isSuperior && (
+                <ChevronRight
+                  className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${
+                    info.row.getIsExpanded() ? 'rotate-90' : ''
+                  }`}
+                />
+              )}
               {r.code && (
                 <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{r.code}</span>
               )}
@@ -170,8 +186,34 @@ export function ServicesTable({ rows, onRowClick, isSuperior, actions }: Service
               size: 160,
             }),
           ]),
+      // Row actions (Superior) — management lives off the frequent expand peek.
+      ...(isSuperior
+        ? [
+            columnHelper.display({
+              id: 'actions',
+              header: () => null,
+              cell: (info) => (
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="size-7 p-0 text-muted-foreground"
+                    aria-label="Manage service"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onManage(info.row.original);
+                    }}
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </div>
+              ),
+              size: 48,
+            }),
+          ]
+        : []),
     ],
-    [isSuperior]
+    [isSuperior, onManage]
   );
 
   const typeOptions = useMemo(
@@ -200,6 +242,7 @@ export function ServicesTable({ rows, onRowClick, isSuperior, actions }: Service
       ]}
       actions={actions}
       onRowClick={onRowClick}
+      expandable={isSuperior}
       emptyMessage="No services yet."
       defaultPageSize={50}
     />

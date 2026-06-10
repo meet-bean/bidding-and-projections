@@ -17,8 +17,10 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getExpandedRowModel,
   useReactTable,
   type SortingState,
+  type ExpandedState,
 } from '@repo/ui';
 import { X } from 'lucide-react';
 
@@ -47,6 +49,12 @@ export interface DataListShellProps<TRow extends { id: string }> {
   actions?: React.ReactNode;
   toolbarExtra?: React.ReactNode;
   defaultPageSize?: number;
+  /**
+   * Opt-in inline row expansion. When true, a row click toggles its expanded
+   * state instead of firing onRowClick, and the grid renders that column's
+   * `meta.expandedContent` underneath. Off by default — other tables unaffected.
+   */
+  expandable?: boolean;
 }
 
 export function DataListShell<TRow extends { id: string }>({
@@ -61,10 +69,12 @@ export function DataListShell<TRow extends { id: string }>({
   actions,
   toolbarExtra,
   defaultPageSize = 25,
+  expandable = false,
 }: DataListShellProps<TRow>) {
   const [search, setSearch] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pageIndex, setPageIndex] = useState(0);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
   // Active filters using the @repo/ui Filter shape ({ id, field, operator, values }).
   const [activeFilters, setActiveFilters] = useState<Filter<string>[]>([]);
 
@@ -113,10 +123,15 @@ export function DataListShell<TRow extends { id: string }>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    ...(expandable
+      ? { getExpandedRowModel: getExpandedRowModel(), getRowCanExpand: () => true }
+      : {}),
     onSortingChange: setSorting,
+    onExpandedChange: setExpanded,
     state: {
       sorting,
       pagination: { pageIndex, pageSize: defaultPageSize },
+      expanded,
     },
     onPaginationChange: (updater) => {
       const next =
@@ -173,7 +188,13 @@ export function DataListShell<TRow extends { id: string }>({
         table={table}
         recordCount={filteredData.length}
         emptyMessage={emptyMessage}
-        onRowClick={onRowClick ? (row) => onRowClick(row) : undefined}
+        onRowClick={
+          expandable
+            ? (row) => table.getRow(row.id).toggleExpanded()
+            : onRowClick
+              ? (row) => onRowClick(row)
+              : undefined
+        }
         onRowDoubleClick={onRowDoubleClick ? (row) => onRowDoubleClick(row) : undefined}
         tableLayout={{ rowBorder: true, headerBorder: true, headerBackground: true }}
       >
