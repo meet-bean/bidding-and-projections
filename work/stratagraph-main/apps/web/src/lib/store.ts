@@ -1167,11 +1167,14 @@ export const useStore = create<StratagraphState>((set, get) => ({
       bids: demo ? [...seed.bids, ...DEMO_BIDS] : seed.bids,
       invoices: demo ? [...seed.invoices, ...DEMO_INVOICES] : seed.invoices,
       metricsCatalog: createCatalog(id),
-      services: demo
-        ? buildDemoRegistry(id).items
-        : id === 'stratagraph'
+      // Stratagraph's catalog is its rate card regardless of demo mode;
+      // Superior's is built from projection data (demo-only until uploads).
+      services:
+        id === 'stratagraph'
           ? buildStratagraphServices()
-          : [],
+          : demo
+            ? buildDemoRegistry(id).items
+            : [],
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
@@ -1196,7 +1199,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         projectionProjects: [...s.projectionProjects, ...DEMO_PROJECTION_PROJECTS],
         bids: [...s.bids, ...DEMO_BIDS],
         invoices: [...s.invoices, ...DEMO_INVOICES],
-        services: buildDemoRegistry(tid).items,
+        services: tid === 'stratagraph' ? buildStratagraphServices() : buildDemoRegistry(tid).items,
       }));
     } else {
       const tid = get().tenantId;
@@ -1321,11 +1324,12 @@ export const useStore = create<StratagraphState>((set, get) => ({
   removeGroupFromStore: (groupId) =>
     set((s) => ({ metricsCatalog: removeGroup(s.metricsCatalog, groupId) })),
 
-  services: _initialDemoMode
-    ? buildDemoRegistry(_initialTenant).items
-    : _initialTenant === 'stratagraph'
+  services:
+    _initialTenant === 'stratagraph'
       ? buildStratagraphServices()
-      : [],
+      : _initialDemoMode
+        ? buildDemoRegistry(_initialTenant).items
+        : [],
   addRegistryItem: (input) =>
     set((s) => ({
       services: addServiceItem({ tenantId: s.tenantId, items: s.services }, input).items,

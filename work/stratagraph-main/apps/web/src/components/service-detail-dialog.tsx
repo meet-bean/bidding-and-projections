@@ -9,6 +9,7 @@ import {
   Button,
 } from '@repo/ui';
 import { useStore } from '~/lib/store';
+import type { ServiceSource } from '@repo/projections';
 import type { ServiceRow } from '~/lib/service-rows';
 import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
 import { aggregateGroup, groupMetrics, formatMetric } from '~/lib/service-catalog-aggregate';
@@ -35,59 +36,18 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
     setUomValue(row?.service.unitOfMeasure ?? '');
   }, [row?.id]);
 
-  if (!row) return null;
-
-  const svc = row.service;
-  const isSuperior = svc.tenantId === 'superior';
-
-  function commitName() {
-    const trimmed = nameValue.trim();
-    if (trimmed && trimmed !== row!.name) {
-      editRegistryItemName(row!.id, trimmed);
-    }
-  }
-
-  function commitUom() {
-    const trimmed = uomValue.trim();
-    if (trimmed && trimmed !== row!.service.unitOfMeasure) {
-      setServiceItemUom(row!.id, trimmed);
-    }
-  }
-
-  function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') e.currentTarget.blur();
-  }
-
-  function handleUomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') e.currentTarget.blur();
-  }
-
-  // ── Header badge ────────────────────────────────────────────────────────────
-  const headerBadge = isSuperior ? (() => {
-    const label = costTypeLabel(svc.costType);
-    const bg = COST_TYPE_COLOR[label] ?? '#bba199';
-    return (
-      <span
-        className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
-        style={{ background: bg }}
-      >
-        {label}
-      </span>
-    );
-  })() : (
-    <Badge variant="secondary" className="text-[11px]">
-      {svc.costType}
-    </Badge>
-  );
+  const svc = row?.service ?? null;
+  const isSuperior = svc?.tenantId === 'superior';
 
   // ── Superior: per-source UC breakdown ───────────────────────────────────────
-  const SuperiorBreakdown = useMemo(() => {
-    if (!isSuperior) return null;
+  // Hook must run unconditionally on every render (before any early return).
+  const superiorBreakdown = useMemo(() => {
+    if (!svc || svc.tenantId !== 'superior') return null;
 
     const groups = ['OE', 'CTD', 'F'] as const;
     const groupLabels: Record<string, string> = { OE: 'Original UC', CTD: 'Actual UC', F: 'Forecast UC' };
 
-    function getUC(groupId: string, sources: typeof svc.sources): string {
+    function getUC(groupId: string, sources: ServiceSource[]): string {
       const ucMetric = groupMetrics(catalog, groupId).find((m) => m.field === 'uc');
       if (!ucMetric) return '—';
       const vals = aggregateGroup(catalog, groupId, sources);
@@ -157,7 +117,49 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
         )}
       </div>
     );
-  }, [isSuperior, svc.sources, catalog, projectionProjects]);
+  }, [svc, catalog, projectionProjects]);
+
+  if (!row || !svc) return null;
+
+  function commitName() {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== row!.name) {
+      editRegistryItemName(row!.id, trimmed);
+    }
+  }
+
+  function commitUom() {
+    const trimmed = uomValue.trim();
+    if (trimmed && trimmed !== row!.service.unitOfMeasure) {
+      setServiceItemUom(row!.id, trimmed);
+    }
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') e.currentTarget.blur();
+  }
+
+  function handleUomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') e.currentTarget.blur();
+  }
+
+  // ── Header badge ────────────────────────────────────────────────────────────
+  const headerBadge = isSuperior ? (() => {
+    const label = costTypeLabel(svc.costType);
+    const bg = COST_TYPE_COLOR[label] ?? '#bba199';
+    return (
+      <span
+        className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
+        style={{ background: bg }}
+      >
+        {label}
+      </span>
+    );
+  })() : (
+    <Badge variant="secondary" className="text-[11px]">
+      {svc.costType}
+    </Badge>
+  );
 
   // ── Stratagraph: identity block ──────────────────────────────────────────────
   const StratagraphIdentity = !isSuperior ? (() => {
@@ -242,7 +244,7 @@ export function ServiceDetailDialog({ row, onClose }: ServiceDetailDialogProps) 
         </div>
 
         {/* Tenant-specific section */}
-        {isSuperior ? SuperiorBreakdown : StratagraphIdentity}
+        {isSuperior ? superiorBreakdown : StratagraphIdentity}
 
         {/* Aliases (both tenants when present) */}
         {svc.aliases.length > 0 && (
