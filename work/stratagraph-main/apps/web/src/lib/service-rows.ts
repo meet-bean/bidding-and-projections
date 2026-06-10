@@ -16,7 +16,12 @@ export interface ServiceRow {
   /** Sources span more than one unit of measure → blended UC is not meaningful. */
   uomVaries: boolean;
   usedIn: number;
+  /** Effective rate: manual override wins, else the derived (auto) rate. */
   recommendedRate: number | null;
+  /** Derived from cost history (blended OE UC across non-red sources). */
+  recommendedRateAuto: number | null;
+  /** Manually set rate stored on the service; null = following auto. */
+  recommendedRateOverride: number | null;
   rateNote: string | null;
   originalUC: number | null;
   actualUC: number | null;
@@ -40,6 +45,7 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
       originalUC != null && originalUC !== 0 && forecastUC != null
         ? ((forecastUC - originalUC) / originalUC) * 100
         : null;
+    const rateAuto = recommendedRateFromSources(s.sources);
     return {
       id: s.id,
       tenantId: s.tenantId,
@@ -52,7 +58,9 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
       usedIn: s.projectIds.length,
       // Stored rate wins; Superior services derive one from cost history
       // (blended OE UC across sources that didn't go red).
-      recommendedRate: s.recommendedRate ?? recommendedRateFromSources(s.sources),
+      recommendedRate: s.recommendedRate ?? rateAuto,
+      recommendedRateAuto: rateAuto,
+      recommendedRateOverride: s.recommendedRate,
       rateNote: s.rateNote,
       originalUC,
       actualUC,

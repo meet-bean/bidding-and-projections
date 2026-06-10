@@ -25,15 +25,22 @@ interface ServiceDetailDrawerProps {
 export function ServiceDetailDrawer({ row, onClose }: ServiceDetailDrawerProps) {
   const editRegistryItemName = useStore((s) => s.editRegistryItemName);
   const setServiceItemUom = useStore((s) => s.setServiceItemUom);
+  const setServiceRecommendedRate = useStore((s) => s.setServiceRecommendedRate);
   const separateRegistryAlias = useStore((s) => s.separateRegistryAlias);
   const removeRegistryItem = useStore((s) => s.removeRegistryItem);
 
   const [nameValue, setNameValue] = useState(row?.name ?? '');
   const [uomValue, setUomValue] = useState(row?.service.unitOfMeasure ?? '');
+  const [rateValue, setRateValue] = useState(
+    row?.recommendedRateOverride != null ? row.recommendedRateOverride.toFixed(2) : ''
+  );
 
   useEffect(() => {
     setNameValue(row?.name ?? '');
     setUomValue(row?.service.unitOfMeasure ?? '');
+    setRateValue(
+      row?.recommendedRateOverride != null ? row.recommendedRateOverride.toFixed(2) : ''
+    );
   }, [row?.id]);
 
   const svc = row?.service ?? null;
@@ -46,6 +53,25 @@ export function ServiceDetailDrawer({ row, onClose }: ServiceDetailDrawerProps) 
   function commitUom() {
     const trimmed = uomValue.trim();
     if (row && trimmed && trimmed !== row.service.unitOfMeasure) setServiceItemUom(row.id, trimmed);
+  }
+  function commitRate() {
+    if (!row) return;
+    const trimmed = rateValue.trim();
+    if (trimmed === '') {
+      // Cleared → follow the auto (derived) rate again.
+      if (row.recommendedRateOverride != null) setServiceRecommendedRate(row.id, null);
+      return;
+    }
+    const n = Number.parseFloat(trimmed);
+    if (!Number.isFinite(n) || n <= 0) {
+      // Invalid → revert the field to the stored override.
+      setRateValue(
+        row.recommendedRateOverride != null ? row.recommendedRateOverride.toFixed(2) : ''
+      );
+      return;
+    }
+    const rounded = Math.round(n * 100) / 100;
+    if (rounded !== row.recommendedRateOverride) setServiceRecommendedRate(row.id, rounded);
   }
   function blurOnEnter(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') e.currentTarget.blur();
@@ -106,6 +132,32 @@ export function ServiceDetailDrawer({ row, onClose }: ServiceDetailDrawerProps) 
                     onKeyDown={blurOnEnter}
                   />
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Recommended rate
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    className="rounded-md border border-input bg-background px-3 py-1.5 text-sm tabular-nums ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={rateValue}
+                    placeholder={
+                      row.recommendedRateAuto != null
+                        ? row.recommendedRateAuto.toFixed(2)
+                        : (svc.rateNote ?? 'Not set')
+                    }
+                    onChange={(e) => setRateValue(e.target.value)}
+                    onBlur={commitRate}
+                    onKeyDown={blurOnEnter}
+                  />
+                  {row.recommendedRateAuto != null && (
+                    <p className="text-muted-foreground text-xs">
+                      Auto from cost history: ${row.recommendedRateAuto.toFixed(2)} — leave
+                      empty to follow it.
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Stratagraph identity facts (Superior cost data lives in the row expand) */}
@@ -119,20 +171,6 @@ export function ServiceDetailDrawer({ row, onClose }: ServiceDetailDrawerProps) 
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
-                    )}
-                  </dd>
-                  <dt className="text-xs font-medium text-muted-foreground">Recommended rate</dt>
-                  <dd className="tabular-nums">
-                    {svc.recommendedRate != null ? (
-                      <span className="font-semibold">
-                        $
-                        {svc.recommendedRate.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    ) : (
-                      <span className="text-xs italic text-muted-foreground">{svc.rateNote ?? '—'}</span>
                     )}
                   </dd>
                 </dl>

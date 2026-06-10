@@ -563,6 +563,8 @@ interface StratagraphState {
   separateRegistryAlias: (itemId: string, aliasRaw: string) => void;
   editRegistryItemName: (itemId: string, newName: string) => void;
   setServiceItemUom: (itemId: string, uom: string) => void;
+  /** Manual recommended-rate override; null clears back to the derived (auto) rate. */
+  setServiceRecommendedRate: (itemId: string, rate: number | null) => void;
   removeRegistryItem: (itemId: string) => void;
   applyReconciliation: (decisions: ReconcileDecision[]) => void;
 
@@ -1343,6 +1345,10 @@ export const useStore = create<StratagraphState>((set, get) => ({
   setServiceItemUom: (itemId, uom) =>
     set((s) => ({
       services: s.services.map((i) => (i.id === itemId ? { ...i, unitOfMeasure: uom } : i)),
+    })),
+  setServiceRecommendedRate: (itemId, rate) =>
+    set((s) => ({
+      services: s.services.map((i) => (i.id === itemId ? { ...i, recommendedRate: rate } : i)),
     })),
   removeRegistryItem: (itemId) =>
     set((s) => ({

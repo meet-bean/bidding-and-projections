@@ -27,6 +27,7 @@ function ServicesPage() {
   const tenantId = useStore((s) => s.tenantId);
   const projectionProjects = useStore((s) => s.projectionProjects);
   const clearProjectionData = useStore((s) => s.clearProjectionData);
+  const setServiceRecommendedRate = useStore((s) => s.setServiceRecommendedRate);
   const isSuperior = tenantId === 'superior';
 
   const rows = useMemo(() => toServiceRows(services, catalog), [services, catalog]);
@@ -108,6 +109,7 @@ function ServicesPage() {
         rows={rows}
         onRowClick={setDetailRow}
         onManage={setDetailRow}
+        onSetRate={(row, rate) => setServiceRecommendedRate(row.id, rate)}
         isSuperior={isSuperior}
         actions={headerActions}
       />

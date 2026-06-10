@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
-import { ChevronRight, Info, MoreHorizontal } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Button, Input, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
+import { ChevronRight, Info, MoreHorizontal, Pencil, RotateCcw } from 'lucide-react';
 import {
   DataListShell,
   createColumnHelper,
@@ -17,6 +17,8 @@ interface ServicesTableProps {
   onRowClick: (row: ServiceRow) => void;
   /** Superior ⋯ menu → open the management drawer for this service. */
   onManage: (row: ServiceRow) => void;
+  /** Commit a manual recommended-rate override (null = back to auto). */
+  onSetRate: (row: ServiceRow, rate: number | null) => void;
   /** Superior shows the OE/CTD/F unit-cost columns; Stratagraph shows the rate card. */
   isSuperior: boolean;
   actions?: React.ReactNode;
@@ -62,6 +64,115 @@ function varianceCell(pct: number | null) {
   );
 }
 
+/**
+ * Inline-editable recommended rate (the approved Linear-style pattern):
+ * derived rate renders muted with a tiny "auto" tag; row hover reveals a
+ * dashed underline + pencil; clicking swaps to an input in place (enter
+ * commits, esc cancels). A manual override renders full-weight with a
+ * hover reset-to-auto icon. Typing the exact auto value clears the override.
+ */
+function RateCell({
+  row,
+  onCommit,
+}: {
+  row: ServiceRow;
+  onCommit: (rate: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const auto = row.recommendedRateAuto;
+  const override = row.recommendedRateOverride;
+  const value = override ?? auto;
+
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(value != null ? value.toFixed(2) : '');
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const n = Number.parseFloat(draft);
+    if (!Number.isFinite(n) || n <= 0) return; // invalid → cancel
+    const rounded = Math.round(n * 100) / 100;
+    if (auto != null && Math.abs(rounded - auto) < 0.005) {
+      // Typed the auto value back → follow auto again.
+      if (override != null) onCommit(null);
+      return;
+    }
+    if (override != null && Math.abs(rounded - override) < 0.005) return; // unchanged
+    onCommit(rounded);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+        <Input
+          autoFocus
+          type="number"
+          step="0.01"
+          min={0}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          aria-label={`Recommended rate for ${row.name}`}
+          className="h-7 w-28 text-right text-xs tabular-nums"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <button
+        type="button"
+        onClick={startEdit}
+        aria-label={`Edit recommended rate for ${row.name}`}
+        className="border-b border-dashed border-transparent text-right text-sm tabular-nums [tr:hover_&]:border-border"
+      >
+        {override != null ? (
+          <span className="font-medium">{formatCurrencyExact(override)}</span>
+        ) : value != null ? (
+          <span className="text-muted-foreground">{formatCurrencyExact(value)}</span>
+        ) : (
+          <span className="text-muted-foreground text-xs italic">{row.rateNote ?? '—'}</span>
+        )}
+      </button>
+      {override == null && value != null && (
+        <span className="text-muted-foreground/70 text-[9px] font-medium uppercase tracking-wider">
+          auto
+        </span>
+      )}
+      {override != null && auto != null ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Reset to auto rate"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCommit(null);
+              }}
+              className="text-muted-foreground hover:text-foreground opacity-0 [tr:hover_&]:opacity-100"
+            >
+              <RotateCcw className="size-3" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">
+            Reset to auto ({formatCurrencyExact(auto)})
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <Pencil className="text-muted-foreground size-3 opacity-0 [tr:hover_&]:opacity-100" />
+      )}
+    </div>
+  );
+}
+
 /** Info affordance explaining how a derived column is computed (hover to read). */
 function InfoTip({ label, info }: { label: string; info: string }) {
   return (
@@ -90,11 +201,11 @@ const UC_INFO = {
     'Projected final cost ÷ projected quantity, pooled across all projects — quantity-weighted, not an average.',
   variance: 'Forecast UC vs Original UC. Positive = projected to cost more than the bid per unit.',
   recommended:
-    'Suggested catalog rate: blended Original UC across only the projects where the estimate held up (forecast ≤ original). “—” when no project qualifies.',
+    'Suggested catalog rate: blended Original UC across only the projects where the estimate held up (forecast ≤ original). “—” when no project qualifies. Click a value to set your own; overridden rates show a reset.',
 } as const;
 
 /** Shared Services table — tenant-aware column set. */
-export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions }: ServicesTableProps) {
+export function ServicesTable({ rows, onRowClick, onManage, onSetRate, isSuperior, actions }: ServicesTableProps) {
   const columns = useMemo(
     () => [
       columnHelper.accessor('name', {
@@ -234,8 +345,8 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
                   <InfoTip label="Recommended Rate" info={UC_INFO.recommended} />
                 </div>
               ),
-              cell: (info) => moneyCell(info.row.original.recommendedRate, info.row.original.rateNote),
-              size: 124,
+              cell: (info) => <RateCell row={info.row.original} onCommit={(rate) => onSetRate(info.row.original, rate)} />,
+              size: 136,
             }),
           ]
         : [
@@ -244,7 +355,7 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
               header: ({ column }) => (
                 <DataGridColumnHeader column={column} title="Recommended Rate" className="justify-end" />
               ),
-              cell: (info) => moneyCell(info.row.original.recommendedRate, info.row.original.rateNote),
+              cell: (info) => <RateCell row={info.row.original} onCommit={(rate) => onSetRate(info.row.original, rate)} />,
               size: 160,
             }),
           ]),
@@ -275,7 +386,7 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
           ]
         : []),
     ],
-    [isSuperior, onManage]
+    [isSuperior, onManage, onSetRate]
   );
 
   const typeOptions = useMemo(
