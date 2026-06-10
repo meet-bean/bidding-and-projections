@@ -14,6 +14,7 @@ import {
 } from '@repo/ui';
 import { Plus } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { DAILY_CODE_META } from '~/data/service-catalog';
 import type { DailyCode, Job } from '~/lib/types';
 
@@ -26,7 +27,7 @@ import type { DailyCode, Job } from '~/lib/types';
  */
 export function ServiceToggles({ job }: { job: Job }) {
   const bid = useStore((s) => s.getBid(job.bidId));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const startService = useStore((s) => s.startService);
   const endService = useStore((s) => s.endService);
   const [pickerOpen, setPickerOpen] = useState(false);

@@ -13,6 +13,7 @@ import {
 } from '@repo/ui';
 import { Receipt, AlertCircle } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { buildInvoiceLines, sumInvoiceTotal } from '~/lib/invoice-builder';
 import type { Job } from '~/lib/types';
 
@@ -34,7 +35,7 @@ function nextIso(iso: string): string {
 export function GenerateInvoiceDialog({ open, onOpenChange, job }: GenerateInvoiceDialogProps) {
   const navigate = useNavigate();
   const bid = useStore((s) => s.getBid(job.bidId));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const countCodeUnits = useStore((s) => s.countCodeUnits);
   const sumMileage = useStore((s) => s.sumMileage);
   const createInvoice = useStore((s) => s.createInvoice);

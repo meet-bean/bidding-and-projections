@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Plus } from 'lucide-react';
 import { useStore, deriveBidStatus } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
 import type { BidStatus } from '~/lib/types';
 import {
@@ -53,7 +54,7 @@ function BidsPage() {
   const navigate = useNavigate();
   const bids = useStore((s) => s.bids);
   const customers = useStore((s) => s.customers);
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const jobs = useStore((s) => s.jobs);
   const invoices = useStore((s) => s.invoices);
 

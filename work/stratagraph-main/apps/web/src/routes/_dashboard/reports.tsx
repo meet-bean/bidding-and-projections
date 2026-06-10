@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Tabs, TabsList, TabsTrigger, TabsContent, cn } from '@repo/ui';
 import { Briefcase, HardHat, TrendingUp, Truck } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { JobBoard } from '~/components/job-board';
 import { UnitAvailabilityBadge } from '~/components/status-badges';
 import { PnlPortfolioView } from '~/components/pnl-portfolio';
@@ -18,7 +19,7 @@ function ReportsPage() {
   const users = useStore((s) => s.users);
   const yards = useStore((s) => s.yards);
   const bids = useStore((s) => s.bids);
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const customers = useStore((s) => s.customers);
   const projectionProjects = useStore((s) => s.projectionProjects);
   const invoices = useStore((s) => s.invoices);

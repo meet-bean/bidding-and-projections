@@ -8,7 +8,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Input,
   Label,
   MultiSelect,
   type Option,
@@ -19,9 +18,20 @@ import {
   SelectValue,
   cn,
 } from '@repo/ui';
-import { ArrowLeft, Briefcase } from 'lucide-react';
+import {
+  ArrowLeft,
+  Briefcase,
+  CalendarDays,
+  CircleUserRound,
+  Map,
+  MapPin,
+  Moon,
+  Sun,
+  Truck,
+} from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
 import { JobStatusBadge } from '~/components/status-badges';
+import { CHIP_CLASS, CHIP_STATIC_CLASS } from '~/lib/composer';
 import { ORDER_TYPE_LABELS, type OrderType, type Region } from '~/lib/types';
 
 const searchSchema = z.object({
@@ -115,7 +125,7 @@ function NewJobPage({ bidId }: { bidId: string }) {
     e.preventDefault();
     if (!bid || !customer) return;
     const fieldErrors: Record<string, string> = {};
-    if (!selectedWell) fieldErrors.well = 'Pick a well.';
+    if (!selectedWell) fieldErrors.well = 'Pick a project.';
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       return;
@@ -175,7 +185,7 @@ function NewJobPage({ bidId }: { bidId: string }) {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">New Job</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">New Job</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Billing against{' '}
           <Link
@@ -196,257 +206,255 @@ function NewJobPage({ bidId }: { bidId: string }) {
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Job details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {wellLocked ? (
-              <Field label="Well" required>
-                <div className="bg-muted/30 flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{bidWell!.name}</span>
-                    {bidWell!.county ? (
-                      <span className="text-muted-foreground text-xs">
-                        · {bidWell!.county}, {bidWell!.state ?? ''}
-                      </span>
-                    ) : null}
-                  </div>
-                  <Badge variant="outline" className="text-[10px] font-normal">
-                    From bid
-                  </Badge>
-                </div>
-              </Field>
-            ) : (
-              <Field
-                label="Well"
-                required
-                error={errors.well}
-                hint={
-                  wellsForCustomer.length === 0
-                    ? 'No wells on this customer — add one on the customer page first.'
-                    : undefined
-                }
+      {/* Linear-style composer: chip rows instead of a boxed labeled form. */}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2">
+          {wellLocked ? (
+            <div className={CHIP_STATIC_CLASS}>
+              <MapPin className="text-muted-foreground" />
+              {bidWell!.name}
+              {bidWell!.county ? (
+                <span className="text-muted-foreground font-normal">
+                  · {bidWell!.county}, {bidWell!.state ?? ''}
+                </span>
+              ) : null}
+              <Badge variant="outline" className="ml-1 text-[10px] font-normal">
+                From bid
+              </Badge>
+            </div>
+          ) : (
+            <Select
+              value={wellId}
+              onValueChange={(v) => setWellId(v)}
+              disabled={wellsForCustomer.length === 0}
+            >
+              <SelectTrigger
+                className={cn(CHIP_CLASS, errors.well && 'border-destructive')}
+                aria-label="Project"
               >
-                <Select
-                  value={wellId}
-                  onValueChange={(v) => setWellId(v)}
-                  disabled={wellsForCustomer.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pick a well">
-                      {(v: string) =>
-                        wellsForCustomer.find((w) => w.id === v)?.name ?? 'Pick a well'
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {wellsForCustomer.map((w) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        {w.name}
-                        {w.county ? ` · ${w.county}, ${w.state ?? ''}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <MapPin className="text-muted-foreground" />
+                <SelectValue placeholder={wellsForCustomer.length === 0 ? 'No projects' : 'Project'}>
+                  {(v: string) => wellsForCustomer.find((w) => w.id === v)?.name ?? 'Project'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {wellsForCustomer.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    {w.name}
+                    {w.county ? ` · ${w.county}, ${w.state ?? ''}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
+            <SelectTrigger className={CHIP_CLASS} aria-label="Order type">
+              <Briefcase className="text-muted-foreground" />
+              <SelectValue>{(v: string) => ORDER_TYPE_LABELS[v as OrderType]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ORDER_TYPE_OPTIONS.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {ORDER_TYPE_LABELS[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
+            <SelectTrigger className={CHIP_CLASS} aria-label="Region">
+              <Map className="text-muted-foreground" />
+              <SelectValue>{(v: string) => REGION_LABELS[v as Region]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {REGION_OPTIONS.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <label
+            className={cn(
+              CHIP_STATIC_CLASS,
+              'hover:bg-muted/60 cursor-pointer transition-colors',
+              !startDate && 'text-muted-foreground font-normal'
             )}
+          >
+            <CalendarDays className="text-muted-foreground" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-[7.5rem] bg-transparent text-xs outline-none"
+              aria-label="Start date"
+            />
+          </label>
+        </div>
+        {errors.well ? <p className="text-destructive text-xs">{errors.well}</p> : null}
+        {wellsForCustomer.length === 0 && !wellLocked ? (
+          <p className="text-muted-foreground text-xs">
+            No projects on this customer — add one on the customer page first.
+          </p>
+        ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Order type">
-                <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
-                  <SelectTrigger>
-                    <SelectValue>{(v: string) => ORDER_TYPE_LABELS[v as OrderType]}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_TYPE_OPTIONS.map((v) => (
-                      <SelectItem key={v} value={v}>
-                        {ORDER_TYPE_LABELS[v]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Region">
-                <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
-                  <SelectTrigger>
-                    <SelectValue>{(v: string) => REGION_LABELS[v as Region]}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REGION_OPTIONS.map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Start date" hint="Optional — blank = speculative. Set to a past date to backdate.">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </Field>
+        <div className="border-border/60 border-b" />
+
+        <div className="space-y-3">
+          <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            Crew, equipment &amp; management{' '}
+            <span className="font-normal normal-case">(optional — can be set later)</span>
+          </div>
+
+          {certOptions.length > 0 && (
+            <div className="max-w-md">
+              <MultiSelect
+                options={certOptions}
+                value={selectedCertOptions}
+                onChange={setSelectedCertOptions}
+                placeholder="Filter loggers by certification..."
+                hidePlaceholderWhenSelected
+              />
+              {requiredCerts.length > 0 ? (
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {filteredCrew.length} of {crew.length} crew match
+                </p>
+              ) : null}
             </div>
+          )}
 
-            <div className="border-t pt-4">
-              <div className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
-                Crew, equipment &amp; management <span className="font-normal normal-case">(optional — can be set later)</span>
-              </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={dayLoggerId || '__none__'}
+              onValueChange={(v) => setDayLoggerId(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger className={CHIP_CLASS} aria-label="Day logger">
+                <Sun className="text-muted-foreground" />
+                <SelectValue placeholder="Day logger">
+                  {(v: string) =>
+                    v === '__none__' || !v
+                      ? 'Day logger'
+                      : crew.find((c) => c.id === v)?.name ?? 'Day logger'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-muted-foreground italic">Unassigned</span>
+                </SelectItem>
+                {filteredCrew.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      · {c.available === false ? 'on job' : 'available'}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              {certOptions.length > 0 && (
-                <div className="mb-4">
-                  <Field
-                    label="Required certifications"
-                    hint={
-                      requiredCerts.length > 0
-                        ? `${filteredCrew.length} of ${crew.length} crew match`
-                        : 'Filter loggers by certification'
-                    }
-                  >
-                    <MultiSelect
-                      options={certOptions}
-                      value={selectedCertOptions}
-                      onChange={setSelectedCertOptions}
-                      placeholder="Select certifications..."
-                      hidePlaceholderWhenSelected
-                    />
-                  </Field>
-                </div>
-              )}
+            <Select
+              value={nightLoggerId || '__none__'}
+              onValueChange={(v) => setNightLoggerId(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger className={CHIP_CLASS} aria-label="Night logger">
+                <Moon className="text-muted-foreground" />
+                <SelectValue placeholder="Night logger">
+                  {(v: string) =>
+                    v === '__none__' || !v
+                      ? 'Night logger'
+                      : crew.find((c) => c.id === v)?.name ?? 'Night logger'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-muted-foreground italic">Unassigned</span>
+                </SelectItem>
+                {filteredCrew.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      · {c.available === false ? 'on job' : 'available'}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label="Day Logger">
-                  <Select
-                    value={dayLoggerId || '__none__'}
-                    onValueChange={(v) => setDayLoggerId(v === '__none__' ? '' : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unassigned">
-                        {(v: string) =>
-                          v === '__none__' || !v
-                            ? 'Unassigned'
-                            : crew.find((c) => c.id === v)?.name ?? 'Unassigned'
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      </SelectItem>
-                      {filteredCrew.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                          <span className="text-muted-foreground ml-2 text-xs">
-                            · {c.available === false ? 'on job' : 'available'}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Night Logger">
-                  <Select
-                    value={nightLoggerId || '__none__'}
-                    onValueChange={(v) => setNightLoggerId(v === '__none__' ? '' : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unassigned">
-                        {(v: string) =>
-                          v === '__none__' || !v
-                            ? 'Unassigned'
-                            : crew.find((c) => c.id === v)?.name ?? 'Unassigned'
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      </SelectItem>
-                      {filteredCrew.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                          <span className="text-muted-foreground ml-2 text-xs">
-                            · {c.available === false ? 'on job' : 'available'}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Unit">
-                  <Select
-                    value={unitId || '__none__'}
-                    onValueChange={(v) => setUnitId(v === '__none__' ? '' : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unassigned">
-                        {(v: string) => {
-                          const u = units.find((x) => x.id === v);
-                          return u ? u.code : 'Unassigned';
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      </SelectItem>
-                      {units.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.code} · {u.type.replace('_', ' ')}
-                          <span className="text-muted-foreground ml-2 text-xs">
-                            · {u.currentJobId ? 'deployed' : 'available'}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Project Manager">
-                  <Select
-                    value={projectManagerId || '__none__'}
-                    onValueChange={(v) => setProjectManagerId(v === '__none__' ? '' : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unassigned">
-                        {(v: string) =>
-                          v === '__none__' || !v
-                            ? 'Unassigned'
-                            : projectManagers.find((pm) => pm.id === v)?.name ?? 'Unassigned'
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      </SelectItem>
-                      {projectManagers.map((pm) => (
-                        <SelectItem key={pm.id} value={pm.id}>
-                          {pm.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </div>
+            <Select
+              value={unitId || '__none__'}
+              onValueChange={(v) => setUnitId(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger className={CHIP_CLASS} aria-label="Unit">
+                <Truck className="text-muted-foreground" />
+                <SelectValue placeholder="Unit">
+                  {(v: string) => {
+                    const u = units.find((x) => x.id === v);
+                    return u ? u.code : 'Unit';
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-muted-foreground italic">Unassigned</span>
+                </SelectItem>
+                {units.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.code} · {u.type.replace('_', ' ')}
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      · {u.currentJobId ? 'deployed' : 'available'}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div className="text-muted-foreground flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs">
-              <span className="uppercase tracking-wider">Will be created as</span>
-              <JobStatusBadge status={projectedStatus} />
-            </div>
-          </CardContent>
-        </Card>
+            <Select
+              value={projectManagerId || '__none__'}
+              onValueChange={(v) => setProjectManagerId(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger className={CHIP_CLASS} aria-label="Project manager">
+                <CircleUserRound className="text-muted-foreground" />
+                <SelectValue placeholder="Project manager">
+                  {(v: string) =>
+                    v === '__none__' || !v
+                      ? 'Project manager'
+                      : projectManagers.find((pm) => pm.id === v)?.name ?? 'Project manager'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-muted-foreground italic">Unassigned</span>
+                </SelectItem>
+                {projectManagers.map((pm) => (
+                  <SelectItem key={pm.id} value={pm.id}>
+                    {pm.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => navigate({ to: '/jobs' })}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!bidUsable}>
-            Create Job
-          </Button>
+        <div className="border-border/60 border-b" />
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
+            <span className="uppercase tracking-wider">Will be created as</span>
+            <JobStatusBadge status={projectedStatus} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={() => navigate({ to: '/jobs' })}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!bidUsable}>
+              Create Job
+            </Button>
+          </div>
         </div>
       </form>
     </div>
@@ -566,32 +574,6 @@ function BidPicker({ initialCustomerId }: { initialCustomerId?: string }) {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  required,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn('space-y-1.5')}>
-      <Label className="flex items-center gap-1 text-xs uppercase tracking-wider">
-        {label}
-        {required ? <span className="text-destructive">*</span> : null}
-      </Label>
-      {children}
-      {hint && !error ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
     </div>
   );
 }

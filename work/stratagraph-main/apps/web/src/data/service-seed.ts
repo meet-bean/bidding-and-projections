@@ -1,6 +1,53 @@
 import type { Service, ProjectionProject } from '@repo/projections';
 import { createRegistry, addServiceItem } from '@repo/projections';
+import type { BillingUnit, DailyCode, ServiceCatalogItem, ServiceCategory } from '~/lib/types';
 import { SERVICE_CATALOG } from './service-catalog';
+
+/**
+ * Operations read-model. `Service` (in @repo/projections) is the single source
+ * of truth for service data, edited via the admin Services page. The operations
+ * screens (bids, jobs, invoices, reports, P&L) consume a Stratagraph-typed
+ * *projection* of it — `ServiceCatalogItem` — that is always DERIVED from
+ * `services`, never stored or seeded independently. That's what makes admin
+ * edits flow everywhere with no possibility of desync.
+ *
+ * Round-trips buildStratagraphServices(): ids are preserved, so existing
+ * BidService.catalogItemId references stay valid. Only meaningful for the
+ * Stratagraph tenant — Superior's services are projection-derived.
+ */
+function catalogFromServices(services: Service[]): ServiceCatalogItem[] {
+  return services.map((s) => ({
+    id: s.id,
+    category: s.costType as ServiceCategory,
+    name: s.canonicalName,
+    defaultRate: s.recommendedRate,
+    rateNote: s.rateNote,
+    dailyCode: (s.dailyCode ?? undefined) as DailyCode | undefined,
+    billingUnit: (s.billingUnit ?? 'per_day') as BillingUnit,
+  }));
+}
+
+/**
+ * Memoized accessor for the operations catalog. One-slot cache keyed on the
+ * `services` array identity: as long as `services` hasn't changed, the same
+ * catalog array reference is returned — so `useStore((s) => selectServiceCatalog(s.services))`
+ * is stable for React's snapshot caching and only recomputes on a real edit.
+ *
+ * This is the ONE access path for service data in the operations UI. No screen
+ * imports the raw SERVICE_CATALOG seed or holds its own copy.
+ */
+let _catalogMemo: { src: Service[]; out: ServiceCatalogItem[] } | null = null;
+export function selectServiceCatalog(services: Service[]): ServiceCatalogItem[] {
+  if (_catalogMemo && _catalogMemo.src === services) return _catalogMemo.out;
+  const out = catalogFromServices(services);
+  _catalogMemo = { src: services, out };
+  return out;
+}
+
+/** Single-item lookup over the derived catalog. */
+export function selectService(services: Service[], id: string): ServiceCatalogItem | undefined {
+  return selectServiceCatalog(services).find((c) => c.id === id);
+}
 
 /** Stratagraph rate card → Service[] (identity + recommendedRate/billing; no cost sources). */
 export function buildStratagraphServices(): Service[] {

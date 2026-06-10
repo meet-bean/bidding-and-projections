@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { TENANTS, type TenantId, type TenantConfig } from './tenant';
-import { SERVICE_CATALOG } from '~/data/service-catalog';
 import type { ProjectionProject, ProjectionItem, Metric, MetricGroup, MetricsCatalog, Service, ServiceRegistry, ServiceAlias, BatchUploadResult, ImportLine, ReconcileDecision } from '@repo/projections';
 import {
   createEmptyProject,
@@ -68,7 +67,7 @@ import {
   DEMO_INVOICES,
   buildDemoRegistry,
 } from '~/data/seed-demo';
-import { buildStratagraphServices } from '~/data/service-seed';
+import { buildStratagraphServices, selectServiceCatalog } from '~/data/service-seed';
 
 /**
  * Resolve the tenant from client-only sources (URL `?tenant=` param, then
@@ -126,7 +125,6 @@ import type {
   Notification,
   Organization,
   Rig,
-  ServiceCatalogItem,
   MileageEntry,
   ServiceRun,
   InvoiceStatus,
@@ -347,7 +345,6 @@ function nextIso(iso: string): string {
 // ---------------------------------------------------------------------------
 
 interface StratagraphState {
-  serviceCatalog: ServiceCatalogItem[];
   customers: Customer[];
   wells: Well[];
   bids: Bid[];
@@ -378,7 +375,6 @@ interface StratagraphState {
   getUser: (id: string) => User | undefined;
   locationsForCustomer: (customerId: string) => Location[];
   rigsForLocation: (locationId: string) => Rig[];
-  getCatalogItem: (id: string) => ServiceCatalogItem | undefined;
 
   /** LOV "create new" mutations — return the new entity id for immediate selection. */
   createLocation: (input: Omit<Location, 'id'>) => string;
@@ -589,8 +585,15 @@ const _initialTenant: TenantId = 'stratagraph';
 const _initialSeed = seedForTenant(_initialTenant);
 const _initialDemoMode = false;
 
+/** Build the unified `services` array for a tenant + demo state. */
+function servicesForTenant(id: TenantId, demo: boolean): Service[] {
+  if (id === 'stratagraph') return buildStratagraphServices();
+  return demo ? buildDemoRegistry(id).items : [];
+}
+
+const _initialServices = servicesForTenant(_initialTenant, _initialDemoMode);
+
 export const useStore = create<StratagraphState>((set, get) => ({
-  serviceCatalog: SERVICE_CATALOG,
   customers: _initialSeed.customers,
   wells: _initialSeed.wells,
   bids: _initialDemoMode ? [..._initialSeed.bids, ...DEMO_BIDS] : _initialSeed.bids,
@@ -643,7 +646,6 @@ export const useStore = create<StratagraphState>((set, get) => ({
   locationsForCustomer: (customerId) =>
     get().locations.filter((l) => l.customerId === customerId),
   rigsForLocation: (locationId) => get().rigs.filter((r) => r.locationId === locationId),
-  getCatalogItem: (id) => get().serviceCatalog.find((s) => s.id === id),
 
   createLocation: (input) => {
     const id = `loc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -931,7 +933,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
     let activeCodes = input.activeCodes;
     if (!activeCodes) {
       const bid = get().bids.find((b) => b.id === input.bidId);
-      const catalog = get().serviceCatalog;
+      const catalog = selectServiceCatalog(get().services);
       if (bid) {
         const codes = new Set<DailyCode>();
         for (const li of bid.services) {
@@ -1170,12 +1172,8 @@ export const useStore = create<StratagraphState>((set, get) => ({
       metricsCatalog: createCatalog(id),
       // Stratagraph's catalog is its rate card regardless of demo mode;
       // Superior's is built from projection data (demo-only until uploads).
-      services:
-        id === 'stratagraph'
-          ? buildStratagraphServices()
-          : demo
-            ? buildDemoRegistry(id).items
-            : [],
+      // The operations catalog is derived from this on read (selectServiceCatalog).
+      services: servicesForTenant(id, demo),
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
@@ -1200,7 +1198,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         projectionProjects: [...s.projectionProjects, ...DEMO_PROJECTION_PROJECTS],
         bids: [...s.bids, ...DEMO_BIDS],
         invoices: [...s.invoices, ...DEMO_INVOICES],
-        services: tid === 'stratagraph' ? buildStratagraphServices() : buildDemoRegistry(tid).items,
+        services: servicesForTenant(tid, true),
       }));
     } else {
       const tid = get().tenantId;
@@ -1210,7 +1208,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
         bids: s.bids.filter((b) => !b.id.startsWith('demo-')),
         invoices: s.invoices.filter((i) => !i.id.startsWith('demo-')),
         activeProjectionId: s.activeProjectionId?.startsWith('demo-') ? null : s.activeProjectionId,
-        services: tid === 'stratagraph' ? buildStratagraphServices() : [],
+        services: servicesForTenant(tid, false),
       }));
     }
   },
@@ -1325,12 +1323,7 @@ export const useStore = create<StratagraphState>((set, get) => ({
   removeGroupFromStore: (groupId) =>
     set((s) => ({ metricsCatalog: removeGroup(s.metricsCatalog, groupId) })),
 
-  services:
-    _initialTenant === 'stratagraph'
-      ? buildStratagraphServices()
-      : _initialDemoMode
-        ? buildDemoRegistry(_initialTenant).items
-        : [],
+  services: _initialServices,
   addRegistryItem: (input) =>
     set((s) => ({
       services: addServiceItem({ tenantId: s.tenantId, items: s.services }, input).items,
@@ -1362,11 +1355,13 @@ export const useStore = create<StratagraphState>((set, get) => ({
 
   clearProjectionData: () => {
     const tid = get().tenantId;
+    // Clearing projection data resets Superior's services to empty (rebuilt on
+    // next upload); Stratagraph keeps its rate card.
     set({
       projectionProjects: [],
       activeProjectionId: null,
       metricsCatalog: createCatalog(tid),
-      services: tid === 'stratagraph' ? buildStratagraphServices() : [],
+      services: servicesForTenant(tid, false),
     });
   },
 

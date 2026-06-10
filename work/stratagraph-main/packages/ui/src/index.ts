@@ -177,6 +177,7 @@ export * from './components/ui/data-grid-column-filter';
 export * from './components/ui/data-grid-column-visibility';
 export * from './components/ui/data-grid-table-dnd';
 export * from './components/ui/data-grid-table-dnd-rows';
+export * from './components/ui/minimal-data-grid';
 
 // View components (URL-driven wrappers)
 export * from './components/ui/view-pagination';

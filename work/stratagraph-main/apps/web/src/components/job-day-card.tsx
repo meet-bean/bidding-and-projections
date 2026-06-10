@@ -22,6 +22,7 @@ import {
 import { ArrowRight, ChevronDown, ChevronRight, Check, HardHat, Plus, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useStore } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { CATEGORY_LABELS, DAILY_CODE_META } from '~/data/service-catalog';
 import type { DailyCode, Job, ServiceCategory } from '~/lib/types';
 
@@ -49,7 +50,7 @@ export function JobDayCard({
 }) {
   const customer = useStore((s) => s.getCustomer(job.customerId));
   const bid = useStore((s) => s.getBid(job.bidId));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const allUsers = useStore((s) => s.users);
   const employees = useMemo(() => allUsers.filter((u) => u.role === 'field_crew'), [allUsers]);
 

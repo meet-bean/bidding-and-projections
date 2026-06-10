@@ -18,11 +18,22 @@ import {
   SelectValue,
   Textarea,
   cn,
+  MinimalDataGrid,
+  MINIMAL_GRID_HEADER_LABEL,
+  DataGridColumnHeader,
+  createColumnHelper,
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  type SortingState,
 } from '@repo/ui';
-import { Save, X, Lock } from 'lucide-react';
+import { Save, X, Lock, Building2, MapPin, CircleUserRound } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useStore } from '~/lib/store';
-import { CATEGORY_LABELS, SERVICE_CATALOG } from '~/data/service-catalog';
+import { selectServiceCatalog } from '~/data/service-seed';
+import { toServiceRows, type ServiceRow } from '~/lib/service-rows';
+import { CHIP_CLASS } from '~/lib/composer';
+import { CATEGORY_LABELS } from '~/data/service-catalog';
 import type {
   Bid,
   BidService,
@@ -57,6 +68,15 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
   const navigate = useNavigate();
   const customers = useStore((s) => s.customers);
   const users = useStore((s) => s.users);
+  const services = useStore((s) => s.services);
+  const metricsCatalog = useStore((s) => s.metricsCatalog);
+  const catalog = selectServiceCatalog(services);
+  // Same economics the admin Services screen shows (Original/Actual/Forecast UC,
+  // Δ vs Bid), keyed by service id so each picker row can render them.
+  const rowsById = useMemo(
+    () => new Map(toServiceRows(services, metricsCatalog).map((r) => [r.id, r])),
+    [services, metricsCatalog]
+  );
   const createBid = useStore((s) => s.createBid);
   const updateBid = useStore((s) => s.updateBid);
   const isEditing = !!bid;
@@ -91,32 +111,30 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
     return out;
   });
 
+  // Group services by whatever categories actually exist in the catalog —
+  // Stratagraph's known categories first (in their canonical order), then any
+  // other category (e.g. Superior cost types) in catalog order. This keeps the
+  // picker tenant-agnostic: it renders whatever the unified services hold.
   const itemsByCategory = useMemo(() => {
-    const out: Record<ServiceCategory, ServiceCatalogItem[]> = {
-      logging: [],
-      xrf_ftir: [],
-      real_time: [],
-      cuttings: [],
-      unmanned_gas: [],
-    };
-    SERVICE_CATALOG.forEach((item) => out[item.category].push(item));
+    const out = new Map<string, ServiceCatalogItem[]>();
+    for (const cat of CATEGORY_ORDER) {
+      if (catalog.some((i) => i.category === cat)) out.set(cat, []);
+    }
+    for (const item of catalog) {
+      if (!out.has(item.category)) out.set(item.category, []);
+      out.get(item.category)!.push(item);
+    }
     return out;
-  }, []);
+  }, [catalog]);
 
   const selectedCounts = useMemo(() => {
-    const counts: Record<ServiceCategory, number> = {
-      logging: 0,
-      xrf_ftir: 0,
-      real_time: 0,
-      cuttings: 0,
-      unmanned_gas: 0,
-    };
+    const counts: Record<string, number> = {};
     for (const cid of Object.keys(lines)) {
-      const item = SERVICE_CATALOG.find((i) => i.id === cid);
-      if (item) counts[item.category]++;
+      const item = catalog.find((i) => i.id === cid);
+      if (item) counts[item.category] = (counts[item.category] ?? 0) + 1;
     }
     return counts;
-  }, [lines]);
+  }, [lines, catalog]);
 
   const totalSelected = Object.values(selectedCounts).reduce((s, n) => s + n, 0);
 
@@ -148,7 +166,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
     if (totalSelected === 0) return 'Add at least one service.';
     for (const l of Object.values(lines)) {
       if (l.rate == null || Number.isNaN(l.rate)) {
-        const item = SERVICE_CATALOG.find((i) => i.id === l.catalogItemId);
+        const item = catalog.find((i) => i.id === l.catalogItemId);
         return `Set a rate for "${item?.name ?? l.catalogItemId}".`;
       }
     }
@@ -201,107 +219,96 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{isEditing ? 'Edit Bid' : 'New Bid'}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-              Customer
-            </label>
-            <Select
-              value={customerId}
-              onValueChange={(v) => {
-                setCustomerId(v);
-                setWellId('');
-              }}
-              disabled={!!lockedCustomerId || isEditing}
-            >
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Pick a customer">
-                  {(v: string) => customers.find((c) => c.id === v)?.name ?? 'Pick a customer'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
+      {/* Linear-style composer: chromeless header — large quiet title, a row of
+       * compact property chips, then a ghost notes field. No boxed form. */}
+      <div className="space-y-4 pt-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {isEditing ? 'Edit Bid' : 'New Bid'}
+        </h1>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={customerId}
+            onValueChange={(v) => {
+              setCustomerId(v);
+              setWellId('');
+            }}
+            disabled={!!lockedCustomerId || isEditing}
+          >
+            <SelectTrigger className={CHIP_CLASS} aria-label="Customer">
+              <Building2 className="text-muted-foreground" />
+              <SelectValue placeholder="Customer">
+                {(v: string) => customers.find((c) => c.id === v)?.name ?? 'Customer'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {customers.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={wellId}
+            onValueChange={(v) => setWellId(v)}
+            disabled={!customerId || wellsForCustomer.length === 0}
+          >
+            <SelectTrigger className={CHIP_CLASS} aria-label="Project">
+              <MapPin className="text-muted-foreground" />
+              <SelectValue
+                placeholder={
+                  !customerId
+                    ? 'Project'
+                    : wellsForCustomer.length === 0
+                      ? 'No projects'
+                      : 'Project'
+                }
+              >
+                {(v: string) => wellsForCustomer.find((w) => w.id === v)?.name ?? 'Project'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {wellsForCustomer.map((w) => (
+                <SelectItem key={w.id} value={w.id}>
+                  {w.name}
+                  {w.county ? ` · ${w.county}, ${w.state ?? ''}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={salesperson} onValueChange={(v) => setSalesperson(v)}>
+            <SelectTrigger className={CHIP_CLASS} aria-label="Salesperson">
+              <CircleUserRound className="text-muted-foreground" />
+              <SelectValue placeholder="Salesperson">
+                {(v: string) =>
+                  users.find((u) => u.name === v || u.id === v)?.name ?? (v || 'Salesperson')
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {users
+                .filter((u) => u.role !== 'field_crew')
+                .map((u) => (
+                  <SelectItem key={u.id} value={u.name}>
+                    {u.name}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-              Well
-            </label>
-            <Select
-              value={wellId}
-              onValueChange={(v) => setWellId(v)}
-              disabled={!customerId || wellsForCustomer.length === 0}
-            >
-              <SelectTrigger className="bg-background">
-                <SelectValue
-                  placeholder={
-                    !customerId
-                      ? 'Pick customer first'
-                      : wellsForCustomer.length === 0
-                        ? 'No wells on customer'
-                        : 'Pick a well'
-                  }
-                >
-                  {(v: string) =>
-                    wellsForCustomer.find((w) => w.id === v)?.name ?? 'Pick a well'
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {wellsForCustomer.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
-                    {w.county ? ` · ${w.county}, ${w.state ?? ''}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-              Salesperson
-            </label>
-            <Select value={salesperson} onValueChange={(v) => setSalesperson(v)}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Pick a salesperson">
-                  {(v: string) =>
-                    users.find((u) => u.name === v || u.id === v)?.name ?? v ?? 'Pick'
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {users
-                  .filter((u) => u.role !== 'field_crew')
-                  .map((u) => (
-                    <SelectItem key={u.id} value={u.name}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5 sm:col-span-3">
-            <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-              Notes (optional)
-            </label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Negotiation notes, customer asks, etc."
-            />
-          </div>
-        </CardContent>
-      </Card>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Add notes — negotiation context, customer asks…"
+          className="min-h-14 resize-none rounded-none border-none bg-transparent px-0 py-0 text-sm shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent"
+        />
+        <div className="border-border/60 border-b" />
+      </div>
 
 
       <Card>
@@ -314,14 +321,13 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" defaultValue={[]} className="w-full">
-            {CATEGORY_ORDER.map((cat) => {
-              const items = itemsByCategory[cat];
-              const selected = selectedCounts[cat];
+            {[...itemsByCategory.entries()].map(([cat, items]) => {
+              const selected = selectedCounts[cat] ?? 0;
               return (
                 <AccordionItem key={cat} value={cat}>
                   <AccordionTrigger>
                     <div className="flex flex-1 items-center justify-between gap-3 pr-3">
-                      <span>{CATEGORY_LABELS[cat]}</span>
+                      <span>{(CATEGORY_LABELS as Record<string, string>)[cat] ?? cat}</span>
                       <Badge variant={selected > 0 ? 'primary' : 'outline'} className="text-xs">
                         {selected} / {items.length} selected
                       </Badge>
@@ -331,6 +337,7 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
                     <CategoryTable
                       items={items}
                       lines={lines}
+                      rowsById={rowsById}
                       onToggle={toggleItem}
                       onRateChange={setLineRate}
                     />
@@ -362,93 +369,209 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
   );
 }
 
+/** $-formatted unit cost, "—" when not available (matches the Services screen). */
+function ucCell(value: number | null, uomVaries: boolean) {
+  if (uomVaries)
+    return <span className="text-muted-foreground text-xs italic">mixed</span>;
+  if (value == null) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <span className="text-muted-foreground tabular-nums">
+      ${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+    </span>
+  );
+}
+
+/** Forecast-vs-Original variance: over-bid runs warm (red), under runs cool (green). */
+function varianceCell(pct: number | null) {
+  if (pct == null) return <span className="text-muted-foreground text-xs">—</span>;
+  const rounded = Math.round(pct);
+  if (rounded === 0)
+    return <span className="text-muted-foreground tabular-nums">0%</span>;
+  const over = rounded > 0;
+  return (
+    <span
+      className={cn('font-medium tabular-nums', over ? 'text-destructive' : 'text-success')}
+    >
+      {over ? '+' : ''}
+      {rounded}%
+    </span>
+  );
+}
+
+const catHelper = createColumnHelper<ServiceCatalogItem>();
+
+/** Right-aligned micro header for numeric columns. */
+function NumHeader<TData, TValue>({
+  column,
+  title,
+}: {
+  column: React.ComponentProps<typeof DataGridColumnHeader<TData, TValue>>['column'];
+  title: string;
+}) {
+  return (
+    <div className="flex w-full justify-end">
+      <DataGridColumnHeader column={column} title={title} className={MINIMAL_GRID_HEADER_LABEL} />
+    </div>
+  );
+}
+
+/**
+ * Per-category service picker, rendered on the shared MinimalDataGrid shell —
+ * the exact same component the projections table uses, so the two tables are
+ * literally built from one shell (spacing, typography, hover, row borders).
+ * Converting to the shell also picked up column sorting for free.
+ */
 function CategoryTable({
   items,
   lines,
+  rowsById,
   onToggle,
   onRateChange,
 }: {
   items: ServiceCatalogItem[];
   lines: Record<string, DraftLine>;
+  rowsById: Map<string, ServiceRow>;
   onToggle: (item: ServiceCatalogItem) => void;
   onRateChange: (catalogItemId: string, rate: number | null) => void;
 }) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Mirror the draft lines into TanStack row-selection so the shell's
+  // data-[state=selected] row styling applies.
+  const rowSelection = useMemo(() => {
+    const sel: Record<string, boolean> = {};
+    for (const it of items) if (lines[it.id]) sel[it.id] = true;
+    return sel;
+  }, [items, lines]);
+
+  const columns = useMemo(
+    () => [
+      catHelper.display({
+        id: 'select',
+        header: '',
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={!!lines[row.original.id]}
+            onChange={() => onToggle(row.original)}
+            aria-label={`Include ${row.original.name}`}
+            className="h-4 w-4 cursor-pointer accent-primary"
+          />
+        ),
+        size: 36,
+      }),
+      catHelper.accessor('name', {
+        id: 'service',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Service" className={MINIMAL_GRID_HEADER_LABEL} />
+        ),
+        cell: ({ getValue }) => <span className="text-sm leading-snug">{getValue()}</span>,
+        size: 320,
+      }),
+      catHelper.accessor((it) => rowsById.get(it.id)?.originalUC ?? null, {
+        id: 'originalUC',
+        header: ({ column }) => <NumHeader column={column} title="Original UC" />,
+        cell: ({ row }) => {
+          const r = rowsById.get(row.original.id);
+          return <div className="text-right text-sm">{ucCell(r?.originalUC ?? null, r?.uomVaries ?? false)}</div>;
+        },
+        size: 96,
+      }),
+      catHelper.accessor((it) => rowsById.get(it.id)?.actualUC ?? null, {
+        id: 'actualUC',
+        header: ({ column }) => <NumHeader column={column} title="Actual UC" />,
+        cell: ({ row }) => {
+          const r = rowsById.get(row.original.id);
+          return <div className="text-right text-sm">{ucCell(r?.actualUC ?? null, r?.uomVaries ?? false)}</div>;
+        },
+        size: 96,
+      }),
+      catHelper.accessor((it) => rowsById.get(it.id)?.forecastUC ?? null, {
+        id: 'forecastUC',
+        header: ({ column }) => <NumHeader column={column} title="Forecast UC" />,
+        cell: ({ row }) => {
+          const r = rowsById.get(row.original.id);
+          return <div className="text-right text-sm">{ucCell(r?.forecastUC ?? null, r?.uomVaries ?? false)}</div>;
+        },
+        size: 96,
+      }),
+      catHelper.accessor((it) => rowsById.get(it.id)?.variancePct ?? null, {
+        id: 'variance',
+        header: ({ column }) => <NumHeader column={column} title="Δ vs Bid" />,
+        cell: ({ row }) => (
+          <div className="text-right text-sm">{varianceCell(rowsById.get(row.original.id)?.variancePct ?? null)}</div>
+        ),
+        size: 80,
+      }),
+      catHelper.accessor((it) => it.defaultRate ?? null, {
+        id: 'catalogRate',
+        header: ({ column }) => <NumHeader column={column} title="Catalog rate" />,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="text-right text-sm tabular-nums">
+              {item.defaultRate != null ? (
+                <span className="text-muted-foreground">
+                  $
+                  {item.defaultRate.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-xs italic">{item.rateNote ?? '—'}</span>
+              )}
+            </div>
+          );
+        },
+        size: 112,
+      }),
+      catHelper.display({
+        id: 'bidRate',
+        header: ({ column }) => <NumHeader column={column} title="Bid rate" />,
+        cell: ({ row }) => {
+          const item = row.original;
+          const draft = lines[item.id];
+          if (!draft) return <div className="text-right text-muted-foreground text-xs">—</div>;
+          return (
+            <div className="flex justify-end">
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                value={draft.rate ?? ''}
+                onChange={(e) =>
+                  onRateChange(item.id, e.target.value === '' ? null : Number(e.target.value))
+                }
+                placeholder={item.defaultRate != null ? String(item.defaultRate) : 'Negotiated'}
+                className="h-7 w-28 text-right text-xs tabular-nums"
+              />
+            </div>
+          );
+        },
+        size: 128,
+      }),
+    ],
+    [lines, rowsById, onToggle, onRateChange],
+  );
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    state: { sorting, rowSelection },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getRowId: (r) => r.id,
+    enableRowSelection: true,
+  });
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-            <th className="w-10 p-2"></th>
-            <th className="p-2 text-left">Service</th>
-            <th className="w-28 p-2 text-right">Catalog rate</th>
-            <th className="w-32 p-2 text-right">Bid rate</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => {
-            const selected = !!lines[item.id];
-            const draft = lines[item.id];
-            const hasNumericDefault = item.defaultRate != null;
-            return (
-              <tr
-                key={item.id}
-                className={cn(
-                  'hover:bg-muted/30 border-b last:border-b-0',
-                  selected && 'bg-primary/5'
-                )}
-              >
-                <td className="p-2 align-top">
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => onToggle(item)}
-                    aria-label={`Include ${item.name}`}
-                    className="h-4 w-4 cursor-pointer accent-primary"
-                  />
-                </td>
-                <td className="p-2 align-top text-sm">
-                  <div className="leading-snug">{item.name}</div>
-                </td>
-                <td className="p-2 align-top text-right text-sm tabular-nums">
-                  {hasNumericDefault ? (
-                    <span className="text-muted-foreground">
-                      $
-                      {(item.defaultRate ?? 0).toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-xs italic">
-                      {item.rateNote ?? '—'}
-                    </span>
-                  )}
-                </td>
-                <td className="p-2 align-top text-right">
-                  {selected ? (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      value={draft?.rate ?? ''}
-                      onChange={(e) =>
-                        onRateChange(
-                          item.id,
-                          e.target.value === '' ? null : Number(e.target.value)
-                        )
-                      }
-                      placeholder={hasNumericDefault ? String(item.defaultRate) : 'Negotiated'}
-                      className="h-8 w-28 text-right text-xs tabular-nums"
-                    />
-                  ) : (
-                    <span className="text-muted-foreground text-xs">—</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <MinimalDataGrid
+      table={table}
+      recordCount={items.length}
+      tableLayout={{ headerSticky: false }}
+      tableClassNames={{ bodyRow: 'data-[state=selected]:bg-primary/5' }}
+    />
   );
 }

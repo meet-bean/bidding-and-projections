@@ -1,7 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
+import {
+  createColumnHelper,
+  MinimalDataGrid,
+  MINIMAL_GRID_HEADER_LABEL,
+  DataGridColumnHeader,
+  getCoreRowModel,
+  useReactTable,
+  cn,
+} from '@repo/ui';
 import { formatCurrency } from '@repo/projections';
 import type { SummaryRow, SummaryResult } from '@repo/projections';
 
@@ -9,70 +17,96 @@ interface ProjectionSummaryRowsProps {
   summary: SummaryResult;
 }
 
-export function ProjectionSummaryRows({ summary }: ProjectionSummaryRowsProps) {
-  const [expanded, setExpanded] = useState(true);
+/** Summary row plus a flag for the appended grand-total line. */
+type Line = SummaryRow & { isTotal?: boolean };
 
+const helper = createColumnHelper<Line>();
+
+function numCell(value: string, isTotal: boolean | undefined) {
   return (
-    <div className="mt-2 rounded-lg border bg-card">
-      <button
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-        onClick={() => setExpanded((e) => !e)}
-      >
-        {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-        Summary by Cost Type
-      </button>
-      {expanded && (
-        <div className="border-t">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="px-3 py-1.5 text-left font-medium">Cost Type</th>
-                <th className="px-3 py-1.5 text-right font-medium">Items</th>
-                <th className="px-3 py-1.5 text-right font-medium">CTP Cost</th>
-                <th className="px-3 py-1.5 text-right font-medium">CTD Cost</th>
-                <th className="px-3 py-1.5 text-right font-medium">CTC Cost</th>
-                <th className="px-3 py-1.5 text-right font-medium">Forecast</th>
-                <th className="px-3 py-1.5 text-right font-medium">Estimate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.summaryRows.map((row) => (
-                <SummaryRowLine key={row.costType} row={row} />
-              ))}
-              <tr className="border-t-2 font-semibold">
-                <td className="px-3 py-2">{summary.grand.costType}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{summary.grand.count}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(summary.grand.CTP.cost)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(summary.grand.CTD.cost)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(summary.grand.CTC.cost)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(summary.grand.F.cost)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(summary.grand.Est.cost)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+    <div
+      className={cn(
+        'text-right text-sm tabular-nums',
+        isTotal ? 'font-semibold text-foreground' : 'text-muted-foreground',
       )}
+    >
+      {value}
     </div>
   );
 }
 
-function SummaryRowLine({ row }: { row: SummaryRow }) {
+/** $-cost column for one slice of the summary (CTP/CTD/CTC/F/Est). */
+function costColumn(id: string, title: string, pick: (row: Line) => number) {
+  return helper.accessor((row) => pick(row), {
+    id,
+    header: ({ column }) => (
+      <div className="flex w-full justify-end">
+        <DataGridColumnHeader column={column} title={title} className={MINIMAL_GRID_HEADER_LABEL} />
+      </div>
+    ),
+    cell: ({ row }) => numCell(formatCurrency(pick(row.original)), row.original.isTotal),
+    size: 130,
+  });
+}
+
+/**
+ * Per-cost-type rollup under the projection table, on the same MinimalDataGrid
+ * shell as everything else: monochrome (no cost-type colors), horizontal lines
+ * only, micro headers. The grand total renders as the final, semibold row.
+ */
+export function ProjectionSummaryRows({ summary }: ProjectionSummaryRowsProps) {
+  const data = useMemo<Line[]>(
+    () => [...summary.summaryRows, { ...summary.grand, isTotal: true }],
+    [summary],
+  );
+
+  const columns = useMemo(
+    () => [
+      helper.accessor('costType', {
+        id: 'costType',
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Cost Type" className={MINIMAL_GRID_HEADER_LABEL} />
+        ),
+        cell: ({ row, getValue }) => (
+          <span className={cn('text-sm', row.original.isTotal && 'font-semibold')}>{getValue()}</span>
+        ),
+        size: 140,
+      }),
+      helper.accessor('count', {
+        id: 'items',
+        header: ({ column }) => (
+          <div className="flex w-full justify-end">
+            <DataGridColumnHeader column={column} title="Items" className={MINIMAL_GRID_HEADER_LABEL} />
+          </div>
+        ),
+        cell: ({ row, getValue }) => numCell(String(getValue()), row.original.isTotal),
+        size: 70,
+      }),
+      costColumn('ctp', 'CTP Cost', (r) => r.CTP.cost),
+      costColumn('ctd', 'CTD Cost', (r) => r.CTD.cost),
+      costColumn('ctc', 'CTC Cost', (r) => r.CTC.cost),
+      costColumn('f', 'Forecast', (r) => r.F.cost),
+      costColumn('est', 'Estimate', (r) => r.Est.cost),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.costType,
+    enableSorting: false,
+  });
+
   return (
-    <tr className="border-b last:border-b-0 hover:bg-muted/50">
-      <td className="px-3 py-1.5">
-        <span
-          className="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium"
-          style={{ color: `var(--ct-${row.costType.replace(/\d/g, '').toLowerCase()})` }}
-        >
-          {row.costType}
-        </span>
-      </td>
-      <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{row.count}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.CTP.cost)}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.CTD.cost)}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.CTC.cost)}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.F.cost)}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.Est.cost)}</td>
-    </tr>
+    <section className="space-y-2 pt-4">
+      <h2 className="text-sm font-semibold">Summary by Cost Type</h2>
+      <MinimalDataGrid
+        table={table}
+        recordCount={data.length}
+        tableLayout={{ headerSticky: false }}
+      />
+    </section>
   );
 }

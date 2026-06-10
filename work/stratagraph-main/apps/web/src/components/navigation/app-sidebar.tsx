@@ -27,6 +27,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from '@repo/ui';
 import {
   Home,
@@ -132,15 +133,37 @@ function NavItemWithChildren({
   const hasActiveChild = item.children.some((c) => isCurrentPage(c.href, currentPath));
   const isActive = isCurrentPage(item.href, currentPath) || hasActiveChild;
   const [open, setOpen] = useState(item.defaultOpen ?? isActive);
+  const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebar();
 
   useEffect(() => {
     if (isActive) setOpen(true);
   }, [isActive]);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible">
+    // When expanding from the icon rail, the trigger's own toggle races the
+    // forced open — clamp to open so the group always lands expanded.
+    <Collapsible
+      open={open}
+      onOpenChange={(next) => setOpen(sidebarOpen ? next : true)}
+      className="group/collapsible"
+    >
       <SidebarMenuItem>
-        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={isActive} />}>
+        <CollapsibleTrigger
+          render={
+            <SidebarMenuButton
+              tooltip={item.label}
+              isActive={isActive}
+              // Groups have no page of their own: in the collapsed icon rail,
+              // clicking one expands the sidebar so its children are pickable.
+              onClick={() => {
+                if (!sidebarOpen) {
+                  setSidebarOpen(true);
+                  setOpen(true);
+                }
+              }}
+            />
+          }
+        >
           <Icon />
           <span>{item.label}</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />

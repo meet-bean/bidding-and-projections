@@ -1,8 +1,9 @@
 'use client';
 
 import { cn } from '@repo/ui';
+import { AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent, lensVsPrev, lensVsOrig, lensLeftToSpend } from '@repo/projections';
-import type { ProjectionItem, ProjectionProject, TimeSlice } from '@repo/projections';
+import type { ProjectionItem, ProjectionProject } from '@repo/projections';
 
 interface ProjectionRowDetailProps {
   item: ProjectionItem;
@@ -49,123 +50,149 @@ function DeviationBanner({ item }: { item: ProjectionItem }) {
   if (deviations.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+    <div className="flex flex-col gap-1.5">
       {deviations.map((d) => (
-        <div key={d.label} className="text-[13px]">
-          <span className="font-medium text-destructive">{d.label}</span>
-          <span className="ml-1 text-destructive/80">{formatPercent(d.pct, 0)}</span>
-          <span className="ml-1.5 text-muted-foreground">{d.detail}</span>
-        </div>
+        <span
+          key={d.label}
+          className="border-destructive/20 bg-destructive/5 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px]"
+        >
+          <AlertTriangle className="text-destructive size-3 shrink-0" />
+          <span className="text-destructive font-medium">{d.label}</span>
+          <span className="text-destructive/80 tabular-nums">{formatPercent(d.pct, 0)}</span>
+          <span className="text-muted-foreground">· {d.detail}</span>
+        </span>
       ))}
     </div>
   );
 }
 
-const SLICE_NAMES = ['Est', 'CTD', 'CTC', 'F', 'CTP'] as const;
-const SLICE_LABELS: Record<string, string> = { Est: 'Estimate', CTD: 'Cost to Date', CTC: 'Cost to Complete', F: 'Forecast', CTP: 'This Period' };
-const SLICE_TINT_VAR: Record<string, string> = { Est: '--slice-est', CTD: '--slice-ctd', CTC: '--slice-ctc', F: '--slice-f', CTP: '--slice-ctp' };
+// Slice rows in the SAME order as the table's column groups (Period → To Date
+// → To Complete → Forecast → Original), so the sheet mirrors the table.
+const SLICE_ROWS: { key: 'CTP' | 'CTD' | 'CTC' | 'F' | 'Est'; label: string; tintVar: string }[] = [
+  { key: 'CTP', label: 'Period', tintVar: '--slice-ctp' },
+  { key: 'CTD', label: 'To Date', tintVar: '--slice-ctd' },
+  { key: 'CTC', label: 'To Complete', tintVar: '--slice-ctc' },
+  { key: 'F', label: 'Forecast', tintVar: '--slice-f' },
+  { key: 'Est', label: 'Original', tintVar: '--slice-est' },
+];
 
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="tabular-nums text-foreground">{value}</span>
-    </div>
-  );
-}
+// Metric columns in the SAME order they appear within each table group:
+// Qty → Hours → U/M → M/U → UC → Cost.
+const METRIC_COLS: { label: string; value: (s: ProjectionItem['F']) => string }[] = [
+  { label: 'Qty', value: (s) => formatNumber(s.qty, 1) },
+  { label: 'Hours', value: (s) => formatNumber(s.hours, 1) },
+  { label: 'U/M', value: (s) => s.upm.toFixed(2) },
+  { label: 'M/U', value: (s) => s.mpu.toFixed(2) },
+  { label: 'UC', value: (s) => `$${s.uc.toFixed(2)}` },
+  { label: 'Cost', value: (s) => formatCurrency(s.cost) },
+];
 
-function SliceCard({ slice, label, tintVar, highlight }: { slice: TimeSlice; label: string; tintVar: string; highlight?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'rounded-md border bg-card p-2.5 space-y-2',
-        highlight && 'ring-1 ring-primary/40',
-      )}
-    >
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 shrink-0 rounded-[3px]" style={{ backgroundColor: `var(${tintVar})` }} />
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">{label}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
-        <MetricRow label="Qty" value={formatNumber(slice.qty, 1)} />
-        <MetricRow label="Hours" value={formatNumber(slice.hours, 1)} />
-        <MetricRow label="Cost" value={formatCurrency(slice.cost)} />
-        <MetricRow label="UC" value={`$${slice.uc.toFixed(2)}`} />
-        <MetricRow label="MH/U" value={slice.mpu.toFixed(2)} />
-        <MetricRow label="U/MH" value={slice.upm.toFixed(2)} />
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Row detail, rendered inside a side Sheet (replaces the old in-table expand
+ * row and its --grid-vw width hack). Layout is a compact matrix on the shared
+ * minimal-table language: metric rows × slice columns, micro uppercase headers,
+ * muted tabular numbers, horizontal hairlines only.
+ */
 export function ProjectionRowDetail({ item, project, onUpdateForecast: _onUpdateForecast }: ProjectionRowDetailProps) {
   const vsPrev = lensVsPrev(project, item.lineKey);
   const vsOrig = lensVsOrig(project, item.lineKey);
   const lts = lensLeftToSpend(project, item.lineKey);
 
+  const stats: { label: string; value: string; tone?: 'destructive' | 'success' }[] = [];
+  if (lts)
+    stats.push({
+      label: 'Left to spend',
+      value: `${formatCurrency(lts.delta)}${lts.delta < 0 ? ' over budget' : ''}`,
+      tone: lts.delta < 0 ? 'destructive' : undefined,
+    });
+  if (vsPrev && Math.abs(vsPrev.delta) > 0)
+    stats.push({
+      label: 'Δ previous',
+      value: `${formatCurrency(vsPrev.delta)} (${formatPercent(vsPrev.pct)})`,
+      tone: vsPrev.delta > 0 ? 'destructive' : 'success',
+    });
+  if (vsOrig && Math.abs(vsOrig.delta) > 0)
+    stats.push({
+      label: 'Δ original bid',
+      value: `${formatCurrency(vsOrig.delta)} (${formatPercent(vsOrig.pct)})`,
+      tone: vsOrig.delta > 0 ? 'destructive' : 'success',
+    });
+  if (item.calcHrs > 0)
+    stats.push({ label: 'Calculated hours', value: formatNumber(item.calcHrs, 1) });
+  if (item.wsRisk !== 0)
+    stats.push({
+      label: 'Risk $',
+      value: formatCurrency(item.wsRisk),
+      tone: item.wsRisk < 0 ? 'destructive' : 'success',
+    });
+
   return (
-    // Pinned to the grid's visible width (--grid-vw, published by ProjectionTable)
-    // and stuck to the left of the horizontal scroll, so the panel stays fully
-    // in view instead of stretching across the full multi-thousand-px table.
-    <div
-      className="sticky left-0 space-y-3 border-y bg-background px-4 py-3"
-      style={{ width: 'var(--grid-vw, 100%)' }}
-    >
+    <div className="space-y-5">
       <DeviationBanner item={item} />
 
-      <div className="grid grid-cols-5 gap-2">
-        {SLICE_NAMES.map((name) => (
-          <SliceCard
-            key={name}
-            slice={item[name]}
-            label={SLICE_LABELS[name]!}
-            tintVar={SLICE_TINT_VAR[name]!}
-            highlight={name === 'F'}
-          />
-        ))}
-      </div>
+      {/* Slice matrix — slices as rows (table group order), metrics as columns
+          (table in-group order), so the sheet reads like one table row unfolded.
+          Forecast row washed sage. */}
+      <table className="w-full text-[13px]">
+        <thead>
+          <tr className="border-b">
+            <th className="py-1.5 pr-2"></th>
+            {METRIC_COLS.map((m) => (
+              <th
+                key={m.label}
+                className="px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {m.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SLICE_ROWS.map((s) => (
+            <tr key={s.key} className={cn('border-b last:border-b-0', s.key === 'F' && 'bg-[#eef6f2]/60')}>
+              <td className="py-1.5 pr-2">
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: `var(${s.tintVar})` }}
+                  />
+                  {s.label}
+                </span>
+              </td>
+              {METRIC_COLS.map((m) => (
+                <td
+                  key={m.label}
+                  className={cn(
+                    'px-2 py-1.5 text-right tabular-nums',
+                    s.key === 'F' ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  {m.value(item[s.key])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1.5 rounded-md border bg-muted/30 px-3 py-2 text-[13px]">
-        {lts && (
-          <div>
-            <span className="text-muted-foreground">Left to spend:</span>
-            <span className={cn('ml-1 font-medium tabular-nums', lts.delta < 0 && 'text-destructive')}>
-              {formatCurrency(lts.delta)}
-              {lts.delta < 0 && ' OVER BUDGET'}
-            </span>
-          </div>
-        )}
-        {vsPrev && Math.abs(vsPrev.delta) > 0 && (
-          <div>
-            <span className="text-muted-foreground">Change from previous:</span>
-            <span className={cn('ml-1 tabular-nums', vsPrev.delta > 0 ? 'text-destructive' : 'text-success')}>
-              {formatCurrency(vsPrev.delta)} ({formatPercent(vsPrev.pct)})
-            </span>
-          </div>
-        )}
-        {vsOrig && Math.abs(vsOrig.delta) > 0 && (
-          <div>
-            <span className="text-muted-foreground">Change from original bid:</span>
-            <span className={cn('ml-1 tabular-nums', vsOrig.delta > 0 ? 'text-destructive' : 'text-success')}>
-              {formatCurrency(vsOrig.delta)} ({formatPercent(vsOrig.pct)})
-            </span>
-          </div>
-        )}
-        {item.calcHrs > 0 && (
-          <div>
-            <span className="text-muted-foreground">Calculated hours:</span>
-            <span className="ml-1 tabular-nums">{formatNumber(item.calcHrs, 1)}</span>
-          </div>
-        )}
-        {item.wsRisk !== 0 && (
-          <div>
-            <span className="text-muted-foreground">Risk $:</span>
-            <span className={cn('ml-1 tabular-nums', item.wsRisk < 0 ? 'text-destructive' : 'text-success')}>
-              {formatCurrency(item.wsRisk)}
-            </span>
-          </div>
-        )}
-      </div>
+      {stats.length > 0 && (
+        <div className="space-y-1.5">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="text-muted-foreground text-[11px] uppercase tracking-wide">{s.label}</span>
+              <span
+                className={cn(
+                  'font-medium tabular-nums',
+                  s.tone === 'destructive' && 'text-destructive',
+                  s.tone === 'success' && 'text-success',
+                )}
+              >
+                {s.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

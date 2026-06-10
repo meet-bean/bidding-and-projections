@@ -124,7 +124,7 @@ function InvoicesPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by invoice #, customer, well…"
+              placeholder="Search by invoice #, customer, project…"
               className="h-9 pl-8 text-sm"
             />
           </div>

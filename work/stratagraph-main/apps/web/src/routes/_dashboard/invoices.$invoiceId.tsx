@@ -11,6 +11,7 @@ import {
 } from '@repo/ui';
 import { ArrowLeft, Download, Printer, PenLine, Send, DollarSign } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { TicketLifecycleBar } from '~/components/ticket-lifecycle';
 import { InvoiceStatusBadge } from '~/components/status-badges';
 import { buildInvoiceLines, type InvoiceLine } from '~/lib/invoice-builder';
@@ -62,7 +63,7 @@ function InvoiceDetail() {
   const unit = useStore((s) => (job?.unitId ? s.getUnit(job.unitId) : undefined));
   const rig = useStore((s) => (job?.rigId ? s.getRig(job.rigId) : undefined));
   const bid = useStore((s) => (job ? s.getBid(job.bidId) : undefined));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const countCodeUnits = useStore((s) => s.countCodeUnits);
   const sumMileage = useStore((s) => s.sumMileage);
   const setInvoiceStatus = useStore((s) => s.setInvoiceStatus);

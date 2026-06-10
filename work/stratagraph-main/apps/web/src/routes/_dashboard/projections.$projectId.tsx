@@ -13,8 +13,8 @@ import {
   computeUploadDelta,
 } from '@repo/projections';
 import type { ProjectionAlert, BatchUploadResult, Metric, ImportLine, ProjectionProject } from '@repo/projections';
-import { Button, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions, useSidebar } from '@repo/ui';
-import { AlertTriangle, Clock, Upload } from 'lucide-react';
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, PageHeader, PageHeaderTitle, PageHeaderActions, useSidebar } from '@repo/ui';
+import { Clock, Upload, Download, AlertTriangle } from 'lucide-react';
 import { ProjectionTable } from '~/components/projection-table';
 import { DebugErrorBoundary, DebugRouteError } from '~/components/debug-error-boundary';
 import { ProjectionComments } from '~/components/projection-comments';
@@ -24,12 +24,31 @@ import { ProjectionUpload } from '~/components/projection-upload';
 import { ProjectionVersionHistory } from '~/components/projection-version-history';
 import { ServiceReconcileDialog } from '~/components/service-reconcile-dialog';
 // import { MonthlyEntryForm } from '~/components/monthly-entry-form'; // Monthly Entry hidden per request
-import { computeAlerts } from '@repo/projections';
+import { computeAlerts, computeSummaryRows, formatCurrency } from '@repo/projections';
+import { cn } from '@repo/ui';
 
 export const Route = createFileRoute('/_dashboard/projections/$projectId')({
   component: ProjectionDetailPage,
   errorComponent: DebugRouteError,
 });
+
+/** One inline header stat: muted label + tabular value. */
+function HeaderStat({ label, value, tone }: { label: string; value: string; tone?: 'destructive' | 'success' }) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span className="text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          'font-medium tabular-nums text-foreground',
+          tone === 'destructive' && 'text-destructive',
+          tone === 'success' && 'text-success',
+        )}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
 
 function ProjectionDetailPage() {
   const { projectId } = Route.useParams();
@@ -61,10 +80,16 @@ function ProjectionDetailPage() {
   // restore whatever the user had when they leave the page.
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebar();
   const priorSidebarOpen = useRef(sidebarOpen);
+  const setSidebarOpenRef = useRef(setSidebarOpen);
+  setSidebarOpenRef.current = setSidebarOpen;
   useEffect(() => {
-    setSidebarOpen(false);
-    return () => setSidebarOpen(priorSidebarOpen.current);
-  }, [setSidebarOpen]);
+    // Collapse ONCE on entry. The setter from useSidebar changes identity every
+    // time `open` changes, so depending on it would re-run this effect and
+    // slam the sidebar shut whenever the user tries to reopen it.
+    setSidebarOpenRef.current(false);
+    return () => setSidebarOpenRef.current(priorSidebarOpen.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Read-only snapshot project for the table, memoized for a stable reference.
   // Declared *before* the early return below so the hook order stays constant
@@ -82,6 +107,14 @@ function ProjectionDetailPage() {
     const readOnly = viewingVersionId !== null && viewingVersionId !== cv?.id;
     return readOnly && ev ? { ...project, draft: ev } : project;
   }, [project, viewingVersionId]);
+
+  // Header stats — computed from the same snapshot the table renders, so the
+  // numbers always match what's on screen (including read-only version views).
+  const summary = useMemo(() => {
+    if (!tableProject) return null;
+    const cv = tableProject.draft ?? tableProject.versions[tableProject.versions.length - 1];
+    return computeSummaryRows(cv?.items ?? []);
+  }, [tableProject]);
 
   if (!project) {
     return <div className="p-6 text-muted-foreground">Project not found.</div>;
@@ -190,41 +223,82 @@ function ProjectionDetailPage() {
             {project.customer} · {project.versions.length} version
             {project.versions.length !== 1 ? 's' : ''}
             {project.draft ? ' + draft' : ''}
-            {currentVersion && ` · ${currentVersion.label}`}
+            {currentVersion && (
+              <>
+                {' · '}
+                {/* The current projection month doubles as the entry point to
+                    version history — click to browse/switch months. Inline icon
+                    keeps the label on the same text baseline as the subtitle. */}
+                <button
+                  className="align-baseline text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => setShowHistory(true)}
+                  title="Version history"
+                >
+                  {currentVersion.label}
+                  <Clock className="ml-1 inline size-3.5 align-[-2px]" />
+                </button>
+              </>
+            )}
+            {openAlerts.length > 0 && (
+              <>
+                {' · '}
+                <button
+                  className="align-baseline text-destructive transition-opacity hover:opacity-80"
+                  onClick={() => setShowAlerts(true)}
+                >
+                  <AlertTriangle className="mr-1 inline size-3.5 align-[-2px]" />
+                  <span className="font-medium tabular-nums">{openAlerts.length}</span>
+                  {' alert'}
+                  {openAlerts.length === 1 ? '' : 's'}
+                </button>
+              </>
+            )}
           </p>
+          {/* Page-level numbers as part of the header metadata stack: title →
+              subtitle → stats. Plain text, no container. */}
+          {summary && (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 pt-2 text-sm">
+              <span className="font-medium tabular-nums">
+                {summary.grand.count} item{summary.grand.count === 1 ? '' : 's'}
+              </span>
+              <HeaderStat label="CTD" value={formatCurrency(summary.grand.CTD.cost)} />
+              <HeaderStat label="Forecast" value={formatCurrency(summary.grand.F.cost)} />
+              <HeaderStat label="Estimate" value={formatCurrency(summary.grand.Est.cost)} />
+              <HeaderStat
+                label="Variance"
+                value={formatCurrency(summary.grand.F.cost - summary.grand.Est.cost)}
+                tone={summary.grand.F.cost > summary.grand.Est.cost ? 'destructive' : 'success'}
+              />
+            </div>
+          )}
         </div>
         <PageHeaderActions>
+          {/* Lean header: Upload + Export (icon) + one primary. Version history
+              hangs off the month label in the subtitle; alerts live in the
+              table's summary band. */}
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setShowUpload(true)}>
+            <Upload />
+            Upload
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 text-muted-foreground"
+            onClick={handleExport}
+            aria-label="Export XLSX"
+            title="Export XLSX"
+          >
+            <Download className="size-4" />
+          </Button>
           {tenantId === 'superior' && currentVersion && (
             <Button
+              size="sm"
               onClick={() => submitForecast(project.id, currentVersion.id)}
               disabled={currentVersion.saved}
             >
               {currentVersion.saved ? 'Submitted' : 'Submit Forecast'}
             </Button>
           )}
-          <Button variant="outline" onClick={() => setShowUpload(true)}>
-            <Upload />
-            Upload
-          </Button>
-          <Button variant="outline" onClick={() => setShowHistory(true)}>
-            <Clock />
-            History
-            <Badge variant="secondary" size="sm" className="ml-1.5">
-              {project.versions.length}
-            </Badge>
-          </Button>
-          <Button
-            variant={openAlerts.length > 0 ? 'destructive' : 'outline'}
-            onClick={() => setShowAlerts(true)}
-          >
-            <AlertTriangle />
-            Alerts
-            {openAlerts.length > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-xs px-1.5">
-                {openAlerts.length}
-              </Badge>
-            )}
-          </Button>
         </PageHeaderActions>
       </PageHeader>
 
@@ -246,7 +320,6 @@ function ProjectionDetailPage() {
           onUpdateMetricValue={handleUpdateMetricValue}
           onOpenTrend={handleOpenTrend}
           onOpenComments={handleOpenComments}
-          onExport={handleExport}
         />
       </DebugErrorBoundary>
 

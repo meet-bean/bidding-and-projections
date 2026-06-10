@@ -99,13 +99,13 @@ export function WellDialog({ open, onOpenChange, customerId, well }: WellDialogP
       <DialogContent className="max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>{isEdit ? 'Edit Well' : 'New Well'}</DialogTitle>
+            <DialogTitle>{isEdit ? 'Edit Project' : 'New Project'}</DialogTitle>
             <DialogDescription>
-              A drilling well owned by this customer. One job runs at one well; the bid is scoped to a specific well.
+              A project site owned by this customer. One job runs at one project; the bid is scoped to a specific project.
             </DialogDescription>
           </DialogHeader>
 
-          <FieldRow label="Well name" required>
+          <FieldRow label="Project name" required>
             <Input
               value={form.name}
               onChange={(e) => field('name', e.target.value)}
@@ -241,7 +241,7 @@ export function WellDialog({ open, onOpenChange, customerId, well }: WellDialogP
               value={form.notes ?? ''}
               onChange={(e) => field('notes', e.target.value)}
               rows={2}
-              placeholder="Operational notes about this well"
+              placeholder="Operational notes about this project"
             />
           </FieldRow>
 
@@ -254,7 +254,7 @@ export function WellDialog({ open, onOpenChange, customerId, well }: WellDialogP
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">{isEdit ? 'Save changes' : 'Create Well'}</Button>
+            <Button type="submit">{isEdit ? 'Save changes' : 'Create Project'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

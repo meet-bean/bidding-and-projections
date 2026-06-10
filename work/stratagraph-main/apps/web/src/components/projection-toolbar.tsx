@@ -8,7 +8,7 @@ import {
   type Filter,
   type FilterFieldConfig,
 } from '@repo/ui';
-import { Download, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { ColumnPicker, type ColumnVisibility } from './projection-column-picker';
 import type { ProjectionItem, AlertsResult, MetricsCatalog } from '@repo/projections';
 import { COST_TYPES, VARIANCE_THRESHOLD_PCT } from '@repo/projections';
@@ -28,7 +28,6 @@ interface ProjectionToolbarProps {
   onSetColumns: (ids: string[], value: boolean) => void;
   onResetColumns: () => void;
   activeColumnCount: number;
-  onExport: () => void;
 }
 
 /** Status presets — computed predicates, surfaced as a multiselect filter field. */
@@ -115,7 +114,6 @@ export function ProjectionToolbar({
   onSetColumns,
   onResetColumns,
   activeColumnCount,
-  onExport,
 }: ProjectionToolbarProps) {
   // Only offer cost types that actually appear in the data.
   const presentCostTypes = useMemo(() => {
@@ -175,7 +173,7 @@ export function ProjectionToolbar({
       {hasFilters ? (
         <Button
           variant="ghost"
-          size="sm"
+          size="xs"
           onClick={() => onFiltersChange([])}
           className="text-muted-foreground"
         >
@@ -183,12 +181,6 @@ export function ProjectionToolbar({
           Clear
         </Button>
       ) : null}
-      <div className="ml-auto flex items-center gap-2">
-        <Button size="sm" variant="outline" onClick={onExport} className="gap-1.5">
-          <Download className="size-3.5" />
-          Export
-        </Button>
-      </div>
     </div>
   );
 }

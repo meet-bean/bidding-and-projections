@@ -132,7 +132,7 @@ function JobsPage() {
       }),
       columnHelper.accessor('wellName', {
         id: 'wellName',
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Well" />,
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Project" />,
         cell: (info) => (
           <span className="text-foreground text-sm">{info.getValue()}</span>
         ),

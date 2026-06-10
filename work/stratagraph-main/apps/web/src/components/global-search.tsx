@@ -79,7 +79,7 @@ export function GlobalSearch() {
       const c = customers.find((x) => x.id === w.customerId);
       return {
         key: `well-${w.id}`,
-        group: 'Wells',
+        group: 'Projects',
         label: w.name,
         sub: c
           ? `${c.name}${w.county ? ` · ${w.county}, ${w.state ?? ''}` : ''}`
@@ -149,7 +149,7 @@ export function GlobalSearch() {
                 onSelect={handleSelect}
               />
               <SearchGroup
-                heading="Wells"
+                heading="Projects"
                 items={items.wellItems}
                 onSelect={handleSelect}
               />

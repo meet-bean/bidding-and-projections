@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Button, Popover, PopoverContent, PopoverTrigger, Badge, cn } from '@repo/ui';
+import { Button, Popover, PopoverContent, PopoverTrigger, cn } from '@repo/ui';
 import { Columns3, Check, Minus } from 'lucide-react';
 import type { MetricsCatalog } from '@repo/projections';
 import { buildMetricColumns } from '@repo/projections';
@@ -129,19 +129,25 @@ export function ColumnPicker({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="ghost" className="gap-1.5">
+        {/* Same chip anatomy AND size as the Filter trigger (Button size=xs). */}
+        <Button size="xs" variant="ghost" className="gap-0.5">
           <Columns3 className="size-3.5" /> Columns
-          <Badge variant="secondary" className="ml-0.5 px-1.5 text-xs">{activeCount}</Badge>
+          <span className="text-muted-foreground tabular-nums ml-1">{activeCount}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[400px] p-0">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-sm font-medium">Visible columns</span>
-          <Button size="sm" variant="ghost" onClick={onReset} className="h-7 text-xs">
+      <PopoverContent align="start" className="w-[360px] p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Visible columns
+          </span>
+          <button
+            onClick={onReset}
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
             Reset
-          </Button>
+          </button>
         </div>
-        <div className="max-h-[60vh] divide-y overflow-auto">
+        <div className="max-h-[60vh] overflow-auto pb-1">
           {groups.map((g) => {
             const groupCols = cols.filter((c) => (c.group ?? '__null') === g.id);
             if (groupCols.length === 0) return null;
@@ -150,32 +156,29 @@ export function ColumnPicker({
             const onCount = groupCols.filter((c) => vis[c.id] ?? true).length;
             const state: 'all' | 'some' | 'none' =
               onCount === groupCols.length ? 'all' : onCount === 0 ? 'none' : 'some';
-            const code = g.id === '__null' ? '' : g.id;
 
             return (
-              <div key={g.id} className="px-3 py-2">
-                {/* Group header — click to toggle the whole group */}
+              <div key={g.id} className="border-t px-3 py-2">
+                {/* Group row — tri-state checkbox + micro label + quiet count. */}
                 <button
                   onClick={() => onSetGroup(ids, state !== 'all')}
-                  className="mb-1.5 flex w-full items-center gap-2 text-left"
+                  className="mb-1 flex w-full items-center gap-2 text-left"
                   title={state === 'all' ? 'Hide all in group' : 'Show all in group'}
                 >
                   <GroupCheck state={state} />
-                  <span className="size-2.5 rounded-sm" style={{ background: g.color }} />
-                  <span className="text-xs font-medium uppercase tracking-wide text-foreground">
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: g.id === '__null' ? undefined : g.color }}
+                  >
                     {g.name}
                   </span>
-                  <span className="ml-auto flex items-center gap-2">
-                    {code ? (
-                      <span className="font-mono text-[10px] uppercase text-muted-foreground">{code}</span>
-                    ) : null}
-                    <span className="text-[10px] tabular-nums text-muted-foreground">
-                      {onCount}/{groupCols.length}
-                    </span>
+                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                    {onCount}/{groupCols.length}
                   </span>
                 </button>
-                {/* Field pills — short labels keep each group on one line */}
-                <div className="flex flex-nowrap gap-1 overflow-x-auto">
+                {/* Field toggles — quiet text items: on = foreground + check,
+                    off = dimmed. No fills, no pills. */}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[22px]">
                   {groupCols.map((c) => {
                     const on = vis[c.id] ?? true;
                     return (
@@ -184,12 +187,11 @@ export function ColumnPicker({
                         onClick={() => onToggle(c.id)}
                         aria-pressed={on}
                         className={cn(
-                          'rounded-md px-2 py-1 text-xs whitespace-nowrap transition-colors',
-                          on
-                            ? 'bg-primary/10 font-medium text-primary'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                          'flex items-center gap-1 py-0.5 text-xs whitespace-nowrap transition-colors',
+                          on ? 'text-foreground' : 'text-muted-foreground/50 hover:text-muted-foreground',
                         )}
                       >
+                        <Check className={cn('size-3', on ? 'opacity-100' : 'opacity-0')} />
                         {shortLabel(c.name, g.id)}
                       </button>
                     );

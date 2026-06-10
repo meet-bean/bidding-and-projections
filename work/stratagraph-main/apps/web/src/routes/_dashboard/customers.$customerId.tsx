@@ -27,6 +27,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { InvoiceStatusBadge, JobStatusBadge } from '~/components/status-badges';
 import { CustomerDialog } from '~/components/entity-dialogs/customer-dialog';
 import { WellDialog } from '~/components/entity-dialogs/well-dialog';
@@ -70,7 +71,7 @@ function CustomerDetail() {
   const allJobs = useStore((s) => s.jobs);
   const allBids = useStore((s) => s.bids);
   const allTickets = useStore((s) => s.invoices);
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const countCodeDays = useStore((s) => s.countCodeDays);
 
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
@@ -230,17 +231,17 @@ function CustomerDetail() {
         <section className="space-y-3 pb-8">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-base font-semibold">
-              Wells
+              Projects
               <span className="text-muted-foreground text-xs font-normal">({wells.length})</span>
             </h2>
             <Button size="sm" variant="outline" onClick={openCreateWell}>
               <Plus />
-              Add Well
+              Add Project
             </Button>
           </div>
           {wells.length === 0 ? (
             <div className="text-muted-foreground rounded-md border border-dashed py-8 text-center text-sm">
-              No wells on file.{' '}
+              No projects on file.{' '}
               <button
                 type="button"
                 onClick={openCreateWell}
@@ -254,7 +255,7 @@ function CustomerDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Well</TableHead>
+                    <TableHead>Project</TableHead>
                     <TableHead>County / State</TableHead>
                     <TableHead>API #</TableHead>
                     <TableHead>Status</TableHead>
@@ -417,7 +418,7 @@ function CustomerDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Job #</TableHead>
-                    <TableHead>Well</TableHead>
+                    <TableHead>Project</TableHead>
                     <TableHead>Dates</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>

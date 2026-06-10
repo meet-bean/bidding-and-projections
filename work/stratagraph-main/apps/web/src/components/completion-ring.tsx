@@ -116,7 +116,7 @@ export function CompletionBar({ pct, width = 56, className }: CompletionBarProps
     <div className={cn('flex items-center gap-2', className)}>
       <span
         className={cn(
-          'w-9 text-right text-[13px] tabular-nums',
+          'w-10 text-right text-sm tabular-nums',
           over ? 'font-medium text-destructive' : 'text-foreground',
         )}
       >

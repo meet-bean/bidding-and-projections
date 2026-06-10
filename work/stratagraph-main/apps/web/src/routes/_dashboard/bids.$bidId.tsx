@@ -33,6 +33,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useStore, deriveBidStatus } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
 import { BILLING_UNIT_LABELS, CATEGORY_LABELS } from '~/data/service-catalog';
 import type { BidStatus, ServiceCategory } from '~/lib/types';
@@ -56,7 +57,7 @@ function BidDetail() {
   const customer = useStore((s) => (bid ? s.getCustomer(bid.customerId) : undefined));
   const well = useStore((s) => (bid?.wellId ? s.getWell(bid.wellId) : undefined));
   const acceptBid = useStore((s) => s.acceptBid);
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const jobs = useStore((s) => s.jobs);
   const invoices = useStore((s) => s.invoices);
   const displayStatus = bid ? deriveBidStatus(bid, jobs, invoices) : undefined;

@@ -33,6 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { selectServiceCatalog } from '~/data/service-seed';
 import { ServiceToggles } from '~/components/service-toggles';
 import { InvoiceStatusBadge, JobStatusBadge } from '~/components/status-badges';
 import { JobActivityTab } from '~/components/job-activity-tab';
@@ -41,7 +42,7 @@ import { CrewUnitAssignments } from '~/components/crew-unit-assignments';
 import { GenerateInvoiceDialog } from '~/components/generate-invoice-dialog';
 import { BILLING_UNIT_LABELS, DAILY_CODE_META } from '~/data/service-catalog';
 import { ORDER_TYPE_LABELS } from '~/lib/types';
-import type { DailyCode, Job, JobStatus } from '~/lib/types';
+import type { DailyCode, Job, JobStatus, ServiceCatalogItem } from '~/lib/types';
 
 export const Route = createFileRoute('/_dashboard/jobs/$jobId')({
   component: JobDetail,
@@ -63,7 +64,7 @@ function JobDetail() {
   const bid = useStore((s) => (job ? s.getBid(job.bidId) : undefined));
   const unit = useStore((s) => (job?.unitId ? s.getUnit(job.unitId) : undefined));
   const pm = useStore((s) => (job?.projectManagerId ? s.getUser(job.projectManagerId) : undefined));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   // Filter in a memo (returning a fresh array from the selector causes render loops).
   const allTickets = useStore((s) => s.invoices);
   const updateJob = useStore((s) => s.updateJob);
@@ -267,7 +268,7 @@ function JobStatsStrip({
 }: {
   job: Job;
   bid: ReturnType<typeof useStore.getState>['bids'][number] | undefined;
-  catalog: ReturnType<typeof useStore.getState>['serviceCatalog'];
+  catalog: ServiceCatalogItem[];
   tickets: ReturnType<typeof useStore.getState>['invoices'];
   onTicketsClick?: () => void;
 }) {
@@ -556,7 +557,7 @@ const ORDER_TYPE_HINTS: Record<string, string> = {
 
 function ServicesCard({ job }: { job: Job }) {
   const bid = useStore((s) => s.getBid(job.bidId));
-  const catalog = useStore((s) => s.serviceCatalog);
+  const catalog = useStore((s) => selectServiceCatalog(s.services));
   const startService = useStore((s) => s.startService);
   const endService = useStore((s) => s.endService);
   const countCodeDays = useStore((s) => s.countCodeDays);
