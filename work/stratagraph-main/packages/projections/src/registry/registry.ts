@@ -249,20 +249,84 @@ export interface ImportLine {
   projectId?: string;
 }
 
-export interface ClassifiedLine {
-  line: ImportLine;
-  bucket: 'auto' | 'review' | 'new';
-  suggestion: Service | null;
+export interface MatchSuggestion {
+  service: Service;
+  reason: 'exact-name' | 'fuzzy-name' | 'phase-rename';
   confidence: number;
 }
 
+export interface ClassifiedLine {
+  line: ImportLine;
+  bucket: 'auto' | 'review' | 'new';
+  /** All candidates, best first. Review rows render every entry. */
+  suggestions: MatchSuggestion[];
+  /** Best candidate (suggestions[0]?.service) — kept for existing call sites. */
+  suggestion: Service | null;
+  confidence: number;
+  /** Best candidate exists but its UoM differs from the incoming line. Warns, never blocks. */
+  uomWarning: boolean;
+}
+
+/**
+ * 5-tier matcher. Cost type must agree at every tier; name + cost type always
+ * wins; phase code is a within-project rename fallback only (codes are not
+ * stable across jobs); UoM never gates a match.
+ */
 export function classifyImport(registry: ServiceRegistry, lines: ImportLine[]): ClassifiedLine[] {
   return lines.map((line) => {
-    const matches = findFuzzyMatches(registry, line.name, line.unitOfMeasure, line.costType)
-      .sort((a, b) => b.confidence - a.confidence);
-    const best = matches[0];
-    if (!best) return { line, bucket: 'new' as const, suggestion: null, confidence: 0 };
-    const bucket = best.confidence >= 1 ? ('auto' as const) : ('review' as const);
-    return { line, bucket, suggestion: best.existingItem, confidence: best.confidence };
+    const nName = normalizeKey(line.name);
+    const nCost = normalizeKey(line.costType);
+    const nPhase = normalizeKey(line.phaseCode);
+    const sameCost = registry.items.filter((i) => normalizeKey(i.costType) === nCost);
+
+    const uomWarns = (s: Service) =>
+      normalizeKey(s.unitOfMeasure) !== normalizeKey(line.unitOfMeasure);
+
+    // Tier 1 — exact canonical name or recorded alias.
+    const exact = sameCost.find(
+      (i) =>
+        normalizeKey(i.canonicalName) === nName ||
+        i.aliases.some((a) => normalizeKey(a.raw) === nName)
+    );
+    if (exact) {
+      return {
+        line, bucket: 'auto' as const,
+        suggestions: [{ service: exact, reason: 'exact-name' as const, confidence: 1 }],
+        suggestion: exact, confidence: 1, uomWarning: uomWarns(exact),
+      };
+    }
+
+    // Tier 2 — fuzzy canonical name.
+    const fuzzy = sameCost.filter((i) => isFuzzyMatch(i.canonicalName, line.name));
+
+    // Tier 3 — same-project phase rename (name drifted, code + cost type agree).
+    const renames =
+      line.projectId && nPhase
+        ? sameCost.filter(
+            (i) =>
+              !fuzzy.includes(i) &&
+              i.sources.some(
+                (s) => s.projectId === line.projectId && normalizeKey(s.phaseCode) === nPhase
+              )
+          )
+        : [];
+
+    const suggestions: MatchSuggestion[] = [
+      ...fuzzy.map((s) => ({ service: s, reason: 'fuzzy-name' as const, confidence: 0.8 })),
+      ...renames.map((s) => ({ service: s, reason: 'phase-rename' as const, confidence: 0.6 })),
+    ];
+
+    if (suggestions.length === 0) {
+      return { line, bucket: 'new' as const, suggestions, suggestion: null, confidence: 0, uomWarning: false };
+    }
+
+    const best = suggestions[0]!;
+    // Single unambiguous fuzzy → auto. Any rename, or multiple candidates → review.
+    const bucket =
+      fuzzy.length === 1 && renames.length === 0 ? ('auto' as const) : ('review' as const);
+    return {
+      line, bucket, suggestions,
+      suggestion: best.service, confidence: best.confidence, uomWarning: uomWarns(best.service),
+    };
   });
 }

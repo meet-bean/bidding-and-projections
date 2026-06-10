@@ -233,31 +233,112 @@ describe('derived selectors', () => {
   });
 });
 
-describe('classifyImport', () => {
-  let reg = createRegistry('superior');
-  reg = addServiceItem(reg, { canonicalName: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor', sourceProjectId: 'p1' });
+describe('classifyImport (5-tier matcher)', () => {
+  // Catalog: two services sharing cost type 2Labor, one 5SubCont sibling sharing a phase code.
+  function buildReg() {
+    let reg = createRegistry('superior');
+    reg = addServiceItem(reg, {
+      canonicalName: 'Erosion Control', unitOfMeasure: 'DY', costType: '2Labor',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'B-200-|2Labor', phaseCode: 'B-200-' }),
+    });
+    reg = addServiceItem(reg, {
+      canonicalName: 'Mowing / Litter', unitOfMeasure: 'MOS', costType: '5SubCont',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'B-205-|5SubCont', phaseCode: 'B-205-' }),
+    });
+    return reg;
+  }
   const line = (over: Record<string, unknown> = {}) => ({
-    name: 'Excavation - Roadway', unitOfMeasure: 'CY', costType: '2Labor',
-    lineKey: 'k', phaseCode: 'B-300',
+    name: 'Erosion Control', unitOfMeasure: 'DY', costType: '2Labor',
+    lineKey: 'B-200-|2Labor', phaseCode: 'B-200-',
     ctd: { qty: 1, hours: 0, cost: 1 },
     oe: { qty: 1, cost: 1 },
     f: { qty: 1, cost: 1 },
-    date: '',
+    date: '2026-06-01',
+    projectId: 'p1',
     ...over,
   });
-  it('exact match → auto', () => {
-    const res = classifyImport(reg, [line()]);
+
+  it('tier 1: exact name + cost type → auto', () => {
+    const res = classifyImport(buildReg(), [line()]);
     expect(res[0]!.bucket).toBe('auto');
-    expect(res[0]!.suggestion?.id).toBe(reg.items[0]!.id);
+    expect(res[0]!.suggestion?.canonicalName).toBe('Erosion Control');
+    expect(res[0]!.confidence).toBe(1);
   });
-  it('UoM differs → review', () => {
-    expect(classifyImport(reg, [line({ unitOfMeasure: 'LF' })])[0]!.bucket).toBe('review');
+
+  it('tier 1: alias name + cost type → auto', () => {
+    let reg = buildReg();
+    const target = reg.items[0]!;
+    reg = mergeServiceItems(reg, target.id, {
+      raw: 'Erosion Cntrl', normalizedTo: 'Erosion Control',
+      sourceProjectId: 'p1', sourceUploadDate: '2026-05-01',
+    });
+    const res = classifyImport(reg, [line({ name: 'Erosion Cntrl' })]);
+    expect(res[0]!.bucket).toBe('auto');
+    expect(res[0]!.suggestion?.id).toBe(target.id);
   });
-  it('fuzzy name → review', () => {
-    expect(classifyImport(reg, [line({ name: 'Roadway Excavation' })])[0]!.bucket).toBe('review');
+
+  it('canonical scenario: name+costType beats a phase-code sibling', () => {
+    // Incoming B-205-/2Labor/"Erosion Control": shares phase B-205- with Mowing/Litter (5SubCont)
+    // but must match Erosion Control (2Labor) by name+costType.
+    const res = classifyImport(buildReg(), [line({ phaseCode: 'B-205-', lineKey: 'B-205-|2Labor' })]);
+    expect(res[0]!.bucket).toBe('auto');
+    expect(res[0]!.suggestion?.canonicalName).toBe('Erosion Control');
   });
-  it('no match → new', () => {
-    expect(classifyImport(reg, [line({ name: 'Bridge Post-Tensioning', costType: '5SubCont' })])[0]!.bucket).toBe('new');
+
+  it('UoM mismatch does NOT block a name match; sets uomWarning', () => {
+    const res = classifyImport(buildReg(), [line({ unitOfMeasure: 'MOS' })]);
+    expect(res[0]!.bucket).toBe('auto');
+    expect(res[0]!.uomWarning).toBe(true);
+  });
+
+  it('tier 2: single fuzzy name + cost type → auto', () => {
+    const res = classifyImport(buildReg(), [line({ name: 'Erosion Controls' })]);
+    expect(res[0]!.bucket).toBe('auto');
+    expect(res[0]!.suggestions[0]!.reason).toBe('fuzzy-name');
+  });
+
+  it('tier 3: same project + phase code + cost type with drifted name → review (phase-rename)', () => {
+    const res = classifyImport(buildReg(), [
+      line({ name: 'Silt Fence & SWPPP Maintenance', phaseCode: 'B-200-' }),
+    ]);
+    expect(res[0]!.bucket).toBe('review');
+    expect(res[0]!.suggestions[0]!.reason).toBe('phase-rename');
+    expect(res[0]!.suggestions[0]!.service.canonicalName).toBe('Erosion Control');
+  });
+
+  it('tier 3 never fires across projects', () => {
+    const res = classifyImport(buildReg(), [
+      line({ name: 'Silt Fence & SWPPP Maintenance', phaseCode: 'B-200-', projectId: 'p2' }),
+    ]);
+    expect(res[0]!.bucket).toBe('new');
+  });
+
+  it('tier 4: fuzzy + phase-rename conflict → review with both suggestions', () => {
+    let reg = buildReg();
+    reg = addServiceItem(reg, {
+      canonicalName: 'Erosion Controls Inc', unitOfMeasure: 'DY', costType: '2Labor',
+      sourceProjectId: 'p1',
+      source: src({ projectId: 'p1', lineKey: 'B-210-|2Labor', phaseCode: 'B-210-' }),
+    });
+    // Name fuzzy-matches BOTH 'Erosion Control' and 'Erosion Controls Inc' → conflict → review.
+    const res = classifyImport(reg, [line({ name: 'Erosion Controls' })]);
+    expect(res[0]!.bucket).toBe('review');
+    expect(res[0]!.suggestions.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('tier 5: nothing matches → new', () => {
+    const res = classifyImport(buildReg(), [
+      line({ name: 'Bridge Post-Tensioning', costType: '5SubCont', phaseCode: 'C-700-' }),
+    ]);
+    expect(res[0]!.bucket).toBe('new');
+    expect(res[0]!.suggestions).toEqual([]);
+  });
+
+  it('cost type must agree even for exact name', () => {
+    const res = classifyImport(buildReg(), [line({ costType: '3Material' })]);
+    expect(res[0]!.bucket).toBe('new');
   });
 });
 
