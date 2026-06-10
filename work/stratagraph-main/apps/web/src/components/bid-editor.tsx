@@ -4,12 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-  Badge,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Input,
   Select,
   SelectContent,
@@ -35,6 +30,7 @@ import { toServiceRows, type ServiceRow } from '~/lib/service-rows';
 import { CHIP_CLASS } from '~/lib/composer';
 import { formatCurrencyExact } from '~/lib/format';
 import { CATEGORY_LABELS } from '~/data/service-catalog';
+import { costTypeLabel } from '~/lib/cost-types';
 import type {
   Bid,
   BidService,
@@ -209,12 +205,10 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
 
   if (isLocked) {
     return (
-      <Card>
-        <CardContent className="text-muted-foreground flex items-center gap-2 py-6 text-sm">
-          <Lock className="size-4" />
-          This bid is accepted and locked. Create a revision to change rates.
-        </CardContent>
-      </Card>
+      <div className="text-muted-foreground flex items-center gap-2 py-6 text-sm">
+        <Lock className="size-4" />
+        This bid is accepted and locked. Create a revision to change rates.
+      </div>
     );
   }
 
@@ -312,59 +306,73 @@ export function BidEditor({ bid, lockedCustomerId }: Props) {
       </div>
 
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Services</CardTitle>
-          <div className="text-muted-foreground text-sm">
-            <span className="text-foreground font-semibold">{totalSelected}</span> service
-            {totalSelected === 1 ? '' : 's'} selected
+      {/* De-carded Services section: micro section label + muted count, then flat
+       * accordion rows (row borders only) — same quiet language as the rest of
+       * the platform. Counts are muted text, never badges. */}
+      <div>
+        <div className="flex items-baseline justify-between pb-1">
+          <h2 className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
+            Services
+          </h2>
+          <div className="text-muted-foreground text-xs tabular-nums">
+            <span className="text-foreground font-medium">{totalSelected}</span> selected
           </div>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="multiple" defaultValue={[]} className="w-full">
-            {[...itemsByCategory.entries()].map(([cat, items]) => {
-              const selected = selectedCounts[cat] ?? 0;
-              return (
-                <AccordionItem key={cat} value={cat}>
-                  <AccordionTrigger>
-                    <div className="flex flex-1 items-center justify-between gap-3 pr-3">
-                      <span>{(CATEGORY_LABELS as Record<string, string>)[cat] ?? cat}</span>
-                      <Badge variant={selected > 0 ? 'primary' : 'outline'} className="text-xs">
-                        {selected} / {items.length} selected
-                      </Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CategoryTable
-                      items={items}
-                      lines={lines}
-                      rowsById={rowsById}
-                      onToggle={toggleItem}
-                      onRateChange={setLineRate}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        </CardContent>
-      </Card>
+        </div>
+        <Accordion type="multiple" defaultValue={[]} className="w-full">
+          {[...itemsByCategory.entries()].map(([cat, items]) => {
+            const selected = selectedCounts[cat] ?? 0;
+            // Known Stratagraph categories have canonical labels; raw Vista cost
+            // type codes (e.g. "2Labor") get humanized, keeping the code as a
+            // muted suffix so same-label groups (3Material/8Parts) stay distinct.
+            const canonical = (CATEGORY_LABELS as Record<string, string>)[cat];
+            const label = canonical ?? costTypeLabel(cat);
+            return (
+              <AccordionItem key={cat} value={cat}>
+                <AccordionTrigger>
+                  <div className="flex flex-1 items-baseline justify-between gap-3 pr-3">
+                    <span className="flex items-baseline gap-2">
+                      <span>{label}</span>
+                      {!canonical && (
+                        <span className="text-muted-foreground text-[11px] font-normal">
+                          {cat}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-xs font-normal tabular-nums',
+                        selected > 0 ? 'text-foreground' : 'text-muted-foreground'
+                      )}
+                    >
+                      {selected}/{items.length}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CategoryTable
+                    items={items}
+                    lines={lines}
+                    rowsById={rowsById}
+                    onToggle={toggleItem}
+                    onRateChange={setLineRate}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      </div>
 
-      <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg">
-        <div className="text-sm">
-          <span className="font-semibold">{totalSelected}</span>{' '}
-          <span className="text-muted-foreground">services selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => navigate({ to: '/bids' })}>
-            <X />
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            <Save />
-            {isEditing ? 'Save bid' : 'Save bid'}
-          </Button>
-        </div>
+      {/* Quiet sticky action strip — no floating card, just a hairline + blur. */}
+      <div className="border-border/60 bg-background/80 sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t py-3 backdrop-blur">
+        <Button variant="ghost" onClick={() => navigate({ to: '/bids' })}>
+          <X />
+          Cancel
+        </Button>
+        <Button onClick={handleSave}>
+          <Save />
+          {isEditing ? 'Save changes' : 'Save bid'}
+        </Button>
       </div>
     </div>
   );
