@@ -9,6 +9,9 @@ export interface ServiceSource {
   projectId: string;
   lineKey: string;
   phaseCode: string;
+  /** Source line's unit of measure. Lets us detect a service whose sources span
+   *  more than one unit (where a blended unit cost would be meaningless). */
+  unitOfMeasure?: string;
   date: string;
   ctd: { qty: number; hours: number; cost: number };
   oe:  { qty: number; cost: number };

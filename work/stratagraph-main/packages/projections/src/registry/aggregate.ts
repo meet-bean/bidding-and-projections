@@ -59,6 +59,18 @@ export function aggregateGroup(
 }
 
 /**
+ * True when a service's sources span more than one unit of measure. A blended
+ * unit cost (Σcost / Σqty) sums unlike units in that case, so it's meaningless
+ * and callers should show "mixed" / "—" instead of a number.
+ */
+export function sourcesUomVaries(sources: ServiceSource[]): boolean {
+  const units = new Set(
+    sources.map((s) => (s.unitOfMeasure ?? '').trim().toUpperCase()).filter(Boolean),
+  );
+  return units.size > 1;
+}
+
+/**
  * The UC ($/unit) for a group across sources.
  * Returns null when there is no `uc` metric in the group, or when the value is
  * zero / non-finite (e.g. empty sources → divide-by-zero → 0 → null).

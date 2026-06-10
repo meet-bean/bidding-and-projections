@@ -1,5 +1,5 @@
 import type { MetricsCatalog, Service } from '@repo/projections';
-import { groupUC, primaryPhase } from '@repo/projections';
+import { groupUC, primaryPhase, sourcesUomVaries } from '@repo/projections';
 import { costTypeLabel } from './cost-types';
 
 /** One row of the shared Services screen — same columns for both tenants. */
@@ -13,6 +13,8 @@ export interface ServiceRow {
   code: string | null;
   codeVaries: boolean;
   unit: string;
+  /** Sources span more than one unit of measure → blended UC is not meaningful. */
+  uomVaries: boolean;
   usedIn: number;
   recommendedRate: number | null;
   rateNote: string | null;
@@ -28,8 +30,12 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
   return services.map((s) => {
     const isSuperior = s.tenantId === 'superior';
     const phase = primaryPhase(s);
-    const originalUC = isSuperior ? groupUC(catalog, 'OE', s.sources) : null;
-    const forecastUC = isSuperior ? groupUC(catalog, 'F', s.sources) : null;
+    // A blended unit cost is meaningless when sources span different units —
+    // suppress it (and the variance) so the row never shows a wrong $/unit.
+    const uomVaries = isSuperior && sourcesUomVaries(s.sources);
+    const originalUC = isSuperior && !uomVaries ? groupUC(catalog, 'OE', s.sources) : null;
+    const actualUC = isSuperior && !uomVaries ? groupUC(catalog, 'CTD', s.sources) : null;
+    const forecastUC = isSuperior && !uomVaries ? groupUC(catalog, 'F', s.sources) : null;
     const variancePct =
       originalUC != null && originalUC !== 0 && forecastUC != null
         ? ((forecastUC - originalUC) / originalUC) * 100
@@ -42,11 +48,12 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
       code: s.dailyCode ?? phase.code,
       codeVaries: s.dailyCode ? false : phase.varies,
       unit: s.unitOfMeasure || '—',
+      uomVaries,
       usedIn: s.projectIds.length,
       recommendedRate: s.recommendedRate,
       rateNote: s.rateNote,
       originalUC,
-      actualUC: isSuperior ? groupUC(catalog, 'CTD', s.sources) : null,
+      actualUC,
       forecastUC,
       variancePct,
       service: s,

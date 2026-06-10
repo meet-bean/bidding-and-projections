@@ -3,6 +3,7 @@ import { Badge } from '@repo/ui';
 import { useStore } from '~/lib/store';
 import type { Service, ServiceSource } from '@repo/projections';
 import { aggregateGroup, groupMetrics, formatMetric } from '~/lib/service-catalog-aggregate';
+import { sourcesUomVaries } from '@repo/projections';
 
 const GROUPS = ['OE', 'CTD', 'F'] as const;
 const GROUP_LABELS: Record<string, string> = {
@@ -36,6 +37,8 @@ export function ServiceBreakdown({ service }: { service: Service }) {
       </div>
     );
   }
+
+  const uomVaries = sourcesUomVaries(service.sources);
 
   return (
     <div className="bg-muted/20 px-6 py-4">
@@ -94,13 +97,19 @@ export function ServiceBreakdown({ service }: { service: Service }) {
               <td className="px-3 py-2" />
               {GROUPS.map((g) => (
                 <td key={g} className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                  {getUC(g, service.sources)}
+                  {uomVaries ? <span className="text-muted-foreground">—</span> : getUC(g, service.sources)}
                 </td>
               ))}
             </tr>
           </tbody>
         </table>
       </div>
+      {uomVaries && (
+        <p className="mt-2 text-xs text-amber-700">
+          Projects use different units of measure — a blended unit cost isn't shown. Compare the
+          per-project rates above instead.
+        </p>
+      )}
     </div>
   );
 }

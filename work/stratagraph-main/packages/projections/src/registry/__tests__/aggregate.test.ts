@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createCatalog } from '../../metrics/catalog';
-import { aggregateGroup, groupUC } from '../aggregate';
+import { aggregateGroup, groupUC, sourcesUomVaries } from '../aggregate';
 import type { ServiceSource } from '../types';
 
 // Helper: source with all-zero bases except what's specified
@@ -17,6 +17,37 @@ function src(
     ...overrides,
   };
 }
+
+describe('sourcesUomVaries', () => {
+  it('false when all sources share a unit (or it is absent)', () => {
+    expect(
+      sourcesUomVaries([
+        { ...src({}), unitOfMeasure: 'DAY' },
+        { ...src({}, 'p2', 'b'), unitOfMeasure: 'DAY' },
+      ]),
+    ).toBe(false);
+    // absent units don't count as a distinct unit
+    expect(sourcesUomVaries([src({}), src({}, 'p2', 'b')])).toBe(false);
+  });
+
+  it('true when sources span more than one unit', () => {
+    expect(
+      sourcesUomVaries([
+        { ...src({}), unitOfMeasure: 'DAY' },
+        { ...src({}, 'p2', 'b'), unitOfMeasure: 'MOS' },
+      ]),
+    ).toBe(true);
+  });
+
+  it('case/whitespace-insensitive', () => {
+    expect(
+      sourcesUomVaries([
+        { ...src({}), unitOfMeasure: 'day' },
+        { ...src({}, 'p2', 'b'), unitOfMeasure: ' DAY ' },
+      ]),
+    ).toBe(false);
+  });
+});
 
 describe('aggregateGroup — OE', () => {
   const catalog = createCatalog('superior');

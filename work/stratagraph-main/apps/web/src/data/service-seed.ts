@@ -37,6 +37,7 @@ export function buildSuperiorServices(projects: ProjectionProject[]): Service[] 
           projectId: proj.id,
           lineKey: item.lineKey,
           phaseCode: item.keyParts[0] ?? '',
+          unitOfMeasure: item.unitOfMeasure,
           date: latest.createdAt,
           ctd: { qty: item.CTD.qty, hours: item.CTD.hours, cost: item.CTD.cost },
           oe:  { qty: item.Est.qty, cost: item.Est.cost },

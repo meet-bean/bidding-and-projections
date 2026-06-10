@@ -392,6 +392,7 @@ export function applyDecisions(
       projectId: pid,
       lineKey: L.lineKey,
       phaseCode: L.phaseCode,
+      unitOfMeasure: L.unitOfMeasure,
       date: L.date,
       ctd: L.ctd,
       oe: L.oe,

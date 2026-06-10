@@ -117,11 +117,20 @@ export function ServicesTable({ rows, onRowClick, onManage, isSuperior, actions 
       columnHelper.accessor('unit', {
         id: 'unit',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
-        cell: (info) => (
-          <Badge variant="secondary" className="text-[10px] font-normal">
-            {info.getValue()}
-          </Badge>
-        ),
+        cell: (info) =>
+          info.row.original.uomVaries ? (
+            <Badge
+              variant="outline"
+              className="border-amber-300 text-[10px] font-normal text-amber-700"
+              title="Sources use different units — blended unit cost is not shown"
+            >
+              mixed
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] font-normal">
+              {info.getValue()}
+            </Badge>
+          ),
         size: 90,
       }),
       columnHelper.accessor('usedIn', {
