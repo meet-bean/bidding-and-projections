@@ -9,6 +9,7 @@ import {
   normalizeKey,
   primaryPhase,
   classifyImport,
+  computeUploadDelta,
 } from '../registry';
 import type { ServiceSource } from '../types';
 
@@ -339,6 +340,53 @@ describe('classifyImport (5-tier matcher)', () => {
   it('cost type must agree even for exact name', () => {
     const res = classifyImport(buildReg(), [line({ costType: '3Material' })]);
     expect(res[0]!.bucket).toBe('new');
+  });
+});
+
+describe('computeUploadDelta', () => {
+  const item = (lineKey: string, label: string) => ({
+    lineKey, keyParts: lineKey.split('|'), label, unitOfMeasure: 'CY',
+    CTP: { qty: 0, hours: 0, upm: 0, mpu: 0, uc: 0, cost: 0 },
+    CTD: { qty: 1, hours: 2, upm: 0, mpu: 0, uc: 0, cost: 3 },
+    CTC: { qty: 0, hours: 0, upm: 0, mpu: 0, uc: 0, cost: 0 },
+    F:   { qty: 4, hours: 5, upm: 0, mpu: 0, uc: 0, cost: 6 },
+    Est: { qty: 7, hours: 8, upm: 0, mpu: 0, uc: 0, cost: 9 },
+    estVar: 0, comp: 0, prevForecast: 0, calcHrs: 0, wsRisk: 0, isNew: false, stale: false,
+  });
+  const version = (id: string, items: ReturnType<typeof item>[]) => ({
+    id, label: id, createdAt: '2026-06-01T00:00:00Z', saved: true, items,
+  });
+  const project = (versions: ReturnType<typeof version>[]) => ({
+    id: 'p1', name: 'P', jobNumber: '1', customer: '', pm: '',
+    createdAt: '', versions, draft: null, comments: {}, alertStatus: {}, financials: null,
+  });
+
+  it('first version → every line is delta', () => {
+    const p = project([version('v1', [item('A|2Labor', 'Alpha'), item('B|2Labor', 'Beta')])]);
+    expect(computeUploadDelta(p as never).map((l) => l.lineKey)).toEqual(['A|2Labor', 'B|2Labor']);
+  });
+
+  it('unchanged lines are excluded; new lineKey included', () => {
+    const p = project([
+      version('v1', [item('A|2Labor', 'Alpha')]),
+      version('v2', [item('A|2Labor', 'Alpha'), item('B|2Labor', 'Beta')]),
+    ]);
+    expect(computeUploadDelta(p as never).map((l) => l.lineKey)).toEqual(['B|2Labor']);
+  });
+
+  it('renamed label is included as delta', () => {
+    const p = project([
+      version('v1', [item('A|2Labor', 'Alpha')]),
+      version('v2', [item('A|2Labor', 'Alpha Renamed')]),
+    ]);
+    const delta = computeUploadDelta(p as never);
+    expect(delta).toHaveLength(1);
+    expect(delta[0]!.name).toBe('Alpha Renamed');
+    expect(delta[0]!.projectId).toBe('p1');
+  });
+
+  it('empty project → empty delta', () => {
+    expect(computeUploadDelta(project([]) as never)).toEqual([]);
   });
 });
 

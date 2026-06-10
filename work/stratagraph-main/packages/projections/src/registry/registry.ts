@@ -5,6 +5,7 @@ import type {
   ServiceSource,
   FuzzyMatch,
 } from './types';
+import type { ProjectionProject, ProjectionItem } from '../types';
 
 let _counter = 0;
 function uid(): string {
@@ -329,4 +330,41 @@ export function classifyImport(registry: ServiceRegistry, lines: ImportLine[]): 
       suggestion: best.service, confidence: best.confidence, uomWarning: uomWarns(best.service),
     };
   });
+}
+
+/** Convert a projection item to an ImportLine for reconciliation. */
+export function toImportLine(
+  item: ProjectionItem,
+  projectId: string,
+  date: string
+): ImportLine {
+  return {
+    name: item.label,
+    unitOfMeasure: item.unitOfMeasure,
+    costType: item.keyParts[1] ?? '',
+    lineKey: item.lineKey,
+    phaseCode: item.keyParts[0] ?? '',
+    ctd: { qty: item.CTD.qty, hours: item.CTD.hours, cost: item.CTD.cost },
+    oe: { qty: item.Est.qty, cost: item.Est.cost },
+    f: { qty: item.F.qty, cost: item.F.cost },
+    date,
+    projectId,
+  };
+}
+
+/**
+ * Lines in the latest version that need reconciliation: new lineKeys plus
+ * renamed labels vs the immediately prior version. First version → all lines.
+ */
+export function computeUploadDelta(project: ProjectionProject): ImportLine[] {
+  const latest = project.versions[project.versions.length - 1];
+  if (!latest) return [];
+  const prev = project.versions[project.versions.length - 2] ?? null;
+  const prevByKey = new Map((prev?.items ?? []).map((i) => [i.lineKey, i]));
+  return latest.items
+    .filter((it) => {
+      const p = prevByKey.get(it.lineKey);
+      return !p || p.label !== it.label;
+    })
+    .map((it) => toImportLine(it, project.id, latest.createdAt));
 }
