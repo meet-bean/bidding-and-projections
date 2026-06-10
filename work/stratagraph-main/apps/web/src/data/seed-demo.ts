@@ -1,5 +1,6 @@
 import type { ProjectionProject } from '@repo/projections';
-import { makeLineKey, loadProject, createRegistry, addServiceItem } from '@repo/projections';
+import { makeLineKey, loadProject } from '@repo/projections';
+import { buildSuperiorServices } from './service-seed';
 import type { Bid, Invoice } from '~/lib/types';
 
 const s = (qty: number, hours: number, cost: number) => ({
@@ -586,27 +587,8 @@ export const DEMO_INVOICES: Invoice[] = [
 // ---------------------------------------------------------------------------
 
 export function buildDemoRegistry(tenantId: string) {
-  let reg = createRegistry(tenantId);
-  for (const proj of DEMO_PROJECTION_PROJECTS) {
-    const latest = proj.versions[proj.versions.length - 1];
-    if (!latest) continue;
-    for (const item of latest.items) {
-      reg = addServiceItem(reg, {
-        canonicalName: item.label,
-        unitOfMeasure: item.unitOfMeasure,
-        costType: item.keyParts[1] || '',
-        sourceProjectId: proj.id,
-        source: {
-          projectId: proj.id,
-          lineKey: item.lineKey,
-          phaseCode: item.keyParts[0] ?? '',
-          date: latest.createdAt,
-          ctd: { qty: item.CTD.qty, hours: item.CTD.hours, cost: item.CTD.cost },
-          oe: { qty: item.Est.qty, cost: item.Est.cost },
-          f: { qty: item.F.qty, cost: item.F.cost },
-        },
-      });
-    }
-  }
-  return reg;
+  return {
+    tenantId,
+    items: tenantId === 'superior' ? buildSuperiorServices(DEMO_PROJECTION_PROJECTS) : [],
+  };
 }

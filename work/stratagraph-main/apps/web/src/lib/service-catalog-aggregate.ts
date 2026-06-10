@@ -1,32 +1,12 @@
-import type { Metric, MetricsCatalog, ProjectionItem, ServiceSource } from '@repo/projections';
-import { resolveMetricValue } from '@repo/projections';
+import type { Metric, MetricsCatalog, ServiceSource } from '@repo/projections';
+import { aggregateGroup, groupMetrics } from '@repo/projections';
 
-const ZERO = { qty: 0, hours: 0, upm: 0, mpu: 0, uc: 0, cost: 0 };
-
-function synthItem(ctd: { qty: number; hours: number; cost: number }): ProjectionItem {
-  return {
-    lineKey: '',
-    keyParts: [],
-    label: '',
-    unitOfMeasure: '',
-    CTP: { ...ZERO },
-    CTD: { ...ZERO, qty: ctd.qty, hours: ctd.hours, cost: ctd.cost },
-    CTC: { ...ZERO },
-    F: { ...ZERO },
-    Est: { ...ZERO },
-    estVar: 0,
-    comp: 0,
-    prevForecast: 0,
-    calcHrs: 0,
-    wsRisk: 0,
-    isNew: false,
-    stale: false,
-  };
-}
+// Engine pieces live in @repo/projections (registry/aggregate); re-export for app code.
+export { aggregateGroup, groupMetrics, groupUC } from '@repo/projections';
 
 /** CTD-group metrics in catalog order. */
 export function ctdMetrics(catalog: MetricsCatalog): Metric[] {
-  return catalog.metrics.filter((m) => m.group === 'CTD');
+  return groupMetrics(catalog, 'CTD');
 }
 
 /** Resolve every CTD metric for a single CTD base triple → { [metricId]: value }. */
@@ -34,12 +14,11 @@ export function resolveCtd(
   catalog: MetricsCatalog,
   ctd: { qty: number; hours: number; cost: number },
 ): Record<string, number> {
-  const item = synthItem(ctd);
-  const out: Record<string, number> = {};
-  for (const m of ctdMetrics(catalog)) {
-    out[m.id] = resolveMetricValue(item, m, { catalog, prevItems: [] });
-  }
-  return out;
+  const source: ServiceSource = {
+    projectId: '', lineKey: '', phaseCode: '', date: '',
+    ctd, oe: { qty: 0, cost: 0 }, f: { qty: 0, cost: 0 },
+  };
+  return aggregateGroup(catalog, 'CTD', [source]);
 }
 
 /** Aggregate CTD across sources: SUM the bases, then resolve all CTD metrics on the sums. */
@@ -47,11 +26,7 @@ export function aggregateCtd(
   catalog: MetricsCatalog,
   sources: ServiceSource[],
 ): Record<string, number> {
-  const sum = sources.reduce(
-    (a, s) => ({ qty: a.qty + s.ctd.qty, hours: a.hours + s.ctd.hours, cost: a.cost + s.ctd.cost }),
-    { qty: 0, hours: 0, cost: 0 },
-  );
-  return resolveCtd(catalog, sum);
+  return aggregateGroup(catalog, 'CTD', sources);
 }
 
 /** Format a metric value for display. */
