@@ -11,6 +11,8 @@ import type { ServiceRow } from '~/lib/service-rows';
 interface ServicesTableProps {
   rows: ServiceRow[];
   onRowClick: (row: ServiceRow) => void;
+  /** Superior shows the OE/CTD/F unit-cost columns; Stratagraph shows the rate card. */
+  isSuperior: boolean;
   actions?: React.ReactNode;
 }
 
@@ -31,8 +33,24 @@ function moneyCell(value: number | null, fallback?: string | null) {
   );
 }
 
-/** Shared Services table — one column set for both tenants. */
-export function ServicesTable({ rows, onRowClick, actions }: ServicesTableProps) {
+/** Forecast-vs-Original unit-cost variance: over-bid runs warm (red), under runs cool (green). */
+function varianceCell(pct: number | null) {
+  if (pct == null) return <div className="text-muted-foreground text-right">—</div>;
+  const rounded = Math.round(pct);
+  if (rounded === 0) return <div className="text-muted-foreground text-right text-sm tabular-nums">0%</div>;
+  const over = rounded > 0;
+  return (
+    <div
+      className={`text-right text-sm font-medium tabular-nums ${over ? 'text-destructive' : 'text-success'}`}
+    >
+      {over ? '+' : ''}
+      {rounded}%
+    </div>
+  );
+}
+
+/** Shared Services table — tenant-aware column set. */
+export function ServicesTable({ rows, onRowClick, isSuperior, actions }: ServicesTableProps) {
   const columns = useMemo(
     () => [
       columnHelper.accessor('name', {
@@ -41,19 +59,20 @@ export function ServicesTable({ rows, onRowClick, actions }: ServicesTableProps)
         cell: (info) => {
           const r = info.row.original;
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-baseline gap-2">
               {r.code && (
-                <Badge variant="outline" className="font-mono text-[10px]">
-                  {r.code}
-                </Badge>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{r.code}</span>
               )}
-              <span className="text-sm font-medium">{info.getValue()}</span>
+              <span className="truncate text-sm font-medium" title={info.getValue()}>
+                {info.getValue()}
+              </span>
               {r.codeVaries && (
-                <span className="text-[10px] italic text-muted-foreground">+ varies</span>
+                <span className="shrink-0 text-[10px] italic text-muted-foreground">+ varies</span>
               )}
             </div>
           );
         },
+        size: 320,
       }),
       columnHelper.accessor('type', {
         id: 'type',
@@ -103,43 +122,56 @@ export function ServicesTable({ rows, onRowClick, actions }: ServicesTableProps)
         },
         size: 110,
       }),
-      columnHelper.accessor((r) => r.recommendedRate ?? 0, {
-        id: 'recommendedRate',
-        header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Recommended Rate" className="justify-end" />
-        ),
-        cell: (info) => {
-          const r = info.row.original;
-          return moneyCell(r.recommendedRate, r.rateNote);
-        },
-        size: 160,
-      }),
-      columnHelper.accessor((r) => r.originalUC ?? 0, {
-        id: 'originalUC',
-        header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Original UC" className="justify-end" />
-        ),
-        cell: (info) => moneyCell(info.row.original.originalUC),
-        size: 120,
-      }),
-      columnHelper.accessor((r) => r.actualUC ?? 0, {
-        id: 'actualUC',
-        header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Actual UC" className="justify-end" />
-        ),
-        cell: (info) => moneyCell(info.row.original.actualUC),
-        size: 120,
-      }),
-      columnHelper.accessor((r) => r.forecastUC ?? 0, {
-        id: 'forecastUC',
-        header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Forecast UC" className="justify-end" />
-        ),
-        cell: (info) => moneyCell(info.row.original.forecastUC),
-        size: 120,
-      }),
+      // Tenant-specific tail: Superior tracks unit-cost (OE/CTD/F + variance);
+      // Stratagraph carries the rate card. Showing both for either tenant left
+      // half the columns permanently empty, so each tenant gets only its own.
+      ...(isSuperior
+        ? [
+            columnHelper.accessor((r) => r.originalUC ?? 0, {
+              id: 'originalUC',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="Original UC" className="justify-end" />
+              ),
+              cell: (info) => moneyCell(info.row.original.originalUC),
+              size: 116,
+            }),
+            columnHelper.accessor((r) => r.actualUC ?? 0, {
+              id: 'actualUC',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="Actual UC" className="justify-end" />
+              ),
+              cell: (info) => moneyCell(info.row.original.actualUC),
+              size: 116,
+            }),
+            columnHelper.accessor((r) => r.forecastUC ?? 0, {
+              id: 'forecastUC',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="Forecast UC" className="justify-end" />
+              ),
+              cell: (info) => moneyCell(info.row.original.forecastUC),
+              size: 116,
+            }),
+            columnHelper.accessor((r) => r.variancePct ?? 0, {
+              id: 'variancePct',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="Δ vs Bid" className="justify-end" />
+              ),
+              cell: (info) => varianceCell(info.row.original.variancePct),
+              size: 96,
+            }),
+          ]
+        : [
+            columnHelper.accessor((r) => r.recommendedRate ?? 0, {
+              id: 'recommendedRate',
+              header: ({ column }) => (
+                <DataGridColumnHeader column={column} title="Recommended Rate" className="justify-end" />
+              ),
+              cell: (info) => moneyCell(info.row.original.recommendedRate, info.row.original.rateNote),
+              size: 160,
+            }),
+          ]),
     ],
-    []
+    [isSuperior]
   );
 
   const typeOptions = useMemo(

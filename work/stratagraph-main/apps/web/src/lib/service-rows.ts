@@ -19,6 +19,8 @@ export interface ServiceRow {
   originalUC: number | null;
   actualUC: number | null;
   forecastUC: number | null;
+  /** Forecast-vs-Original unit-cost variance, as a percentage. Superior only. */
+  variancePct: number | null;
   service: Service;
 }
 
@@ -26,6 +28,12 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
   return services.map((s) => {
     const isSuperior = s.tenantId === 'superior';
     const phase = primaryPhase(s);
+    const originalUC = isSuperior ? groupUC(catalog, 'OE', s.sources) : null;
+    const forecastUC = isSuperior ? groupUC(catalog, 'F', s.sources) : null;
+    const variancePct =
+      originalUC != null && originalUC !== 0 && forecastUC != null
+        ? ((forecastUC - originalUC) / originalUC) * 100
+        : null;
     return {
       id: s.id,
       tenantId: s.tenantId,
@@ -37,9 +45,10 @@ export function toServiceRows(services: Service[], catalog: MetricsCatalog): Ser
       usedIn: s.projectIds.length,
       recommendedRate: s.recommendedRate,
       rateNote: s.rateNote,
-      originalUC: isSuperior ? groupUC(catalog, 'OE', s.sources) : null,
+      originalUC,
       actualUC: isSuperior ? groupUC(catalog, 'CTD', s.sources) : null,
-      forecastUC: isSuperior ? groupUC(catalog, 'F', s.sources) : null,
+      forecastUC,
+      variancePct,
       service: s,
     };
   });
