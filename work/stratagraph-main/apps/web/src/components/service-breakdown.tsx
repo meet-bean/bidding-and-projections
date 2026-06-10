@@ -6,15 +6,16 @@ import { aggregateGroup, groupMetrics, formatMetric } from '~/lib/service-catalo
 
 const GROUPS = ['OE', 'CTD', 'F'] as const;
 
-// Column template mirrors the parent table's trailing columns so the per-project
-// unit costs sit directly under Original / Actual / Forecast UC + Δ (the row,
-// exploded into its parts). Leading 1fr absorbs the project name; the 48px tail
-// lines up with the parent's ⋯ actions column.
-const GRID = 'grid items-center gap-x-2 [grid-template-columns:minmax(0,1fr)_116px_116px_116px_96px_48px]';
+// fr units replicate the parent table's proportional column scaling exactly, so
+// the per-project numbers land directly under Original / Actual / Forecast UC + Δ.
+// 650 = the parent's name+type+unit+used-in columns combined; the rest mirror
+// the parent's trailing column sizes (116/116/116/96 + 48 actions spacer).
+const GRID = 'grid [grid-template-columns:650fr_116fr_116fr_116fr_96fr_48fr]';
 
 /**
- * Per-project unit-cost breakdown for a Superior service — the rows that compose
- * the blended UC shown on the table. Rendered inline as the expanded row.
+ * Per-project unit-cost breakdown for a Superior service, rendered inline as the
+ * expanded row — indented child rows of the same table (no nested header, no
+ * phase column), so it reads as the parent row exploded into its projects.
  */
 export function ServiceBreakdown({ service }: { service: Service }) {
   const projectionProjects = useStore((s) => s.projectionProjects);
@@ -39,56 +40,39 @@ export function ServiceBreakdown({ service }: { service: Service }) {
 
   if (service.sources.length === 0) {
     return (
-      <div className="border-l-2 border-border bg-muted/20 px-6 py-3">
+      <div className="bg-muted/20 py-2 pl-12 pr-4">
         <p className="text-sm italic text-muted-foreground">No source lines for this service.</p>
       </div>
     );
   }
 
-  const uomVaries = sourcesUomVaries(service.sources);
-
   return (
-    <div className="border-l-2 border-border bg-muted/20 px-6 py-3">
-      <div className={`${GRID} px-2 pb-1.5 text-[11px] text-muted-foreground`}>
-        <span>Per-project breakdown</span>
-        <span className="text-right">Original UC</span>
-        <span className="text-right">Actual UC</span>
-        <span className="text-right">Forecast UC</span>
-        <span className="text-right">Δ</span>
-        <span />
-      </div>
+    <div className="bg-muted/20">
       {service.sources.map((src, i) => {
         const project = projectionProjects.find((p) => p.id === src.projectId);
         const orig = rawUC('OE', [src]);
         const fc = rawUC('F', [src]);
         const pct = orig != null && orig !== 0 && fc != null ? ((fc - orig) / orig) * 100 : null;
         return (
-          <div
-            key={i}
-            className={`${GRID} border-t border-border/60 px-2 py-1.5 text-sm`}
-          >
-            <span className="flex min-w-0 items-baseline gap-1.5">
-              {src.phaseCode && (
-                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                  {src.phaseCode}
-                </span>
-              )}
-              <span className="truncate text-muted-foreground" title={project?.name ?? src.projectId}>
-                {project?.name ?? src.projectId}
-              </span>
+          <div key={i} className={`${GRID} border-t border-border/50 text-sm`}>
+            <span
+              className="min-w-0 truncate py-2 pl-12 pr-4 text-muted-foreground"
+              title={project?.name ?? src.projectId}
+            >
+              {project?.name ?? src.projectId}
             </span>
-            <span className="text-right tabular-nums">{fmtUC('OE', [src])}</span>
-            <span className="text-right tabular-nums">{fmtUC('CTD', [src])}</span>
-            <span className="text-right tabular-nums">{fmtUC('F', [src])}</span>
-            <span className="text-right">{varianceCell(pct)}</span>
+            <span className="px-4 py-2 text-right tabular-nums">{fmtUC('OE', [src])}</span>
+            <span className="px-4 py-2 text-right tabular-nums">{fmtUC('CTD', [src])}</span>
+            <span className="px-4 py-2 text-right tabular-nums">{fmtUC('F', [src])}</span>
+            <span className="px-4 py-2 text-right">{varianceCell(pct)}</span>
             <span />
           </div>
         );
       })}
-      {uomVaries && (
-        <p className="mt-2 px-2 text-xs text-amber-700">
+      {sourcesUomVaries(service.sources) && (
+        <p className="border-t border-border/50 py-2 pl-12 pr-4 text-xs text-amber-700">
           Projects use different units of measure, so a blended unit cost isn't shown on the row
-          above. Compare the per-project rates here instead.
+          above. Compare the per-project rates here.
         </p>
       )}
     </div>
