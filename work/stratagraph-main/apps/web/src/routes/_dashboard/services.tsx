@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { Button } from '@repo/ui';
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@repo/ui';
 import { Trash2 } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import { toServiceRows, type ServiceRow } from '~/lib/service-rows';
@@ -27,17 +27,20 @@ function ServicesPage() {
 
   const headerActions = isSuperior ? (
     <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          const first = projectionProjects[0];
-          if (first) setReconcileProjectId(first.id);
-        }}
-        disabled={projectionProjects.length === 0}
-      >
-        Import &amp; reconcile
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" disabled={projectionProjects.length === 0}>
+            Import &amp; reconcile
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {projectionProjects.map((p) => (
+            <DropdownMenuItem key={p.id} onClick={() => setReconcileProjectId(p.id)}>
+              {p.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button
         variant="outline"
         size="sm"
