@@ -8,20 +8,22 @@ import {
   Button,
 } from '@repo/ui';
 import { useStore } from '~/lib/store';
-import { classifyImport } from '@repo/projections';
-import type { ImportLine, ClassifiedLine } from '@repo/projections';
+import { classifyImport, toImportLine } from '@repo/projections';
+import type { ImportLine, ClassifiedLine, ReconcileDecision } from '@repo/projections';
 import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
 
 interface ServiceReconcileDialogProps {
   projectId: string | null;
+  /** Pre-computed lines (upload delta). When omitted, derives ALL lines from the project's latest version (manual flow). */
+  lines?: ImportLine[];
+  /** Dialog title override, e.g. "New line items — March 2026 Projection". */
+  title?: string;
   onClose: () => void;
 }
 
-type Decision =
-  | { line: ImportLine; action: 'match'; targetId: string }
-  | { line: ImportLine; action: 'new' };
+type Decision = ReconcileDecision;
 
-export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileDialogProps) {
+export function ServiceReconcileDialog({ projectId, lines: linesProp, title, onClose }: ServiceReconcileDialogProps) {
   const projectionProjects = useStore((s) => s.projectionProjects);
   const services = useStore((s) => s.services);
   const tenantId = useStore((s) => s.tenantId);
@@ -30,21 +32,11 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
   const project = projectId ? projectionProjects.find((p) => p.id === projectId) : null;
 
   const lines = useMemo<ImportLine[]>(() => {
+    if (linesProp) return linesProp;
     if (!project || project.versions.length === 0) return [];
     const latest = project.versions[project.versions.length - 1]!;
-    return latest.items.map((item) => ({
-      name: item.label,
-      unitOfMeasure: item.unitOfMeasure,
-      costType: item.keyParts[1] ?? '',
-      lineKey: item.lineKey,
-      phaseCode: item.keyParts[0] ?? '',
-      ctd: { qty: item.CTD.qty, hours: item.CTD.hours, cost: item.CTD.cost },
-      oe: { qty: item.Est.qty, cost: item.Est.cost },
-      f: { qty: item.F.qty, cost: item.F.cost },
-      date: latest.createdAt,
-      projectId: project.id,
-    }));
-  }, [project]);
+    return latest.items.map((item) => toImportLine(item, project.id, latest.createdAt));
+  }, [linesProp, project]);
 
   const classified = useMemo<ClassifiedLine[]>(() => {
     if (lines.length === 0) return [];
@@ -97,7 +89,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Import &amp; reconcile
+            {title ?? 'Import & reconcile'}
             {project && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 — {project.name}
@@ -178,22 +170,6 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                           <div className="flex items-center gap-1.5 shrink-0">
                             <Button
                               size="sm"
-                              variant={isMatch ? 'default' : 'outline'}
-                              className="h-7 text-xs"
-                              onClick={() => {
-                                if (c.suggestion) {
-                                  setDecision(c.line.lineKey, {
-                                    line: c.line,
-                                    action: 'match',
-                                    targetId: c.suggestion.id,
-                                  });
-                                }
-                              }}
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
                               variant={!isMatch ? 'default' : 'outline'}
                               className="h-7 text-xs"
                               onClick={() =>
@@ -204,16 +180,41 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
                             </Button>
                           </div>
                         </div>
-                        {c.suggestion && (
-                          <p className="text-xs text-muted-foreground mt-1 ml-7">
-                            Suggested: <span className="font-medium">{c.suggestion.canonicalName}</span>
-                            {' '}· {costTypeLabel(c.suggestion.costType)}
-                            {' '}·{' '}
-                            <span className={c.confidence >= 0.8 ? 'text-amber-600' : 'text-muted-foreground'}>
-                              {Math.round(c.confidence * 100)}% match
-                            </span>
+                        {c.uomWarning && (
+                          <p className="text-xs text-amber-600 mt-1 ml-7">
+                            UoM differs: incoming {c.line.unitOfMeasure || '—'} vs catalog{' '}
+                            {c.suggestion?.unitOfMeasure || '—'}
                           </p>
                         )}
+                        <div className="mt-1.5 ml-7 flex flex-col gap-1">
+                          {c.suggestions.map((sug) => {
+                            const selected = dec?.action === 'match' && dec.targetId === sug.service.id;
+                            return (
+                              <button
+                                key={sug.service.id}
+                                className={`flex items-center justify-between gap-2 rounded border px-2 py-1 text-left text-xs ${
+                                  selected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-border'
+                                }`}
+                                onClick={() =>
+                                  setDecision(c.line.lineKey, {
+                                    line: c.line,
+                                    action: 'match',
+                                    targetId: sug.service.id,
+                                  })
+                                }
+                              >
+                                <span className="truncate">
+                                  <span className="font-medium">{sug.service.canonicalName}</span>
+                                  {' '}· {costTypeLabel(sug.service.costType)}
+                                </span>
+                                <span className="shrink-0 text-muted-foreground">
+                                  {sug.reason === 'phase-rename' ? 'renamed?' : 'name match'} ·{' '}
+                                  {Math.round(sug.confidence * 100)}%
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
                   })}
@@ -260,7 +261,7 @@ export function ServiceReconcileDialog({ projectId, onClose }: ServiceReconcileD
               Cancel
             </Button>
             <Button size="sm" onClick={handleApply} disabled={lines.length === 0}>
-              Add to catalog
+              Apply
             </Button>
           </div>
         </DialogFooter>
