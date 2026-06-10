@@ -244,6 +244,7 @@ function ProjectionsIndexPage() {
       data={rows}
       columns={columns}
       searchPlaceholder="Search by job #, project, customer..."
+      countLabel="projects"
       searchableKeys={['jobNumber', 'name', 'customer', 'pm']}
       filters={[
         {

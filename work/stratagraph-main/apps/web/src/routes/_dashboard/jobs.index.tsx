@@ -9,7 +9,7 @@ import {
   createColumnHelper,
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
-import { JobStatusBadge } from '~/components/status-badges';
+import { JobStatusBadge, JOB_STATUS_CLASSES } from '~/components/status-badges';
 
 export const Route = createFileRoute('/_dashboard/jobs/')({
   component: JobsPage,
@@ -156,9 +156,7 @@ function JobsPage() {
         header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
         cell: (info) =>
           info.getValue() ? (
-            <Badge variant="outline" className="font-mono text-xs">
-              {info.getValue()}
-            </Badge>
+            <span className="font-mono text-xs text-muted-foreground">{info.getValue()}</span>
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           ),
@@ -257,6 +255,7 @@ function JobsPage() {
         data={rows}
         columns={columns}
         searchPlaceholder="Search by job #, well, customer..."
+        countLabel="jobs"
         searchableKeys={['jobNumber', 'wellName', 'customerName']}
         filters={[
           {
@@ -307,13 +306,8 @@ function JobsPage() {
   );
 }
 
-const STATUS_PILL_STYLES: Record<JobStatus, string> = {
-  active: 'bg-strat-green/15 text-strat-green border-strat-green/40',
-  scheduled: 'bg-strat-indigo/15 text-strat-indigo border-strat-indigo/40',
-  speculative: 'bg-strat-gold/15 text-strat-gold border-strat-gold/40',
-  completed: 'bg-strat-slate/15 text-strat-slate border-strat-slate/40',
-  cancelled: 'bg-strat-coral/15 text-strat-coral border-strat-coral/40',
-};
+// Status pill palette comes from the central registry (status-badges.tsx).
+const STATUS_PILL_STYLES = JOB_STATUS_CLASSES;
 
 function StatusSummaryStrip({ rows }: { rows: JobRow[] }) {
   const counts = rows.reduce<Record<JobStatus, number>>(

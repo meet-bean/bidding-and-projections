@@ -755,6 +755,7 @@ function MetricsPage() {
         data={catalog.metrics}
         columns={columns}
         searchPlaceholder="Search metrics..."
+        countLabel="metrics"
         searchableKeys={['name', 'field', 'formula']}
         filters={[
           {

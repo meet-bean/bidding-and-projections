@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { AlertCircle, CheckCircle2, MapPin, Plus } from 'lucide-react';
 import { useStore, REGION_LABELS, TENANT_REGIONS } from '~/lib/store';
+import { StateBadge } from '~/components/status-badges';
 import type { Region, Yard } from '~/lib/types';
 import {
   DataListShell,
@@ -112,25 +113,21 @@ function YardsPage() {
         cell: (info) => {
           const row = info.row.original;
           if (row.status === 'closed') {
-            return (
-              <Badge className="bg-strat-slate/15 text-strat-slate border-strat-slate/30">
-                Closed
-              </Badge>
-            );
+            return <StateBadge tone="neutral">Closed</StateBadge>;
           }
           if (row.status === 'closing') {
             return (
-              <Badge className="bg-strat-orange/15 text-strat-orange border-strat-orange/30 gap-1">
+              <StateBadge tone="caution" className="gap-1">
                 <AlertCircle className="size-3" />
                 Closing {row.closingDate}
-              </Badge>
+              </StateBadge>
             );
           }
           return (
-            <Badge className="bg-strat-green/15 text-strat-green border-strat-green/30 gap-1">
+            <StateBadge tone="positive" className="gap-1">
               <CheckCircle2 className="size-3" />
               Open
-            </Badge>
+            </StateBadge>
           );
         },
         size: 200,
@@ -154,6 +151,7 @@ function YardsPage() {
         data={rows}
         columns={columns}
         searchPlaceholder="Search by name, city..."
+        countLabel="yards"
         searchableKeys={['name', 'city', 'state']}
         filters={[
           {

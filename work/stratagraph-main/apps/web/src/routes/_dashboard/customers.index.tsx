@@ -142,6 +142,7 @@ function CustomersPage() {
         data={rows}
         columns={columns}
         searchPlaceholder="Search by name, contact, salesperson..."
+        countLabel="customers"
         searchableKeys={['name', 'contactName', 'salesperson', 'location']}
         filters={[
           {

@@ -6,6 +6,7 @@ import { useStore, deriveBidStatus } from '~/lib/store';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
 import type { BidStatus } from '~/lib/types';
+import { formatDate, formatRelative, daysSince, formatCurrencyExact } from '~/lib/format';
 import {
   DataListShell,
   createColumnHelper,
@@ -15,27 +16,6 @@ import {
 export const Route = createFileRoute('/_dashboard/bids/')({
   component: BidsPage,
 });
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-/** Friendly "12d ago" / "3w ago" / "5mo ago" formatting matching how Mickey speaks. */
-function relativeAgo(iso: string): string {
-  const days = daysSince(iso);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 21) return `${days}d ago`;
-  if (days < 60) return `${Math.round(days / 7)}w ago`;
-  return `${Math.round(days / 30)}mo ago`;
-}
-
-function daysSince(iso: string): number {
-  const today = new Date().toISOString().slice(0, 10);
-  const ms = new Date(today + 'T00:00:00').getTime() - new Date(iso + 'T00:00:00').getTime();
-  return Math.floor(ms / 86_400_000);
-}
 
 interface BidRow {
   id: string;
@@ -147,8 +127,8 @@ function BidsPage() {
           const iso = info.getValue();
           return (
             <div className="text-sm tabular-nums leading-tight">
-              <div className="text-foreground">{formatShortDate(iso)}</div>
-              <div className="text-muted-foreground text-xs">{relativeAgo(iso)}</div>
+              <div className="text-foreground">{formatDate(iso)}</div>
+              <div className="text-muted-foreground text-xs">{formatRelative(iso)}</div>
             </div>
           );
         },
@@ -175,11 +155,7 @@ function BidsPage() {
         ),
         cell: (info) => (
           <span className="font-medium tabular-nums">
-            $
-            {info.getValue().toLocaleString('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatCurrencyExact(info.getValue())}
           </span>
         ),
         size: 140,
@@ -193,6 +169,7 @@ function BidsPage() {
       data={rows}
       columns={columns}
       searchPlaceholder="Search by customer..."
+      countLabel="bids"
       searchableKeys={['customerName', 'salesperson']}
       filters={[
         {

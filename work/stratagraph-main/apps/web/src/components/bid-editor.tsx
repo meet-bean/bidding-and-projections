@@ -33,6 +33,7 @@ import { useStore } from '~/lib/store';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { toServiceRows, type ServiceRow } from '~/lib/service-rows';
 import { CHIP_CLASS } from '~/lib/composer';
+import { formatCurrencyExact } from '~/lib/format';
 import { CATEGORY_LABELS } from '~/data/service-catalog';
 import type {
   Bid,
@@ -376,7 +377,7 @@ function ucCell(value: number | null, uomVaries: boolean) {
   if (value == null) return <span className="text-muted-foreground text-xs">—</span>;
   return (
     <span className="text-muted-foreground tabular-nums">
-      ${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+      {formatCurrencyExact(value)}
     </span>
   );
 }
@@ -512,11 +513,7 @@ function CategoryTable({
             <div className="text-right text-sm tabular-nums">
               {item.defaultRate != null ? (
                 <span className="text-muted-foreground">
-                  $
-                  {item.defaultRate.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatCurrencyExact(item.defaultRate)}
                 </span>
               ) : (
                 <span className="text-muted-foreground text-xs italic">{item.rateNote ?? '—'}</span>

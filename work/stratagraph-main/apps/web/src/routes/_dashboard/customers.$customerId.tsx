@@ -27,6 +27,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { formatDateShort } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { InvoiceStatusBadge, JobStatusBadge } from '~/components/status-badges';
 import { CustomerDialog } from '~/components/entity-dialogs/customer-dialog';
@@ -47,10 +48,6 @@ const METHOD_LABEL = {
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-function formatShortDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + 'T00:00:00').getTime();
@@ -160,17 +157,17 @@ function CustomerDetail() {
           </p>
         </div>
         <PageHeaderActions>
-          <Button variant="outline" onClick={() => setCustomerDialogOpen(true)}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setCustomerDialogOpen(true)}>
             <Pencil />
             Edit
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
             <Link to="/bids/new" search={{ customerId: customer.id }}>
               <FileText />
               New Bid
             </Link>
           </Button>
-          <Button asChild>
+          <Button size="sm" asChild>
             <Link to="/jobs/new" search={{ customerId: customer.id }}>
               <Plus />
               New Job
@@ -179,8 +176,8 @@ function CustomerDetail() {
         </PageHeaderActions>
       </PageHeader>
 
-      {/* Snapshot KPIs — single-purpose tiles, the only place cards are appropriate */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Snapshot KPIs — plain header stats line (house style, no tiles) */}
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
         <SnapshotCard
           label="Open Balance"
           value={`$${openBalance.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
@@ -433,8 +430,8 @@ function CustomerDetail() {
                       <TableCell className="font-mono text-sm">{j.jobNumber}</TableCell>
                       <TableCell>{j.wellName}</TableCell>
                       <TableCell className="text-muted-foreground tabular-nums">
-                        {j.startDate ? formatShortDate(j.startDate) : '—'}
-                        {j.endDate ? ` → ${formatShortDate(j.endDate)}` : null}
+                        {j.startDate ? formatDateShort(j.startDate) : '—'}
+                        {j.endDate ? ` → ${formatDateShort(j.endDate)}` : null}
                       </TableCell>
                       <TableCell>
                         <JobStatusBadge status={j.status} />
@@ -582,20 +579,13 @@ function SnapshotCard({
   hint?: React.ReactNode;
   tone?: string;
 }) {
+  // Inline header stat (house style): muted label, weighted value, quiet hint.
   return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-          {label}
-        </div>
-        <div className={cn('mt-1 text-2xl font-bold tracking-tight tabular-nums', tone)}>
-          {value}
-        </div>
-        {hint ? (
-          <div className="text-muted-foreground mt-1 text-xs">{hint}</div>
-        ) : null}
-      </CardContent>
-    </Card>
+    <span className="flex items-baseline gap-1.5">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn('font-medium tabular-nums text-foreground', tone)}>{value}</span>
+      {hint ? <span className="text-muted-foreground text-xs">{hint}</span> : null}
+    </span>
   );
 }
 
@@ -653,7 +643,7 @@ function ActiveJobCard({
               {hasStarted
                 ? `${daysSinceStart}d`
                 : job.startDate
-                  ? formatShortDate(job.startDate)
+                  ? formatDateShort(job.startDate)
                   : '—'}
             </div>
           </div>

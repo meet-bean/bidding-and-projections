@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Plus } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { StateBadge } from '~/components/status-badges';
 import { type Region, type CrewRole } from '~/lib/types';
 import {
   DataListShell,
@@ -10,6 +11,7 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { TeamMemberDialog } from '~/components/entity-dialogs/team-member-dialog';
+import { EntityDetailSheet } from '~/components/entity-detail-sheet';
 
 export const Route = createFileRoute('/_dashboard/crew')({
   component: FieldCrewPage,
@@ -42,6 +44,7 @@ function FieldCrewPage() {
   const users = useStore((s) => s.users);
   const jobs = useStore((s) => s.jobs);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState<CrewRow | null>(null);
 
   const crewRows: CrewRow[] = useMemo(
     () =>
@@ -140,9 +143,9 @@ function FieldCrewPage() {
         cell: (info) => {
           if (!info.getValue()) {
             return (
-              <Badge className="bg-strat-green/15 text-strat-green border-strat-green/30 text-[10px]">
+              <StateBadge tone="positive" className="text-[10px]">
                 Available
-              </Badge>
+              </StateBadge>
             );
           }
           return (
@@ -161,6 +164,7 @@ function FieldCrewPage() {
         data={crewRows}
         columns={crewColumns}
         searchPlaceholder="Search by name, cert..."
+        countLabel="crew members"
         searchableKeys={['name']}
         filters={[
           {
@@ -196,6 +200,7 @@ function FieldCrewPage() {
             ],
           },
         ]}
+        onRowClick={(row) => setDetailRow(row)}
         emptyMessage="No crew match your filters."
         actions={
           <Button onClick={() => setDialogOpen(true)}>
@@ -205,6 +210,56 @@ function FieldCrewPage() {
         }
       />
       <TeamMemberDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <EntityDetailSheet
+        open={detailRow !== null}
+        onOpenChange={(open) => !open && setDetailRow(null)}
+        title={detailRow?.name ?? ''}
+        subtitle={
+          detailRow?.crewRole ? CREW_ROLE_LABELS[detailRow.crewRole] : undefined
+        }
+        badge={
+          detailRow ? (
+            detailRow.availability === 'available' ? (
+              <StateBadge tone="positive">Available</StateBadge>
+            ) : (
+              <StateBadge tone="neutral">On Job</StateBadge>
+            )
+          ) : undefined
+        }
+        fields={
+          detailRow
+            ? [
+                {
+                  label: 'Shift Role',
+                  value: detailRow.crewRole ? CREW_ROLE_LABELS[detailRow.crewRole] : '',
+                },
+                { label: 'Region', value: detailRow.regionLabel },
+                {
+                  label: 'Day Rate',
+                  value: detailRow.dayRate ? `$${detailRow.dayRate}/day` : '',
+                },
+                {
+                  label: 'Experience',
+                  value: detailRow.yearsExperience
+                    ? `${detailRow.yearsExperience}+ yrs`
+                    : '',
+                },
+                {
+                  label: 'Certifications',
+                  value:
+                    detailRow.certifications.length > 0
+                      ? detailRow.certifications.join(', ')
+                      : '',
+                },
+                { label: 'Assignment', value: detailRow.currentJobLabel },
+                {
+                  label: 'Status',
+                  value: detailRow.active === 'yes' ? 'Active' : 'Inactive',
+                },
+              ]
+            : []
+        }
+      />
     </>
   );
 }

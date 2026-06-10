@@ -77,9 +77,7 @@ function EquipmentPage() {
         id: 'code',
         header: ({ column }) => <DataGridColumnHeader column={column} title="Unit" />,
         cell: (info) => (
-          <Badge variant="outline" className="font-mono">
-            {info.getValue()}
-          </Badge>
+          <span className="font-mono text-xs text-muted-foreground">{info.getValue()}</span>
         ),
         size: 90,
       }),
@@ -145,6 +143,7 @@ function EquipmentPage() {
         data={rows}
         columns={columns}
         searchPlaceholder="Search by unit, yard..."
+        countLabel="units"
         searchableKeys={['code', 'yard']}
         filters={[
           {

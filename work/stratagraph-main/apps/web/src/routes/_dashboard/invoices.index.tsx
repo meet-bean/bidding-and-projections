@@ -19,6 +19,7 @@ import {
 } from '@repo/ui';
 import { Receipt, Search } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { formatDateRange } from '~/lib/format';
 import type { Invoice, Job, InvoiceStatus } from '~/lib/types';
 import { InvoiceStatusBadge } from '~/components/status-badges';
 import { GenerateInvoiceDialog } from '~/components/generate-invoice-dialog';
@@ -363,7 +364,7 @@ function JobGroup({
             >
               <td className="px-4 py-2.5 font-mono text-xs">{t.invoiceNumber}</td>
               <td className="text-muted-foreground px-3 py-2.5 text-xs tabular-nums">
-                {formatInvoiceRange(t.rangeStart, t.rangeEnd)}
+                {formatDateRange(t.rangeStart, t.rangeEnd)}
               </td>
               <td className="px-3 py-2.5">
                 <InvoiceStatusBadge status={t.status} className="text-[10px]" />
@@ -383,22 +384,6 @@ function JobGroup({
   );
 }
 
-/** "May 8 → 13" same-month, "May 28 → Jun 4" cross-month, year added if not current. */
-function formatInvoiceRange(startIso: string, endIso: string): string {
-  const start = new Date(startIso + 'T00:00:00');
-  const end = new Date(endIso + 'T00:00:00');
-  const currentYear = new Date().getFullYear();
-  const showYear = start.getFullYear() !== currentYear || end.getFullYear() !== currentYear;
-  const monthFmt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  const monthYearFmt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    const startStr = start.toLocaleDateString('en-US', monthFmt);
-    const endDay = end.getDate();
-    const yearSuffix = showYear ? `, ${end.getFullYear()}` : '';
-    return `${startStr} → ${endDay}${yearSuffix}`;
-  }
-  return `${start.toLocaleDateString('en-US', showYear ? monthYearFmt : monthFmt)} → ${end.toLocaleDateString('en-US', showYear ? monthYearFmt : monthFmt)}`;
-}
 
 const PILLS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },

@@ -149,7 +149,12 @@ export function ProjectionRowDetail({ item, project, onUpdateForecast: _onUpdate
         </thead>
         <tbody>
           {SLICE_ROWS.map((s) => (
-            <tr key={s.key} className={cn('border-b last:border-b-0', s.key === 'F' && 'bg-[#eef6f2]/60')}>
+            <tr
+              key={s.key}
+              className="border-b last:border-b-0"
+              // Forecast row wash uses the dark-mode-aware slice token.
+              style={s.key === 'F' ? { backgroundColor: 'var(--slice-f)' } : undefined}
+            >
               <td className="py-1.5 pr-2">
                 <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span

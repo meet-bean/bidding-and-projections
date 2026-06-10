@@ -33,9 +33,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { formatCurrency, formatCurrencyExact, formatDate, formatDateRange, formatDateShort } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { ServiceToggles } from '~/components/service-toggles';
-import { InvoiceStatusBadge, JobStatusBadge } from '~/components/status-badges';
+import { InvoiceStatusBadge, JobStatusBadge, StateBadge } from '~/components/status-badges';
 import { JobActivityTab } from '~/components/job-activity-tab';
 import { TicketLifecycleStrip } from '~/components/ticket-lifecycle';
 import { CrewUnitAssignments } from '~/components/crew-unit-assignments';
@@ -50,10 +51,6 @@ export const Route = createFileRoute('/_dashboard/jobs/$jobId')({
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-function formatShortDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function JobDetail() {
@@ -100,16 +97,10 @@ function JobDetail() {
             <PageHeaderTitle>{job.wellName}</PageHeaderTitle>
             <JobStatusBadge status={job.status} />
             {job.isCallOut ? (
-              <Badge variant="warning" className="gap-1">
+              <StateBadge tone="caution" className="gap-1">
                 <Zap className="size-3" />
                 Call-Out
-              </Badge>
-            ) : null}
-            {job.runNumber && job.runNumber > 1 ? (
-              <Badge variant="outline" className="text-xs">Run #{job.runNumber}</Badge>
-            ) : null}
-            {job.wellPad ? (
-              <Badge variant="outline" className="text-xs">Pad: {job.wellPad}</Badge>
+              </StateBadge>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
@@ -149,10 +140,9 @@ function JobDetail() {
               <span className="text-muted-foreground text-sm">
                 {' · '}
                 <span
-                  className="bg-muted/60 text-foreground inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-xs"
+                  className="font-mono text-xs text-muted-foreground"
                   title={`Unit ${unit.code} · ${unit.type.replace('_', ' ')}`}
                 >
-                  <Truck className="size-3" />
                   {unit.code}
                 </span>
               </span>
@@ -163,7 +153,14 @@ function JobDetail() {
                 <span className="text-foreground font-medium">{pm.name}</span>
               </span>
             ) : null}
+            {job.runNumber && job.runNumber > 1 ? (
+              <span className="text-muted-foreground text-sm">· Run #{job.runNumber}</span>
+            ) : null}
+            {job.wellPad ? (
+              <span className="text-muted-foreground text-sm">· Pad {job.wellPad}</span>
+            ) : null}
           </div>
+          <JobStatsLine job={job} bid={bid} catalog={catalog} tickets={tickets} onTicketsClick={() => document.getElementById('field-tickets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
         </div>
         <PageHeaderActions>
           <Button onClick={() => setGenerateOpen(true)}>
@@ -174,8 +171,6 @@ function JobDetail() {
       </PageHeader>
 
       <GenerateInvoiceDialog open={generateOpen} onOpenChange={setGenerateOpen} job={job} />
-
-      <JobStatsStrip job={job} bid={bid} catalog={catalog} tickets={tickets} onTicketsClick={() => document.getElementById('field-tickets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 
       <div className="divide-y divide-border/60">
         <div className="pb-8">
@@ -259,7 +254,7 @@ function JobDetail() {
  * confirmed, and whether tickets are outstanding. Each tile is a soft card —
  * neutral chrome, the number does the talking.
  */
-function JobStatsStrip({
+function JobStatsLine({
   job,
   bid,
   catalog,
@@ -324,72 +319,57 @@ function JobStatsStrip({
   })();
 
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-4">
-      <StatTile label="Days running" value={daysRunning != null ? `${daysRunning}` : '—'} hint={daysRunning != null ? 'since start' : 'not started'} />
-      <StatTile
+    // Plain header stats line (house style) — no boxed tiles.
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 pt-2 text-sm">
+      <HeaderStat label="Days running" value={daysRunning != null ? `${daysRunning}` : '—'} />
+      <HeaderStat
         label="Daily total"
-        value={dailyTotal != null ? `$${dailyTotal.toLocaleString('en-US')}` : '—'}
-        hint={dailyTotal === 0 ? 'nothing running' : 'while services run'}
+        value={dailyTotal != null ? formatCurrency(dailyTotal) : '—'}
         tone={dailyTotal != null && dailyTotal > 0 ? 'positive' : undefined}
       />
-      <StatTile
+      <HeaderStat
         label="Last confirmed"
-        value={job.confirmedThrough ? formatShortDate(job.confirmedThrough) : 'Not yet'}
-        hint={confirmedAgo ?? 'no activity confirmed'}
+        value={job.confirmedThrough ? `${formatDateShort(job.confirmedThrough)} (${confirmedAgo})` : 'Not yet'}
         tone={isStale ? 'warning' : undefined}
       />
-      <StatTile
-        label="Tickets"
-        value={tickets.length === 0 ? '0' : `${openTickets} open`}
-        hint={tickets.length === 0 ? 'none generated' : `${paidTickets} paid`}
-        onClick={tickets.length > 0 ? onTicketsClick : undefined}
-      />
+      {onTicketsClick && tickets.length > 0 ? (
+        <button type="button" onClick={onTicketsClick} className="group/stat">
+          <HeaderStat label="Tickets" value={`${openTickets} open · ${paidTickets} paid`} underline />
+        </button>
+      ) : (
+        <HeaderStat label="Tickets" value={tickets.length === 0 ? 'None' : `${openTickets} open · ${paidTickets} paid`} />
+      )}
     </div>
   );
 }
 
-function StatTile({
+/** One inline header stat: muted label + tabular value (house style). */
+function HeaderStat({
   label,
   value,
-  hint,
   tone,
-  onClick,
+  underline,
 }: {
   label: string;
   value: string;
-  hint?: string;
   tone?: 'positive' | 'warning';
-  onClick?: () => void;
+  underline?: boolean;
 }) {
-  const content = (
-    <>
-      <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-        {label}
-      </div>
-      <div
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span className="text-muted-foreground">{label}</span>
+      <span
         className={cn(
-          'mt-1 text-xl font-semibold tabular-nums tracking-tight',
+          'font-medium tabular-nums text-foreground',
           tone === 'positive' && 'text-strat-green',
-          tone === 'warning' && 'text-strat-orange'
+          tone === 'warning' && 'text-strat-orange',
+          underline && 'underline decoration-dotted underline-offset-4 group-hover/stat:decoration-solid',
         )}
       >
         {value}
-      </div>
-      {hint ? <div className="text-muted-foreground mt-0.5 text-xs">{hint}</div> : null}
-    </>
+      </span>
+    </span>
   );
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="bg-card hover:bg-muted/30 group/tile cursor-pointer px-4 py-3 text-left transition-colors"
-      >
-        {content}
-      </button>
-    );
-  }
-  return <div className="bg-card px-4 py-3">{content}</div>;
 }
 
 function CompactItem({
@@ -434,7 +414,7 @@ function InlineDateField({
   onSave: (value: string | undefined) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const display = value ? formatShortDate(value) : placeholder;
+  const display = value ? formatDateShort(value) : placeholder;
 
   if (editing) {
     return (

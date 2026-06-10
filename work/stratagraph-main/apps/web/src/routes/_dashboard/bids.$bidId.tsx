@@ -33,6 +33,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useStore, deriveBidStatus } from '~/lib/store';
+import { formatDate } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
 import { BILLING_UNIT_LABELS, CATEGORY_LABELS } from '~/data/service-catalog';
@@ -117,7 +118,7 @@ function BidDetail() {
             <BidStatusBadge status={displayStatus ?? bid.status} />
           </div>
           <PageHeaderDescription>
-            Created {bid.createdDate} by {bid.salesperson} · {bid.services.length} services
+            Created {formatDate(bid.createdDate)} by {bid.salesperson} · {bid.services.length} services
             {well ? (
               <>
                 {' '}·{' '}
@@ -128,18 +129,18 @@ function BidDetail() {
         </div>
         <PageHeaderActions>
           {bid.status === 'sent' ? (
-            <Button variant="outline" asChild>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
               <Link to="/bids/$bidId/edit" params={{ bidId: bid.id }}>
                 <Pencil />
                 Edit
               </Link>
             </Button>
           ) : null}
-          <Button variant="outline">
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
             <Printer />
             Print
           </Button>
-          <Button>
+          <Button size="sm">
             <Download />
             Download PDF
           </Button>

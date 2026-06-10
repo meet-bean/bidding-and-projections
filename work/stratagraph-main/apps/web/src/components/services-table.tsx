@@ -7,6 +7,7 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { COST_TYPE_COLOR, type CostType } from '~/lib/cost-types';
+import { formatCurrencyExact } from '~/lib/format';
 import type { ServiceRow } from '~/lib/service-rows';
 import { ServiceBreakdown } from '~/components/service-breakdown';
 
@@ -33,7 +34,7 @@ function moneyCell(value: number | null, fallback?: string | null) {
   }
   return (
     <div className="text-right text-sm tabular-nums">
-      ${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+      {formatCurrencyExact(value)}
     </div>
   );
 }

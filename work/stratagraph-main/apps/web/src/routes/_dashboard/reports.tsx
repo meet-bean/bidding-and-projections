@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Tabs, TabsList, TabsTrigger, TabsContent, cn } from '@repo/ui';
 import { Briefcase, HardHat, TrendingUp, Truck } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { StateBadge } from '~/components/status-badges';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { JobBoard } from '~/components/job-board';
 import { UnitAvailabilityBadge } from '~/components/status-badges';
@@ -140,9 +141,9 @@ function ReportsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 self-start sm:self-center">
-                <Badge className="bg-strat-green/15 text-strat-green border-strat-green/30 text-xs">
+                <StateBadge tone="positive" className="text-xs">
                   {untapped.idleUnits} idle
-                </Badge>
+                </StateBadge>
                 <Badge variant="outline" className="text-xs">
                   {deployedUnits} deployed
                 </Badge>
@@ -283,9 +284,9 @@ function ReportsPage() {
                           {c.region ? ` · ${REGION_LABELS[c.region]}` : ''}
                         </div>
                       </div>
-                      <Badge className="bg-strat-green/15 text-strat-green border-strat-green/30 text-[10px]">
+                      <StateBadge tone="positive" className="text-[10px]">
                         Available
-                      </Badge>
+                      </StateBadge>
                     </li>
                   ))}
                 </ul>

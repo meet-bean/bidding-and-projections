@@ -11,6 +11,7 @@ import {
 } from '@repo/ui';
 import { ArrowLeft, Download, Printer, PenLine, Send, DollarSign } from 'lucide-react';
 import { useStore } from '~/lib/store';
+import { formatDateRange } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { TicketLifecycleBar } from '~/components/ticket-lifecycle';
 import { InvoiceStatusBadge } from '~/components/status-badges';
@@ -110,15 +111,15 @@ function InvoiceDetail() {
             <InvoiceStatusBadge status={ticket.status} />
           </div>
           <PageHeaderDescription>
-            {customer?.name} · {job.wellName} · {ticket.rangeStart} → {ticket.rangeEnd}
+            {customer?.name} · {job.wellName} · {formatDateRange(ticket.rangeStart, ticket.rangeEnd)}
           </PageHeaderDescription>
         </div>
         <PageHeaderActions>
-          <Button variant="outline">
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
             <Printer />
             Print
           </Button>
-          <Button>
+          <Button size="sm">
             <Download />
             Download PDF
           </Button>

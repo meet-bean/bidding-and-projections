@@ -15,7 +15,7 @@ const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
  *
  * Palette: green / indigo / gold / slate / coral / cyan / orange / mauve / steel.
  */
-const JOB_STATUS_CLASSES: Record<JobStatus, string> = {
+export const JOB_STATUS_CLASSES: Record<JobStatus, string> = {
   active: 'bg-strat-green/15 text-strat-green border-strat-green/30',
   scheduled: 'bg-strat-indigo/15 text-strat-indigo border-strat-indigo/30',
   speculative: 'bg-strat-gold/20 text-strat-gold border-strat-gold/40',
@@ -98,6 +98,28 @@ export function UnitStatusBadge({
       {UNIT_STATUS_LABELS[status]}
     </Badge>
   );
+}
+
+/**
+ * Generic resource states shared across admin pages (users, crew, yards).
+ * One source so "Available"/"Active"/"Open" is the same green everywhere.
+ */
+const STATE_CLASSES = {
+  positive: 'bg-strat-green/15 text-strat-green border-strat-green/30',
+  neutral: 'bg-strat-slate/15 text-strat-slate border-strat-slate/30',
+  caution: 'bg-strat-orange/15 text-strat-orange border-strat-orange/30',
+} as const;
+
+export function StateBadge({
+  tone,
+  className,
+  children,
+}: {
+  tone: keyof typeof STATE_CLASSES;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return <Badge className={cn(STATE_CLASSES[tone], className)}>{children}</Badge>;
 }
 
 /**

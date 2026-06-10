@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Plus, Mail } from 'lucide-react';
 import { useStore, REGION_LABELS } from '~/lib/store';
+import { StateBadge } from '~/components/status-badges';
 import { USER_ROLE_LABELS, type UserRole, type Region } from '~/lib/types';
 import {
   DataListShell,
@@ -10,6 +11,7 @@ import {
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
 import { TeamMemberDialog } from '~/components/entity-dialogs/team-member-dialog';
+import { EntityDetailSheet } from '~/components/entity-detail-sheet';
 
 export const Route = createFileRoute('/_dashboard/users')({
   component: UsersPage,
@@ -29,6 +31,7 @@ interface InternalRow {
 function UsersPage() {
   const users = useStore((s) => s.users);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState<InternalRow | null>(null);
 
   const internalRows: InternalRow[] = useMemo(
     () =>
@@ -90,13 +93,9 @@ function UsersPage() {
         header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
         cell: (info) =>
           info.getValue() === 'yes' ? (
-            <Badge className="bg-strat-green/15 text-strat-green border-strat-green/30">
-              Active
-            </Badge>
+            <StateBadge tone="positive">Active</StateBadge>
           ) : (
-            <Badge className="bg-strat-slate/15 text-strat-slate border-strat-slate/30">
-              Inactive
-            </Badge>
+            <StateBadge tone="neutral">Inactive</StateBadge>
           ),
         size: 110,
       }),
@@ -110,6 +109,7 @@ function UsersPage() {
         data={internalRows}
         columns={internalColumns}
         searchPlaceholder="Search by name, email, title..."
+        countLabel="team members"
         searchableKeys={['name', 'email', 'title']}
         filters={[
           {
@@ -140,6 +140,7 @@ function UsersPage() {
             ],
           },
         ]}
+        onRowClick={(row) => setDetailRow(row)}
         emptyMessage="No team members match your filters."
         actions={
           <Button onClick={() => setDialogOpen(true)}>
@@ -149,6 +150,47 @@ function UsersPage() {
         }
       />
       <TeamMemberDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <EntityDetailSheet
+        open={detailRow !== null}
+        onOpenChange={(open) => !open && setDetailRow(null)}
+        title={detailRow?.name ?? ''}
+        subtitle={detailRow?.title || undefined}
+        badge={
+          detailRow ? (
+            detailRow.active === 'yes' ? (
+              <StateBadge tone="positive">Active</StateBadge>
+            ) : (
+              <StateBadge tone="neutral">Inactive</StateBadge>
+            )
+          ) : undefined
+        }
+        fields={
+          detailRow
+            ? [
+                {
+                  label: 'Email',
+                  value: detailRow.email ? (
+                    <a
+                      href={`mailto:${detailRow.email}`}
+                      className="hover:text-foreground inline-flex items-center gap-1"
+                    >
+                      <Mail className="size-3 shrink-0" />
+                      {detailRow.email}
+                    </a>
+                  ) : (
+                    ''
+                  ),
+                },
+                { label: 'Role', value: USER_ROLE_LABELS[detailRow.role] },
+                { label: 'Region', value: detailRow.regionLabel },
+                {
+                  label: 'Status',
+                  value: detailRow.active === 'yes' ? 'Active' : 'Inactive',
+                },
+              ]
+            : []
+        }
+      />
     </>
   );
 }

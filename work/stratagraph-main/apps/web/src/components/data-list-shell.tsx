@@ -56,6 +56,13 @@ export interface DataListShellProps<TRow extends { id: string }> {
   onRowClick?: (row: TRow) => void;
   onRowDoubleClick?: (row: TRow) => void;
   emptyMessage?: string;
+  /** Optional action rendered under the empty message (e.g. a "New X" button). */
+  emptyAction?: React.ReactNode;
+  /**
+   * Noun for the quiet count line above the toolbar ("352 services"). The count
+   * reflects the FILTERED set so it doubles as search/filter feedback.
+   */
+  countLabel?: string;
   actions?: React.ReactNode;
   toolbarExtra?: React.ReactNode;
   defaultPageSize?: number;
@@ -76,6 +83,8 @@ export function DataListShell<TRow extends { id: string }>({
   onRowClick,
   onRowDoubleClick,
   emptyMessage = 'No results found',
+  emptyAction,
+  countLabel,
   actions,
   toolbarExtra,
   defaultPageSize = 25,
@@ -157,6 +166,13 @@ export function DataListShell<TRow extends { id: string }>({
 
   return (
     <div className="space-y-4">
+      {/* Quiet count line — plain header metadata, mirrors the filtered set. */}
+      {countLabel ? (
+        <div className="text-sm">
+          <span className="font-medium tabular-nums">{filteredData.length}</span>{' '}
+          <span className="text-muted-foreground">{countLabel}</span>
+        </div>
+      ) : null}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput
@@ -199,7 +215,16 @@ export function DataListShell<TRow extends { id: string }>({
       <MinimalDataGrid
         table={table}
         recordCount={filteredData.length}
-        emptyMessage={emptyMessage}
+        emptyMessage={
+          emptyAction ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <span>{emptyMessage}</span>
+              {emptyAction}
+            </div>
+          ) : (
+            emptyMessage
+          )
+        }
         onRowClick={
           expandable
             ? (row) => table.getRow(row.id).toggleExpanded()
