@@ -129,16 +129,22 @@ function BidDetail() {
   // (Superior scope items) headline the estimated bid total instead of "$0/day".
   const isDailyBid = totalDaily > 0;
 
+  const status = displayStatus ?? bid.status;
+  // Demo bids carry the client name directly as customerId — show it rather
+  // than a generic "Bid" when there's no customer record (matches the list).
+  const customerName =
+    customer?.name ?? (bid.customerId.startsWith('cust-') ? 'Bid' : bid.customerId);
+
   return (
     <div className="space-y-6">
       <PageHeader>
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <PageHeaderTitle>{customer?.name ?? 'Bid'}</PageHeaderTitle>
+            <PageHeaderTitle>{customerName}</PageHeaderTitle>
             <Badge variant="outline" className="font-mono">
               v{bid.version}
             </Badge>
-            <BidStatusBadge status={displayStatus ?? bid.status} />
+            <BidStatusBadge status={status} />
           </div>
           <PageHeaderDescription>
             Created {formatDate(bid.createdDate)} by {bid.salesperson} · {bid.services.length} services
@@ -163,57 +169,64 @@ function BidDetail() {
             <Printer />
             Print
           </Button>
-          <Button size="sm">
+          <Button variant="outline" size="sm">
             <Download />
             Download PDF
           </Button>
+          {/* Single primary action = the state advance, normal-sized in the
+            * header — not a full-width banner mid-page. */}
+          {status === 'sent' ? (
+            <Button size="sm" onClick={() => acceptBid(bid.id)}>
+              <CheckCircle2 />
+              Mark accepted
+            </Button>
+          ) : null}
+          {status === 'accepted' ? (
+            <Button asChild size="sm">
+              <Link to="/jobs/new" search={{ bidId: bid.id }}>
+                <Briefcase />
+                Create Job
+              </Link>
+            </Button>
+          ) : null}
         </PageHeaderActions>
       </PageHeader>
 
-      {/* Lifecycle bar + primary state-advance CTA (mirrors the ticket page) */}
-      <div className="mx-auto w-full max-w-3xl space-y-3">
-        <BidLifecycleBar
-          status={displayStatus ?? bid.status}
-          createdDate={bid.createdDate}
-          acceptedDate={bid.acceptedDate}
-        />
-        <BidLifecycleActions
-          bidId={bid.id}
-          status={displayStatus ?? bid.status}
-          onAccept={() => acceptBid(bid.id)}
-        />
-      </div>
+      {/* Quiet inline lifecycle strip — text + dots, no card stepper. */}
+      <BidLifecycleStrip
+        status={status}
+        createdDate={bid.createdDate}
+        acceptedDate={bid.acceptedDate}
+      />
 
       {bid.notes ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-3 text-sm italic">
-            {bid.notes}
-          </CardContent>
-        </Card>
+        <p className="text-muted-foreground border-border/60 border-b pb-4 text-sm italic">
+          {bid.notes}
+        </p>
       ) : null}
 
-      {/* At-a-glance summary — shape of the bid in 2 seconds, no drilling needed */}
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <div>
-              <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-                {isDailyBid ? 'Estimated daily total' : 'Estimated bid total'}
-              </div>
-              <div className="mt-0.5 text-2xl font-bold tabular-nums">
-                $
-                {(isDailyBid ? totalDaily : totalLump).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-                {isDailyBid && (
-                  <span className="text-muted-foreground ml-1 text-xs font-normal">/ day</span>
-                )}
-              </div>
+      {/* At-a-glance summary — flat stat strip, no card chrome. */}
+      <div className="border-border/60 border-b pb-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <div className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
+              {isDailyBid ? 'Estimated daily total' : 'Estimated bid total'}
             </div>
-            <div className="text-muted-foreground text-right text-xs">
-              {bid.services.length} service{bid.services.length === 1 ? '' : 's'} ·{' '}
-              {summaries.length} categor{summaries.length === 1 ? 'y' : 'ies'}
+            <div className="mt-0.5 text-2xl font-bold tabular-nums">
+              $
+              {(isDailyBid ? totalDaily : totalLump).toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}
+              {isDailyBid && (
+                <span className="text-muted-foreground ml-1 text-xs font-normal">/ day</span>
+              )}
+            </div>
+          </div>
+          <div className="text-muted-foreground text-right text-xs">
+            {bid.services.length} service{bid.services.length === 1 ? '' : 's'} ·{' '}
+            {summaries.length} categor{summaries.length === 1 ? 'y' : 'ies'}
+            {isDailyBid && (
               <div className="mt-1 flex items-center justify-end gap-1.5">
                 <span
                   className="bg-primary/5 border-primary/30 text-primary inline-flex items-center justify-center rounded-sm border px-1 font-mono text-[9px] font-semibold"
@@ -222,74 +235,67 @@ function BidDetail() {
                 </span>
                 <span className="text-[10px]">= daily activity code</span>
               </div>
-            </div>
+            )}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {summaries.map((s) => (
-              <a
-                key={s.category}
-                href={`#cat-${s.category}`}
-                className="hover:border-primary/40 hover:bg-muted/30 rounded-md border p-2.5 transition-colors"
-              >
-                <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-                  {categoryLabel(s.category)}
-                  {!(s.category in CATEGORY_LABELS) && (
-                    <span className="text-muted-foreground/60 ml-1 font-mono normal-case">
-                      {s.category}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 flex items-baseline justify-between gap-2">
-                  <span className="text-sm font-semibold tabular-nums">
-                    ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3">
+          {summaries.map((s) => (
+            <a key={s.category} href={`#cat-${s.category}`} className="group">
+              <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider group-hover:underline">
+                {categoryLabel(s.category)}
+                {!(s.category in CATEGORY_LABELS) && (
+                  <span className="text-muted-foreground/60 ml-1 font-mono normal-case">
+                    {s.category}
                   </span>
-                  <span className="text-muted-foreground text-[11px]">
-                    {s.itemCount} item{s.itemCount === 1 ? '' : 's'}
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                )}
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-2">
+                <span className="text-sm font-semibold tabular-nums">
+                  ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </span>
+                <span className="text-muted-foreground text-[11px]">
+                  {s.itemCount} item{s.itemCount === 1 ? '' : 's'}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
 
-      {/* Drill-in: collapsed by default; one accordion to hold everything */}
-      <Card>
-        <CardContent className="p-0">
-          <Accordion type="multiple" className="w-full">
-            {summaries.map((s) => {
-              const items = grouped[s.category] ?? [];
-              return (
-                <AccordionItem
-                  key={s.category}
-                  value={s.category}
-                  id={`cat-${s.category}`}
-                  className={cn('border-b last:border-b-0 px-4')}
-                >
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex flex-1 items-center justify-between gap-3 pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">
-                          {categoryLabel(s.category)}
-                          {!(s.category in CATEGORY_LABELS) && (
-                            <span className="text-muted-foreground/60 ml-1.5 font-mono text-[10px] font-normal">
-                              {s.category}
-                            </span>
-                          )}
+      {/* De-carded services: micro section label, then flat accordion rows
+        * (row borders only) — counts are muted text, never badges. */}
+      <div>
+        <div className="flex items-baseline justify-between pb-1">
+          <h2 className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
+            Services
+          </h2>
+        </div>
+        <Accordion type="multiple" className="w-full">
+          {summaries.map((s) => {
+            const items = grouped[s.category] ?? [];
+            return (
+              <AccordionItem key={s.category} value={s.category} id={`cat-${s.category}`}>
+                <AccordionTrigger>
+                  <div className="flex flex-1 items-baseline justify-between gap-3 pr-3">
+                    <span className="flex items-baseline gap-2">
+                      <span>{categoryLabel(s.category)}</span>
+                      {!(s.category in CATEGORY_LABELS) && (
+                        <span className="text-muted-foreground text-[11px] font-normal">
+                          {s.category}
                         </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {s.itemCount}
-                        </Badge>
-                      </div>
-                      <span className="text-muted-foreground text-xs tabular-nums">
-                        ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                        {isDailyBid ? '/day' : ''}
+                      )}
+                      <span className="text-muted-foreground text-xs font-normal tabular-nums">
+                        {s.itemCount}
                       </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="-mx-4 overflow-hidden">
-                      <Table>
+                    </span>
+                    <span className="text-muted-foreground text-xs font-normal tabular-nums">
+                      ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      {isDailyBid ? '/day' : ''}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="pl-4">Service</TableHead>
@@ -324,10 +330,8 @@ function BidDetail() {
                                     <span>{catItem.name}</span>
                                   </div>
                                 </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="text-[10px] font-normal">
-                                    {BILLING_UNIT_LABELS[catItem.billingUnit]}
-                                  </Badge>
+                                <TableCell className="text-muted-foreground text-xs">
+                                  {BILLING_UNIT_LABELS[catItem.billingUnit]}
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums">
                                   $
@@ -346,22 +350,21 @@ function BidDetail() {
                               </TableRow>
                             );
                           })}
-                        </TableBody>
-                      </Table>
-                    </div>
+                      </TableBody>
+                    </Table>
                   </AccordionContent>
                 </AccordionItem>
               );
             })}
-          </Accordion>
-        </CardContent>
-      </Card>
+        </Accordion>
+      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Lifecycle bar + primary action — same pattern as TicketLifecycleBar.
+// Lifecycle strip — quiet inline text + dots; the state-advance CTA lives in
+// the page header, not here.
 // ---------------------------------------------------------------------------
 
 interface BidStage {
@@ -380,7 +383,7 @@ function bidStageIndex(status: BidStatus): number {
   return BID_STAGES.findIndex((s) => s.id === status);
 }
 
-function BidLifecycleBar({
+function BidLifecycleStrip({
   status,
   createdDate,
   acceptedDate,
@@ -389,10 +392,9 @@ function BidLifecycleBar({
   createdDate?: string;
   acceptedDate?: string;
 }) {
-  // Lost bids get their own treatment.
   if (status === 'lost') {
     return (
-      <div className="border-destructive/30 bg-destructive/5 text-destructive flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-medium">
+      <div className="text-destructive flex items-center gap-2 text-sm font-medium">
         <XCircle className="size-4" />
         Bid lost
       </div>
@@ -402,114 +404,43 @@ function BidLifecycleBar({
   const idx = bidStageIndex(status);
 
   return (
-    <div className="bg-muted/20 rounded-md border p-4">
-      <div className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
-        Lifecycle
-      </div>
-      <div className="flex items-start justify-between">
-        {BID_STAGES.map((s, i) => {
-          const done = i < idx;
-          const current = i === idx;
-          return (
-            <div key={s.id} className="flex flex-1 flex-col items-center text-center">
-              <div className="flex w-full items-center">
-                {i > 0 ? (
-                  <div
-                    className={cn(
-                      'h-0.5 flex-1',
-                      i <= idx ? 'bg-success' : 'bg-muted-foreground/15'
-                    )}
-                  />
-                ) : (
-                  <div className="flex-1" />
-                )}
-                <div
+    <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+      {BID_STAGES.map((s, i) => {
+        const done = i < idx || status === 'completed';
+        const current = i === idx;
+        const date =
+          s.id === 'sent' ? createdDate : s.id === 'accepted' ? acceptedDate : undefined;
+        return (
+          <span key={s.id} className="flex items-center gap-2">
+            {i > 0 ? <span className="bg-border h-px w-6" /> : null}
+            <span
+              className={cn(
+                'flex items-center gap-1.5',
+                current && 'text-foreground font-medium'
+              )}
+            >
+              {done ? (
+                <Check className="text-success size-3.5" />
+              ) : (
+                <span
                   className={cn(
-                    'flex size-7 items-center justify-center rounded-full text-xs font-semibold',
-                    done && 'bg-success text-success-foreground',
-                    current && 'bg-primary text-primary-foreground ring-primary/20 ring-4',
-                    !done && !current && 'bg-muted text-muted-foreground/60 border'
+                    'size-1.5 rounded-full',
+                    current ? 'bg-primary' : 'bg-muted-foreground/30'
                   )}
-                >
-                  {done ? <Check className="size-3.5" /> : i + 1}
-                </div>
-                {i < BID_STAGES.length - 1 ? (
-                  <div
-                    className={cn(
-                      'h-0.5 flex-1',
-                      i < idx ? 'bg-success' : 'bg-muted-foreground/15'
-                    )}
-                  />
-                ) : (
-                  <div className="flex-1" />
-                )}
-              </div>
-              <div
-                className={cn(
-                  'mt-2 text-xs',
-                  current ? 'text-foreground font-semibold' : 'text-muted-foreground'
-                )}
-              >
-                {s.label}
-              </div>
-              {current && s.id === 'sent' && createdDate ? (
-                <div className="text-muted-foreground mt-0.5 text-[10px] tabular-nums">
-                  {createdDate}
-                </div>
+                />
+              )}
+              {s.label}
+              {(current || done) && date ? (
+                <span className="text-muted-foreground font-normal tabular-nums">{date}</span>
               ) : null}
-              {current && s.id === 'accepted' && acceptedDate ? (
-                <div className="text-muted-foreground mt-0.5 text-[10px] tabular-nums">
-                  {acceptedDate}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+            </span>
+          </span>
+        );
+      })}
+      {status === 'completed' ? (
+        <span className="text-success ml-2">all jobs wound down, all tickets paid</span>
+      ) : null}
     </div>
   );
-}
-
-function BidLifecycleActions({
-  bidId,
-  status,
-  onAccept,
-}: {
-  bidId: string;
-  status: BidStatus;
-  onAccept: () => void;
-}) {
-  if (status === 'sent') {
-    return (
-      <Button
-        size="lg"
-        onClick={onAccept}
-        className="w-full justify-center text-base"
-      >
-        <CheckCircle2 />
-        Mark accepted
-      </Button>
-    );
-  }
-  if (status === 'accepted') {
-    return (
-      <Button asChild size="lg" className="w-full justify-center text-base">
-        <Link to="/jobs/new" search={{ bidId }}>
-          <Briefcase />
-          Create Job
-        </Link>
-      </Button>
-    );
-  }
-  if (status === 'completed') {
-    return (
-      <div className="border-success/30 bg-success/5 text-success flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-medium">
-        <Check className="size-4" />
-        Bid completed — all jobs wound down, all tickets paid.
-      </div>
-    );
-  }
-  // lost (no extra action — bar already shows the state)
-  return null;
 }
 
