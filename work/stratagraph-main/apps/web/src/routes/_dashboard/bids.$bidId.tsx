@@ -225,9 +225,7 @@ function BidDetail() {
             {summaries.length} categor{summaries.length === 1 ? 'y' : 'ies'}
             {isDailyBid && (
               <div className="mt-1 flex items-center justify-end gap-1.5">
-                <span
-                  className="bg-primary/5 border-primary/30 text-primary inline-flex items-center justify-center rounded-sm border px-1 font-mono text-[9px] font-semibold"
-                >
+                <span className="text-muted-foreground font-mono text-[10px] font-semibold">
                   LOG
                 </span>
                 <span className="text-[10px]">= daily activity code</span>
@@ -314,15 +312,14 @@ function BidDetail() {
                                 <TableCell className="pl-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     {isDaily && catItem.dailyCode ? (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-primary/5 border-primary/30 text-primary font-mono text-[10px]"
+                                      <span
+                                        className="text-muted-foreground font-mono text-[10px]"
                                         title="Daily activity code — appears as a column on the job daily log"
                                       >
                                         {catItem.dailyCode === 'GAS_M'
                                           ? 'GAS M'
                                           : catItem.dailyCode}
-                                      </Badge>
+                                      </span>
                                     ) : null}
                                     <span>{catItem.name}</span>
                                   </div>

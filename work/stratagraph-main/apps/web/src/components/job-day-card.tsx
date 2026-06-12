@@ -194,9 +194,9 @@ export function JobDayCard({
               ) : null}
             </div>
           ) : null}
-          <Badge variant="outline" className="text-xs tabular-nums">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {runningCount} of {availableItems.length}
-          </Badge>
+          </span>
           {confirmed && runningCount > 0 ? (
             <Badge className="bg-success/15 text-success border-success/30 gap-1">
               <Check className="size-3" />

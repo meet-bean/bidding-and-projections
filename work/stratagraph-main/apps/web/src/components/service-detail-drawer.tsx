@@ -9,7 +9,7 @@ import {
 } from '@repo/ui';
 import { useStore } from '~/lib/store';
 import type { ServiceRow } from '~/lib/service-rows';
-import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
+import { costTypeLabel } from '~/lib/cost-types';
 
 interface ServiceDetailDrawerProps {
   row: ServiceRow | null;
@@ -80,16 +80,14 @@ export function ServiceDetailDrawer({ row, onClose }: ServiceDetailDrawerProps) 
   const headerBadge =
     svc &&
     (isSuperior ? (
-      <span
-        className="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
-        style={{ background: COST_TYPE_COLOR[costTypeLabel(svc.costType)] ?? '#bba199' }}
-      >
+      <span className="text-muted-foreground text-[11px] font-normal">
         {costTypeLabel(svc.costType)}
+        <span className="ml-1.5 font-mono text-[10px]">{svc.costType}</span>
       </span>
     ) : (
-      <Badge variant="secondary" className="text-[11px]">
+      <span className="text-muted-foreground text-[11px] font-normal">
         {svc.costType}
-      </Badge>
+      </span>
     ));
 
   return (

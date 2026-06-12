@@ -10,7 +10,7 @@ import {
 import { useStore } from '~/lib/store';
 import { classifyImport, toImportLine } from '@repo/projections';
 import type { ImportLine, ClassifiedLine, ReconcileDecision } from '@repo/projections';
-import { COST_TYPE_COLOR, costTypeLabel } from '~/lib/cost-types';
+import { costTypeLabel } from '~/lib/cost-types';
 
 interface ServiceReconcileDialogProps {
   projectId: string | null;
@@ -272,13 +272,10 @@ export function ServiceReconcileDialog({ projectId, lines: linesProp, title, onC
 
 function CostTypeBadge({ costType }: { costType: string }) {
   const label = costTypeLabel(costType);
-  const color = COST_TYPE_COLOR[label] ?? '#bba199';
   return (
-    <span
-      className="inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white"
-      style={{ background: color }}
-    >
+    <span className="text-muted-foreground shrink-0 text-[11px]">
       {label}
+      <span className="ml-1 font-mono text-[10px]">{costType}</span>
     </span>
   );
 }
