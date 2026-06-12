@@ -63,7 +63,7 @@ import {
 import { buildForecastInvoiceLines, sumForecastInvoiceTotal } from './forecast-invoice-builder';
 import {
   DEMO_PROJECTION_PROJECTS,
-  DEMO_BIDS,
+  buildDemoBids,
   DEMO_INVOICES,
   buildDemoRegistry,
 } from '~/data/seed-demo';
@@ -601,7 +601,7 @@ const _initialServices = servicesForTenant(_initialTenant, _initialDemoMode);
 export const useStore = create<StratagraphState>((set, get) => ({
   customers: _initialSeed.customers,
   wells: _initialSeed.wells,
-  bids: _initialDemoMode ? [..._initialSeed.bids, ...DEMO_BIDS] : _initialSeed.bids,
+  bids: _initialDemoMode ? [..._initialSeed.bids, ...buildDemoBids(_initialServices)] : _initialSeed.bids,
   jobs: _initialSeed.jobs,
   units: _initialSeed.units,
   yards: _initialSeed.yards,
@@ -1166,19 +1166,22 @@ export const useStore = create<StratagraphState>((set, get) => ({
     if (typeof window !== 'undefined') localStorage.setItem('tenant', id);
     const seed = seedForTenant(id);
     const demo = get().demoMode;
+    // Build the service catalog once and derive demo bids from the same array —
+    // Superior service ids are regenerated per build, so they must match.
+    const services = servicesForTenant(id, demo);
     set({
       tenantId: id,
       ...seed,
       organization: seed.organization,
       notifications: [],
       projectionProjects: demo ? [...DEMO_PROJECTION_PROJECTS] : [],
-      bids: demo ? [...seed.bids, ...DEMO_BIDS] : seed.bids,
+      bids: demo ? [...seed.bids, ...buildDemoBids(services)] : seed.bids,
       invoices: demo ? [...seed.invoices, ...DEMO_INVOICES] : seed.invoices,
       metricsCatalog: createCatalog(id),
       // Stratagraph's catalog is its rate card regardless of demo mode;
       // Superior's is built from projection data (demo-only until uploads).
       // The operations catalog is derived from this on read (selectServiceCatalog).
-      services: servicesForTenant(id, demo),
+      services,
     });
   },
   getTenantConfig: () => TENANTS[get().tenantId] ?? TENANTS.stratagraph,
@@ -1202,12 +1205,13 @@ export const useStore = create<StratagraphState>((set, get) => ({
     if (typeof window !== 'undefined') localStorage.setItem('demoMode', String(next));
     if (next) {
       const tid = get().tenantId;
+      const services = servicesForTenant(tid, true);
       set((s) => ({
         demoMode: true,
         projectionProjects: [...s.projectionProjects, ...DEMO_PROJECTION_PROJECTS],
-        bids: [...s.bids, ...DEMO_BIDS],
+        bids: [...s.bids, ...buildDemoBids(services)],
         invoices: [...s.invoices, ...DEMO_INVOICES],
-        services: servicesForTenant(tid, true),
+        services,
       }));
     } else {
       const tid = get().tenantId;

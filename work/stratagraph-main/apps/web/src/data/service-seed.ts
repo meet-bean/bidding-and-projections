@@ -26,7 +26,10 @@ function catalogFromServices(services: Service[]): ServiceCatalogItem[] {
     defaultRate: s.recommendedRate ?? recommendedRateFromSources(s.sources),
     rateNote: s.rateNote,
     dailyCode: (s.dailyCode ?? undefined) as DailyCode | undefined,
-    billingUnit: (s.billingUnit ?? 'per_day') as BillingUnit,
+    // No stored billing unit (Superior projection-derived services) → 'per_other':
+    // these lines are lump-sum scope items, not daily-recurring charges, so they
+    // must not count toward per_day daily totals or activity codes.
+    billingUnit: (s.billingUnit ?? 'per_other') as BillingUnit,
   }));
 }
 

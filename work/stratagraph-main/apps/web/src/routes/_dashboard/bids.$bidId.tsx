@@ -37,15 +37,21 @@ import { formatDate } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
 import { BILLING_UNIT_LABELS, CATEGORY_LABELS } from '~/data/service-catalog';
-import type { BidStatus, ServiceCategory } from '~/lib/types';
+import type { BidStatus } from '~/lib/types';
+import { costTypeLabel } from '~/lib/cost-types';
 
-const CATEGORY_ORDER: ServiceCategory[] = [
+const CATEGORY_ORDER: string[] = [
   'logging',
   'xrf_ftir',
   'real_time',
   'cuttings',
   'unmanned_gas',
 ];
+
+/** Canonical Stratagraph labels when known; humanized Vista cost types otherwise. */
+function categoryLabel(cat: string): string {
+  return (CATEGORY_LABELS as Record<string, string>)[cat] ?? costTypeLabel(cat);
+}
 
 export const Route = createFileRoute('/_dashboard/bids/$bidId')({
   component: BidDetail,
@@ -63,6 +69,44 @@ function BidDetail() {
   const invoices = useStore((s) => s.invoices);
   const displayStatus = bid ? deriveBidStatus(bid, jobs, invoices) : undefined;
 
+  // Group lines by whatever categories actually exist in the catalog — known
+  // Stratagraph categories first (canonical order), then any other category
+  // (e.g. Superior Vista cost types) in line order. Tenant-agnostic, mirroring
+  // the bid editor's picker. Hooks run before the not-found return below: the
+  // bid can appear between SSR and post-hydration renders (demo seed), and a
+  // conditional hook would crash with React #310.
+  const grouped = useMemo(() => {
+    const acc: Record<string, NonNullable<typeof bid>['services']> = {};
+    for (const li of bid?.services ?? []) {
+      const cat = catalog.find((c) => c.id === li.catalogItemId);
+      if (!cat) continue;
+      (acc[cat.category] ||= []).push(li);
+    }
+    return acc;
+  }, [bid, catalog]);
+
+  // Per-category summary stats — drives the "at-a-glance" strip at top.
+  const summaries = useMemo(() => {
+    const cats = [
+      ...CATEGORY_ORDER.filter((c) => grouped[c]?.length),
+      ...Object.keys(grouped).filter((c) => !CATEGORY_ORDER.includes(c)),
+    ];
+    return cats.map((cat) => {
+      const items = grouped[cat]!;
+      // Daily total = sum of rates on lines that bill per_day (the recurring revenue).
+      // Lump total = rate × estimated qty over all lines — the meaningful figure
+      // for non-daily bids (Superior scope items).
+      let dailyTotal = 0;
+      let lumpTotal = 0;
+      for (const li of items) {
+        const c = catalog.find((x) => x.id === li.catalogItemId);
+        if (c?.billingUnit === 'per_day') dailyTotal += li.rate;
+        lumpTotal += li.rate * (li.estimatedQty ?? 1);
+      }
+      return { category: cat, itemCount: items.length, dailyTotal, lumpTotal };
+    });
+  }, [grouped, catalog]);
+
   if (!bid) {
     return (
       <div className="space-y-4">
@@ -79,32 +123,11 @@ function BidDetail() {
     );
   }
 
-  const grouped = bid.services.reduce<Record<ServiceCategory, typeof bid.services>>(
-    (acc, li) => {
-      const cat = catalog.find((c) => c.id === li.catalogItemId);
-      if (!cat) return acc;
-      (acc[cat.category] ||= []).push(li);
-      return acc;
-    },
-    {} as Record<ServiceCategory, typeof bid.services>
-  );
-
-  // Per-category summary stats — drives the "at-a-glance" strip at top.
-  const summaries = useMemo(() => {
-    return CATEGORY_ORDER.flatMap((cat) => {
-      const items = grouped[cat];
-      if (!items || items.length === 0) return [];
-      // Daily total = sum of rates on lines that bill per_day (the recurring revenue).
-      let dailyTotal = 0;
-      for (const li of items) {
-        const c = catalog.find((x) => x.id === li.catalogItemId);
-        if (c?.billingUnit === 'per_day') dailyTotal += li.rate;
-      }
-      return [{ category: cat, itemCount: items.length, dailyTotal }];
-    });
-  }, [grouped, catalog]);
-
   const totalDaily = summaries.reduce((s, x) => s + x.dailyTotal, 0);
+  const totalLump = summaries.reduce((s, x) => s + x.lumpTotal, 0);
+  // Daily-rate bids (Stratagraph) headline the recurring $/day; lump-sum bids
+  // (Superior scope items) headline the estimated bid total instead of "$0/day".
+  const isDailyBid = totalDaily > 0;
 
   return (
     <div className="space-y-6">
@@ -175,15 +198,17 @@ function BidDetail() {
           <div className="flex items-baseline justify-between gap-3">
             <div>
               <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-                Estimated daily total
+                {isDailyBid ? 'Estimated daily total' : 'Estimated bid total'}
               </div>
               <div className="mt-0.5 text-2xl font-bold tabular-nums">
                 $
-                {totalDaily.toLocaleString('en-US', {
+                {(isDailyBid ? totalDaily : totalLump).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
                 })}
-                <span className="text-muted-foreground ml-1 text-xs font-normal">/ day</span>
+                {isDailyBid && (
+                  <span className="text-muted-foreground ml-1 text-xs font-normal">/ day</span>
+                )}
               </div>
             </div>
             <div className="text-muted-foreground text-right text-xs">
@@ -207,11 +232,16 @@ function BidDetail() {
                 className="hover:border-primary/40 hover:bg-muted/30 rounded-md border p-2.5 transition-colors"
               >
                 <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-                  {CATEGORY_LABELS[s.category]}
+                  {categoryLabel(s.category)}
+                  {!(s.category in CATEGORY_LABELS) && (
+                    <span className="text-muted-foreground/60 ml-1 font-mono normal-case">
+                      {s.category}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 flex items-baseline justify-between gap-2">
                   <span className="text-sm font-semibold tabular-nums">
-                    ${s.dailyTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                   <span className="text-muted-foreground text-[11px]">
                     {s.itemCount} item{s.itemCount === 1 ? '' : 's'}
@@ -240,14 +270,20 @@ function BidDetail() {
                     <div className="flex flex-1 items-center justify-between gap-3 pr-3">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold">
-                          {CATEGORY_LABELS[s.category]}
+                          {categoryLabel(s.category)}
+                          {!(s.category in CATEGORY_LABELS) && (
+                            <span className="text-muted-foreground/60 ml-1.5 font-mono text-[10px] font-normal">
+                              {s.category}
+                            </span>
+                          )}
                         </span>
                         <Badge variant="outline" className="text-[10px]">
                           {s.itemCount}
                         </Badge>
                       </div>
                       <span className="text-muted-foreground text-xs tabular-nums">
-                        ${s.dailyTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}/day
+                        ${(isDailyBid ? s.dailyTotal : s.lumpTotal).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        {isDailyBid ? '/day' : ''}
                       </span>
                     </div>
                   </AccordionTrigger>

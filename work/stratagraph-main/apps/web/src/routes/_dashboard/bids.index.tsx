@@ -41,7 +41,7 @@ function BidsPage() {
   const rows: BidRow[] = useMemo(() => {
     return bids.map((b) => {
       const cust = customers.find((c) => c.id === b.customerId);
-      const est = b.services
+      const daily = b.services
         .filter((li) => {
           const c = catalog.find((x) => x.id === li.catalogItemId);
           return (
@@ -49,10 +49,17 @@ function BidsPage() {
           );
         })
         .reduce((s, li) => s + li.rate, 0);
+      // No daily-billable lines (Superior lump-sum bids) → estimated bid total
+      // (rate × qty) so the column isn't a meaningless $0.00.
+      const est = daily > 0
+        ? daily
+        : b.services.reduce((s, li) => s + li.rate * (li.estimatedQty ?? 1), 0);
       return {
         id: b.id,
         customerId: b.customerId,
-        customerName: cust?.name ?? '—',
+        // Demo bids carry the client name directly as customerId — show it
+        // rather than an em-dash when there's no customer record.
+        customerName: cust?.name ?? (b.customerId.startsWith('cust-') ? '—' : b.customerId),
         version: b.version,
         status: deriveBidStatus(b, jobs, invoices),
         isActive: b.isActive,
@@ -151,7 +158,7 @@ function BidsPage() {
       columnHelper.accessor('estDailyTotal', {
         id: 'estDailyTotal',
         header: ({ column }) => (
-          <DataGridColumnHeader column={column} title="Est. Daily Total" />
+          <DataGridColumnHeader column={column} title="Est. Total" />
         ),
         cell: (info) => (
           <span className="font-medium tabular-nums">

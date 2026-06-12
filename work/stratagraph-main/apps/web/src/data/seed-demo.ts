@@ -1,4 +1,4 @@
-import type { ProjectionProject } from '@repo/projections';
+import type { ProjectionProject, Service } from '@repo/projections';
 import { makeLineKey, loadProject } from '@repo/projections';
 import { buildSuperiorServices } from './service-seed';
 import type { Bid, Invoice } from '~/lib/types';
@@ -5984,13 +5984,81 @@ export const DEMO_PROJECTION_PROJECTS: ProjectionProject[] = RAW_PROJECTS.map(
 // Demo bids (one per project, all accepted)
 // ---------------------------------------------------------------------------
 
-export const DEMO_BIDS: Bid[] = [
-  { id: 'demo-bid-sc3a', customerId: "Florida's Turnpike Enterprise", version: 1, isActive: true, status: 'accepted', createdDate: '2025-08-01', acceptedDate: '2025-08-15', salesperson: 'Nora Beckett', services: [{ id: 'dbs-1', catalogItemId: 'demo-mot', rate: 562804 }, { id: 'dbs-2', catalogItemId: 'demo-earthwork', rate: 8289120 }, { id: 'dbs-3', catalogItemId: 'demo-concrete', rate: 4620000 }, { id: 'dbs-4', catalogItemId: 'demo-paving', rate: 14200000 }] },
-  { id: 'demo-bid-bay', customerId: 'Suncoast Development Group', version: 1, isActive: true, status: 'accepted', createdDate: '2025-10-01', acceptedDate: '2025-10-20', salesperson: 'Nora Beckett', services: [{ id: 'dbs-5', catalogItemId: 'demo-mot', rate: 460800 }, { id: 'dbs-6', catalogItemId: 'demo-earthwork', rate: 2550000 }, { id: 'dbs-7', catalogItemId: 'demo-paving', rate: 4320000 }] },
-  { id: 'demo-bid-ph', customerId: 'Palomar Properties', version: 1, isActive: true, status: 'accepted', createdDate: '2025-12-01', acceptedDate: '2025-12-20', salesperson: 'Jude Castillo', services: [{ id: 'dbs-8', catalogItemId: 'demo-bridge', rate: 7200000 }, { id: 'dbs-9', catalogItemId: 'demo-piles', rate: 3600000 }, { id: 'dbs-10', catalogItemId: 'demo-concrete', rate: 1848000 }] },
-  { id: 'demo-bid-mag', customerId: 'Gulf Coast Communities', version: 1, isActive: true, status: 'accepted', createdDate: '2025-07-01', acceptedDate: '2025-07-20', salesperson: 'Nora Beckett', services: [{ id: 'dbs-11', catalogItemId: 'demo-clearing', rate: 302400 }, { id: 'dbs-12', catalogItemId: 'demo-earthwork', rate: 480000 }, { id: 'dbs-13', catalogItemId: 'demo-storm', rate: 1200000 }] },
-  { id: 'demo-bid-rv', customerId: 'Coastal Commercial Partners', version: 1, isActive: true, status: 'accepted', createdDate: '2026-01-10', acceptedDate: '2026-01-25', salesperson: 'Jude Castillo', services: [{ id: 'dbs-14', catalogItemId: 'demo-earthwork', rate: 468000 }, { id: 'dbs-15', catalogItemId: 'demo-concrete', rate: 960000 }, { id: 'dbs-16', catalogItemId: 'demo-paving', rate: 1260000 }] },
+/**
+ * Demo bid metadata. Line items are NOT hardcoded — Superior services get
+ * runtime-generated ids (see registry uid()), so a static catalogItemId could
+ * never resolve. Instead `buildDemoBids()` resolves each bid's lines against the
+ * live service catalog at seed time, pulling real line items (and their forecast
+ * cost as the rate) from the bid's own projection project. `linesPerBid` caps how
+ * many of the project's biggest-ticket line items appear on the bid.
+ */
+const DEMO_BID_META: Array<{
+  id: string;
+  projectId: string;
+  customerId: string;
+  createdDate: string;
+  acceptedDate: string;
+  salesperson: string;
+  linesPerBid: number;
+}> = [
+  { id: 'demo-bid-sc3a', projectId: 'demo-suncoast-3a', customerId: "Florida's Turnpike Enterprise", createdDate: '2025-08-01', acceptedDate: '2025-08-15', salesperson: 'Nora Beckett', linesPerBid: 8 },
+  { id: 'demo-bid-bay', projectId: 'demo-bayshore', customerId: 'Suncoast Development Group', createdDate: '2025-10-01', acceptedDate: '2025-10-20', salesperson: 'Nora Beckett', linesPerBid: 7 },
+  { id: 'demo-bid-ph', projectId: 'demo-palm-harbor', customerId: 'Palomar Properties', createdDate: '2025-12-01', acceptedDate: '2025-12-20', salesperson: 'Jude Castillo', linesPerBid: 7 },
+  { id: 'demo-bid-mag', projectId: 'demo-magnolia', customerId: 'Gulf Coast Communities', createdDate: '2025-07-01', acceptedDate: '2025-07-20', salesperson: 'Nora Beckett', linesPerBid: 6 },
+  { id: 'demo-bid-rv', projectId: 'demo-riverside', customerId: 'Coastal Commercial Partners', createdDate: '2026-01-10', acceptedDate: '2026-01-25', salesperson: 'Jude Castillo', linesPerBid: 6 },
 ];
+
+/**
+ * Build the demo bids against a concrete Superior service catalog. The SAME
+ * `services` array the store holds must be passed in, because service ids are
+ * regenerated on every `buildSuperiorServices()` call — derive both from one array.
+ */
+export function buildDemoBids(services: Service[]): Bid[] {
+  return DEMO_BID_META.map((meta) => {
+    const proj = DEMO_PROJECTION_PROJECTS.find((p) => p.id === meta.projectId);
+    const latest = proj?.versions[proj.versions.length - 1];
+    const lines: Bid['services'] = [];
+    if (latest) {
+      // Biggest-ticket line items first; dedupe by label so a bid reads as
+      // distinct scope items rather than the same name across cost types.
+      const ranked = [...latest.items]
+        .filter((it) => it.F.cost > 0)
+        .sort((a, b) => b.F.cost - a.F.cost);
+      const seenLabel = new Set<string>();
+      for (const it of ranked) {
+        if (seenLabel.has(it.label)) continue;
+        const svc = services.find((s) =>
+          s.sources.some((src) => src.projectId === meta.projectId && src.lineKey === it.lineKey)
+        );
+        if (!svc) continue;
+        seenLabel.add(it.label);
+        // Rate is per-unit (forecast unit cost) to stay comparable with the
+        // catalog's recommended rate; qty carries the scale so rate × qty
+        // still ties out to the projection's forecast cost.
+        const qty = it.F.qty;
+        const rate = qty > 0 ? Math.round((it.F.cost / qty) * 100) / 100 : Math.round(it.F.cost);
+        lines.push({
+          id: `${meta.id}-li-${lines.length + 1}`,
+          catalogItemId: svc.id,
+          rate,
+          estimatedQty: qty > 0 ? qty : undefined,
+        });
+        if (lines.length >= meta.linesPerBid) break;
+      }
+    }
+    return {
+      id: meta.id,
+      customerId: meta.customerId,
+      version: 1,
+      isActive: true,
+      status: 'accepted' as const,
+      createdDate: meta.createdDate,
+      acceptedDate: meta.acceptedDate,
+      salesperson: meta.salesperson,
+      services: lines,
+    };
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Demo invoices (spread across projects, various statuses)
