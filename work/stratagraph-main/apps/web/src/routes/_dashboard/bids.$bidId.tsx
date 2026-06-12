@@ -7,8 +7,6 @@ import {
   AccordionTrigger,
   Badge,
   Button,
-  Card,
-  CardContent,
   PageHeader,
   PageHeaderTitle,
   PageHeaderDescription,
@@ -32,6 +30,7 @@ import {
   Printer,
   XCircle,
 } from 'lucide-react';
+import { customerDisplayName } from '~/lib/display-names';
 import { useStore, deriveBidStatus } from '~/lib/store';
 import { formatDate } from '~/lib/format';
 import { selectServiceCatalog } from '~/data/service-seed';
@@ -62,6 +61,7 @@ function BidDetail() {
   const navigate = useNavigate();
   const bid = useStore((s) => s.getBid(bidId));
   const customer = useStore((s) => (bid ? s.getCustomer(bid.customerId) : undefined));
+  const customers = useStore((s) => s.customers);
   const well = useStore((s) => (bid?.wellId ? s.getWell(bid.wellId) : undefined));
   const acceptBid = useStore((s) => s.acceptBid);
   const catalog = useStore((s) => selectServiceCatalog(s.services));
@@ -114,11 +114,9 @@ function BidDetail() {
           <ArrowLeft />
           Back to Bids
         </Button>
-        <Card>
-          <CardContent className="text-muted-foreground py-12 text-center">
-            Bid not found.
-          </CardContent>
-        </Card>
+        <div className="text-muted-foreground rounded-md border border-dashed p-10 text-center text-sm">
+          Bid not found.
+        </div>
       </div>
     );
   }
@@ -132,8 +130,7 @@ function BidDetail() {
   const status = displayStatus ?? bid.status;
   // Demo bids carry the client name directly as customerId — show it rather
   // than a generic "Bid" when there's no customer record (matches the list).
-  const customerName =
-    customer?.name ?? (bid.customerId.startsWith('cust-') ? 'Bid' : bid.customerId);
+  const customerName = customer?.name ?? customerDisplayName(bid.customerId, customers);
 
   return (
     <div className="space-y-6">

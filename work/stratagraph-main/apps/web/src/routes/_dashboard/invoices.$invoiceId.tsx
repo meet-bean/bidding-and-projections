@@ -17,6 +17,7 @@ import { TicketLifecycleBar } from '~/components/ticket-lifecycle';
 import { InvoiceStatusBadge } from '~/components/status-badges';
 import { buildInvoiceLines, type InvoiceLine } from '~/lib/invoice-builder';
 import type { InvoiceStatus } from '~/lib/types';
+import { resolveInvoiceContext } from '~/lib/display-names';
 
 export const Route = createFileRoute('/_dashboard/invoices/$invoiceId')({
   component: InvoiceDetail,
@@ -59,7 +60,12 @@ function InvoiceDetail() {
   const { invoiceId } = Route.useParams();
   const navigate = useNavigate();
   const ticket = useStore((s) => s.invoices.find((t) => t.id === invoiceId));
-  const job = useStore((s) => (ticket ? s.getJob(ticket.projectId) : undefined));
+  const jobs = useStore((s) => s.jobs);
+  const customers = useStore((s) => s.customers);
+  const projectionProjects = useStore((s) => s.projectionProjects);
+  // Invoices bill a Stratagraph job OR a Superior projection project.
+  const ctx = ticket ? resolveInvoiceContext(ticket, jobs, customers, projectionProjects) : null;
+  const job = ctx?.job;
   const customer = useStore((s) => (job ? s.getCustomer(job.customerId) : undefined));
   const unit = useStore((s) => (job?.unitId ? s.getUnit(job.unitId) : undefined));
   const rig = useStore((s) => (job?.rigId ? s.getRig(job.rigId) : undefined));
@@ -70,35 +76,43 @@ function InvoiceDetail() {
   const setInvoiceStatus = useStore((s) => s.setInvoiceStatus);
   const organization = useStore((s) => s.organization);
 
-  if (!ticket || !job) {
+  if (!ticket || !ctx) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/invoices' })}>
           <ArrowLeft />
           Back to Invoices
         </Button>
-        <Card>
-          <CardContent className="text-muted-foreground py-12 text-center">
-            Invoice not found.
-          </CardContent>
-        </Card>
+        <div className="text-muted-foreground rounded-md border border-dashed p-10 text-center text-sm">
+          Invoice not found.
+        </div>
       </div>
     );
   }
 
-  // Use the canonical Matador lines if available; otherwise reconstruct from activity
+  // Stratagraph job invoices reconstruct lines from daily activity; Superior
+  // project invoices are progress billings — one line at the invoiced total.
   const isMatadorSeed = ticket.id === 'ticket-matador-001';
-  const lines: InvoiceLine[] = isMatadorSeed
-    ? MATADOR_LINES
-    : buildInvoiceLines({
-        job,
-        rangeStart: ticket.rangeStart,
-        rangeEnd: ticket.rangeEnd,
-        bid,
-        catalog,
-        countCodeUnits,
-        sumMileage,
-      });
+  const lines: InvoiceLine[] = !job
+    ? [
+        {
+          description: `Progress billing — ${ctx.title}`,
+          qty: 1,
+          unitPrice: ticket.totalUsd,
+          amount: ticket.totalUsd,
+        },
+      ]
+    : isMatadorSeed
+      ? MATADOR_LINES
+      : buildInvoiceLines({
+          job,
+          rangeStart: ticket.rangeStart,
+          rangeEnd: ticket.rangeEnd,
+          bid,
+          catalog,
+          countCodeUnits,
+          sumMileage,
+        });
 
   const total = lines.reduce((s, l) => s + l.amount, 0);
 
@@ -111,7 +125,7 @@ function InvoiceDetail() {
             <InvoiceStatusBadge status={ticket.status} />
           </div>
           <PageHeaderDescription>
-            {customer?.name} · {job.wellName} · {formatDateRange(ticket.rangeStart, ticket.rangeEnd)}
+            {ctx.customerName} · {ctx.title} · {formatDateRange(ticket.rangeStart, ticket.rangeEnd)}
           </PageHeaderDescription>
         </div>
         <PageHeaderActions>
@@ -167,7 +181,7 @@ function InvoiceDetail() {
               <div className="text-muted-foreground mb-1 mt-3 text-xs font-semibold uppercase">
                 Bill To
               </div>
-              <div className="text-sm font-medium">{customer?.name}</div>
+              <div className="text-sm font-medium">{customer?.name ?? ctx.customerName}</div>
               <div className="text-muted-foreground text-xs">{customer?.billingAddress}</div>
               <div className="text-muted-foreground text-xs">
                 {customer?.city}, {customer?.state} {customer?.zip}
@@ -179,23 +193,32 @@ function InvoiceDetail() {
               ) : null}
             </div>
             <div className="space-y-2 text-xs">
-              <MetaRow label="Unit #" value={unit?.code ?? '—'} />
               <MetaRow label="Invoice #" value={ticket.invoiceNumber} />
               <MetaRow label="Start Date" value={ticket.rangeStart} />
               <MetaRow label="End Date" value={ticket.rangeEnd} />
-              <MetaRow label="API #" value={job.apiNumber ?? '—'} />
-              <MetaRow label="Rig" value={rig?.name ?? '—'} />
-              <MetaRow label="County/State" value={`${job.county ?? '—'}, ${job.state ?? ''}`} />
-              <MetaRow label="AFE" value={job.afe ?? '—'} />
+              {job ? (
+                <>
+                  <MetaRow label="Unit #" value={unit?.code ?? '—'} />
+                  <MetaRow label="API #" value={job.apiNumber ?? '—'} />
+                  <MetaRow label="Rig" value={rig?.name ?? '—'} />
+                  <MetaRow label="County/State" value={`${job.county ?? '—'}, ${job.state ?? ''}`} />
+                  <MetaRow label="AFE" value={job.afe ?? '—'} />
+                </>
+              ) : (
+                <>
+                  <MetaRow label="Job #" value={ctx.jobNumber} />
+                  <MetaRow label="Project Manager" value={ctx.project?.pm ?? '—'} />
+                </>
+              )}
             </div>
           </div>
 
-          {/* Well name */}
-          <div className="bg-muted/40 -mx-2 rounded-md px-3 py-2">
+          {/* Billed scope */}
+          <div className="border-border/60 border-b pb-2">
             <div className="text-muted-foreground text-[10px] font-semibold uppercase">
-              Well Name
+              {job ? 'Well Name' : 'Project'}
             </div>
-            <div className="text-sm font-medium">{job.wellName}</div>
+            <div className="text-sm font-medium">{ctx.title}</div>
           </div>
 
           {/* Services */}
@@ -263,7 +286,7 @@ function InvoiceDetail() {
           <div className="grid grid-cols-2 gap-6 border-t pt-4 text-xs">
             <div>
               <div className="text-muted-foreground mb-1 font-semibold uppercase">Customer Approver</div>
-              <div>{job.companyMan ?? '—'}</div>
+              <div>{job?.companyMan ?? ctx.project?.pm ?? '—'}</div>
               {ticket.signedDate ? (
                 <div className="text-muted-foreground mt-2">Signed {ticket.signedDate}</div>
               ) : null}

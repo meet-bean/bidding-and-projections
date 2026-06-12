@@ -29,6 +29,7 @@ import {
   Sun,
   Truck,
 } from 'lucide-react';
+import { customerDisplayName } from '~/lib/display-names';
 import { useStore, REGION_LABELS } from '~/lib/store';
 import { JobStatusBadge } from '~/components/status-badges';
 import { CHIP_CLASS, CHIP_STATIC_CLASS } from '~/lib/composer';
@@ -545,7 +546,7 @@ function BidPicker({ initialCustomerId }: { initialCustomerId?: string }) {
           ) : (
             <ul className="divide-y rounded-md border">
               {visibleBids.map((b) => {
-                const cust = customers.find((c) => c.id === b.customerId);
+                const custName = customerDisplayName(b.customerId, customers);
                 return (
                   <li key={b.id}>
                     <Link
@@ -556,7 +557,7 @@ function BidPicker({ initialCustomerId }: { initialCustomerId?: string }) {
                       <div className="flex items-center gap-2">
                         <Briefcase className="text-muted-foreground size-4" />
                         <div>
-                          <div className="font-medium">{cust?.name ?? '—'}</div>
+                          <div className="font-medium">{custName}</div>
                           <div className="text-muted-foreground text-xs">
                             v{b.version} · {b.services.length} services · created{' '}
                             {b.createdDate}

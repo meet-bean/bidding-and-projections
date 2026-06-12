@@ -63,6 +63,13 @@ export interface DataListShellProps<TRow extends { id: string }> {
    * reflects the FILTERED set so it doubles as search/filter feedback.
    */
   countLabel?: string;
+  /**
+   * Optional breakdown segments after the count — the platform's info-bar
+   * pattern ("12 jobs · 7 active · 2 scheduled"). Muted text, optional tiny
+   * color dot; replaces per-page status pills/chips (design decision D4-C).
+   * Computed from the FULL dataset so it reads as inventory, not filter state.
+   */
+  countSegments?: { label: string; value: number; dotColor?: string }[];
   actions?: React.ReactNode;
   toolbarExtra?: React.ReactNode;
   defaultPageSize?: number;
@@ -85,6 +92,7 @@ export function DataListShell<TRow extends { id: string }>({
   emptyMessage = 'No results found',
   emptyAction,
   countLabel,
+  countSegments,
   actions,
   toolbarExtra,
   defaultPageSize = 25,
@@ -168,9 +176,25 @@ export function DataListShell<TRow extends { id: string }>({
     <div className="space-y-4">
       {/* Quiet count line — plain header metadata, mirrors the filtered set. */}
       {countLabel ? (
-        <div className="text-sm">
-          <span className="font-medium tabular-nums">{filteredData.length}</span>{' '}
-          <span className="text-muted-foreground">{countLabel}</span>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+          <span>
+            <span className="font-medium tabular-nums">{filteredData.length}</span>{' '}
+            <span className="text-muted-foreground">{countLabel}</span>
+          </span>
+          {countSegments
+            ?.filter((s) => s.value > 0)
+            .map((s) => (
+              <span key={s.label} className="text-muted-foreground flex items-baseline gap-1.5 text-xs">
+                {s.dotColor ? (
+                  <span
+                    className="inline-block size-1.5 self-center rounded-full"
+                    style={{ background: s.dotColor }}
+                  />
+                ) : null}
+                <span className="text-foreground font-medium tabular-nums">{s.value}</span>
+                {s.label}
+              </span>
+            ))}
         </div>
       ) : null}
       {/* Toolbar */}

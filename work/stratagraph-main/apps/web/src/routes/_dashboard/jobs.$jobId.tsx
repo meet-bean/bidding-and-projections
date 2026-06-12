@@ -74,11 +74,9 @@ function JobDetail() {
           <ArrowLeft />
           Back to Jobs
         </Button>
-        <Card>
-          <CardContent className="text-muted-foreground py-12 text-center">
-            Job not found.
-          </CardContent>
-        </Card>
+        <div className="text-muted-foreground rounded-md border border-dashed p-10 text-center text-sm">
+          Job not found.
+        </div>
       </div>
     );
   }

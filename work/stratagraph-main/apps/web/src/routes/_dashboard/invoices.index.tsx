@@ -21,6 +21,7 @@ import { Receipt, Search } from 'lucide-react';
 import { useStore } from '~/lib/store';
 import { formatDateRange } from '~/lib/format';
 import type { Invoice, Job, InvoiceStatus } from '~/lib/types';
+import { resolveInvoiceContext } from '~/lib/display-names';
 import { InvoiceStatusBadge } from '~/components/status-badges';
 import { GenerateInvoiceDialog } from '~/components/generate-invoice-dialog';
 
@@ -49,24 +50,25 @@ function InvoicesPage() {
   const selectedProject = projectionProjects.find((p) => p.id === selectedProjectId);
   const submittedVersions = selectedProject?.versions.filter((v) => v.saved) ?? [];
 
-  // Filter invoices by status pill + free-text search.
+  // Filter invoices by status pill + free-text search. Name resolution goes
+  // through resolveInvoiceContext — invoices can bill a Stratagraph job OR a
+  // Superior projection project.
   const filteredInvoices = useMemo(() => {
     let pool = invoices;
     if (statusFilter !== 'all') pool = pool.filter((t) => t.status === statusFilter);
     const q = search.trim().toLowerCase();
     if (q) {
       pool = pool.filter((t) => {
-        const j = jobs.find((x) => x.id === t.projectId);
-        const c = j ? customers.find((cu) => cu.id === j.customerId) : undefined;
+        const ctx = resolveInvoiceContext(t, jobs, customers, projectionProjects);
         return (
           t.invoiceNumber.toLowerCase().includes(q) ||
-          (j?.wellName.toLowerCase().includes(q) ?? false) ||
-          (c?.name.toLowerCase().includes(q) ?? false)
+          (ctx?.title.toLowerCase().includes(q) ?? false) ||
+          (ctx?.customerName.toLowerCase().includes(q) ?? false)
         );
       });
     }
     return pool;
-  }, [invoices, statusFilter, search, jobs, customers]);
+  }, [invoices, statusFilter, search, jobs, customers, projectionProjects]);
 
   const groups = useMemo(() => {
     const byJob = new Map<string, Invoice[]>();
@@ -77,18 +79,19 @@ function InvoicesPage() {
     }
     return Array.from(byJob.entries())
       .map(([jobId, jobInvoices]) => {
-        const job = jobs.find((j) => j.id === jobId);
-        const customer = job ? customers.find((c) => c.id === job.customerId) : undefined;
         const sorted = [...jobInvoices].sort((a, b) => b.rangeEnd.localeCompare(a.rangeEnd));
+        const ctx = sorted[0]
+          ? resolveInvoiceContext(sorted[0], jobs, customers, projectionProjects)
+          : null;
         const total = sorted.reduce((s, t) => s + t.totalUsd, 0);
-        return { jobId, job, customer, invoices: sorted, total };
+        return { jobId, ctx, invoices: sorted, total };
       })
       .sort((a, b) => {
         const latestA = a.invoices[0]?.rangeEnd ?? '';
         const latestB = b.invoices[0]?.rangeEnd ?? '';
         return latestB.localeCompare(latestA);
       });
-  }, [filteredInvoices, jobs, customers]);
+  }, [filteredInvoices, jobs, customers, projectionProjects]);
 
   const counts = useMemo(() => {
     const c = { all: invoices.length, draft: 0, sent: 0, paid: 0 } as Record<StatusFilter, number>;
@@ -156,9 +159,11 @@ function InvoicesPage() {
             <JobGroup
               key={g.jobId}
               jobId={g.jobId}
-              job={g.job}
-              customerName={g.customer?.name ?? '—'}
-              customerId={g.customer?.id}
+              isJob={Boolean(g.ctx?.job)}
+              title={g.ctx?.title ?? '—'}
+              jobNumber={g.ctx?.jobNumber ?? '—'}
+              customerName={g.ctx?.customerName ?? '—'}
+              customerId={g.ctx?.customerId}
               invoices={g.invoices}
               total={g.total}
               onInvoiceClick={(id) =>
@@ -293,7 +298,9 @@ function InvoicesPage() {
 
 function JobGroup({
   jobId,
-  job,
+  isJob,
+  title,
+  jobNumber,
   customerName,
   customerId,
   invoices,
@@ -301,7 +308,9 @@ function JobGroup({
   onInvoiceClick,
 }: {
   jobId: string;
-  job: Job | undefined;
+  isJob: boolean;
+  title: string;
+  jobNumber: string;
   customerName: string;
   customerId?: string;
   invoices: Invoice[];
@@ -329,15 +338,25 @@ function JobGroup({
             </span>
           )}
           <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
-            <Link
-              to="/jobs/$jobId"
-              params={{ jobId }}
-              className="hover:text-foreground truncate underline-offset-4 hover:underline"
-            >
-              {job?.wellName ?? '—'}
-            </Link>
+            {isJob ? (
+              <Link
+                to="/jobs/$jobId"
+                params={{ jobId }}
+                className="hover:text-foreground truncate underline-offset-4 hover:underline"
+              >
+                {title}
+              </Link>
+            ) : (
+              <Link
+                to="/projections/$projectId"
+                params={{ projectId: jobId }}
+                className="hover:text-foreground truncate underline-offset-4 hover:underline"
+              >
+                {title}
+              </Link>
+            )}
             <span aria-hidden="true">·</span>
-            <span className="font-mono">{job?.jobNumber ?? '—'}</span>
+            <span className="font-mono">{jobNumber}</span>
           </div>
         </div>
         <div className="text-foreground shrink-0 text-base font-semibold tabular-nums tracking-tight">

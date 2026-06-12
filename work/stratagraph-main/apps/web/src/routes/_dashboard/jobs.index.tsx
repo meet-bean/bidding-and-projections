@@ -9,7 +9,7 @@ import {
   createColumnHelper,
   DataGridColumnHeader,
 } from '~/components/data-list-shell';
-import { JobStatusBadge, JOB_STATUS_CLASSES } from '~/components/status-badges';
+import { JobStatusBadge } from '~/components/status-badges';
 
 export const Route = createFileRoute('/_dashboard/jobs/')({
   component: JobsPage,
@@ -249,13 +249,12 @@ function JobsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Status summary strip — at-a-glance counts before scanning the table */}
-      <StatusSummaryStrip rows={rows} />
       <DataListShell
         data={rows}
         columns={columns}
         searchPlaceholder="Search by job #, well, customer..."
         countLabel="jobs"
+        countSegments={statusSegments(rows)}
         searchableKeys={['jobNumber', 'wellName', 'customerName']}
         filters={[
           {
@@ -306,10 +305,9 @@ function JobsPage() {
   );
 }
 
-// Status pill palette comes from the central registry (status-badges.tsx).
-const STATUS_PILL_STYLES = JOB_STATUS_CLASSES;
-
-function StatusSummaryStrip({ rows }: { rows: JobRow[] }) {
+// D4-C: status counts live in the shell's info bar as muted segments — no
+// colored pill row. Lifecycle order; zero buckets hidden by the shell.
+function statusSegments(rows: JobRow[]) {
   const counts = rows.reduce<Record<JobStatus, number>>(
     (acc, r) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
@@ -317,24 +315,10 @@ function StatusSummaryStrip({ rows }: { rows: JobRow[] }) {
     },
     { active: 0, scheduled: 0, speculative: 0, completed: 0, cancelled: 0 }
   );
-  // Render in lifecycle order; hide buckets with zero so the strip stays tight.
   const order: JobStatus[] = ['active', 'scheduled', 'speculative', 'completed', 'cancelled'];
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-      {order.map((status) => {
-        const count = counts[status];
-        if (count === 0) return null;
-        return (
-          <span
-            key={status}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium ${STATUS_PILL_STYLES[status]}`}
-          >
-            <span className="tabular-nums">{count}</span>
-            <span>{JOB_STATUS_LABELS[status]}</span>
-          </span>
-        );
-      })}
-    </div>
-  );
+  return order.map((status) => ({
+    label: JOB_STATUS_LABELS[status].toLowerCase(),
+    value: counts[status],
+  }));
 }
 

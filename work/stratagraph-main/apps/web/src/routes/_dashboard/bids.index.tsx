@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { Badge, Button } from '@repo/ui';
 import { Plus } from 'lucide-react';
+import { customerDisplayName } from '~/lib/display-names';
 import { useStore, deriveBidStatus } from '~/lib/store';
 import { selectServiceCatalog } from '~/data/service-seed';
 import { BidStatusBadge } from '~/components/status-badges';
@@ -59,7 +60,7 @@ function BidsPage() {
         customerId: b.customerId,
         // Demo bids carry the client name directly as customerId — show it
         // rather than an em-dash when there's no customer record.
-        customerName: cust?.name ?? (b.customerId.startsWith('cust-') ? '—' : b.customerId),
+        customerName: customerDisplayName(b.customerId, customers),
         version: b.version,
         status: deriveBidStatus(b, jobs, invoices),
         isActive: b.isActive,

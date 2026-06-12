@@ -90,11 +90,9 @@ function CustomerDetail() {
           <ArrowLeft />
           Back to Customers
         </Button>
-        <Card>
-          <CardContent className="text-muted-foreground py-12 text-center">
-            Customer not found.
-          </CardContent>
-        </Card>
+        <div className="text-muted-foreground rounded-md border border-dashed p-10 text-center text-sm">
+          Customer not found.
+        </div>
       </div>
     );
   }
